@@ -1,8 +1,12 @@
+import { DashboardProvider } from "@/context/DashboardContext";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+
 function Home() {
   return (
-    <div className="w-screen h-screen">
-    </div>
-  )
+    <DashboardProvider>
+      <DashboardLayout />
+    </DashboardProvider>
+  );
 }
 
-export default Home
+export default Home;

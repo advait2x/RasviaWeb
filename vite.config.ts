@@ -19,6 +19,7 @@ export default defineConfig({
   },
   server: {
     // @ts-ignore
-    allowedHosts: true,
+    allowedHosts: process.env.TEMPO === "true" ? true : undefined,
+    host: process.env.TEMPO === "true" ? '0.0.0.0' : undefined,
   }
 });
