@@ -17,14 +17,14 @@ interface AddWalkInModalProps {
 
 export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
   const { addWalkIn } = useDashboard();
-  const [name, setName] = useState("");
+  const [leaderName, setLeaderName] = useState("");
   const [partySize, setPartySize] = useState("");
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = () => {
     const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = "Name is required";
+    if (!leaderName.trim()) newErrors.name = "Party leader name is required";
     if (!partySize || parseInt(partySize) < 1) newErrors.partySize = "Party size must be at least 1";
     if (!phone.trim()) newErrors.phone = "Phone number is required";
 
@@ -33,12 +33,12 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
       return;
     }
 
-    addWalkIn(name.trim(), parseInt(partySize), phone.trim());
+    addWalkIn(leaderName.trim(), parseInt(partySize), phone.trim());
     handleClose();
   };
 
   const handleClose = () => {
-    setName("");
+    setLeaderName("");
     setPartySize("");
     setPhone("");
     setErrors({});
@@ -56,20 +56,27 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
         </DialogHeader>
 
         <div className="p-6 space-y-5">
-          {/* Guest Name */}
+          {/* Party Leader Name */}
           <div>
             <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Guest Name
+              Party Leader Name
             </label>
-            <Input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setErrors((prev) => ({ ...prev, name: "" }));
-              }}
-              placeholder="e.g., Johnson Family"
-              className="h-12 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20"
-            />
+            <div className="relative">
+              <Input
+                value={leaderName}
+                onChange={(e) => {
+                  setLeaderName(e.target.value);
+                  setErrors((prev) => ({ ...prev, name: "" }));
+                }}
+                placeholder="e.g., Johnson"
+                className="h-12 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 pr-28"
+              />
+              {leaderName.trim() && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 pointer-events-none">
+                  → {leaderName.trim()}'s Party
+                </span>
+              )}
+            </div>
             {errors.name && (
               <p className="text-xs text-red-400 mt-1">{errors.name}</p>
             )}

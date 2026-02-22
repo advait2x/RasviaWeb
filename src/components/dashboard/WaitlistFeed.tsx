@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Phone, X, Armchair, MessageSquare, UserPlus } from "lucide-react";
+import { Users, X, Armchair, Bell, BellRing, UserPlus } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { WaitlistEntry } from "@/types/dashboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,7 +24,7 @@ function getWaitBg(minutes: number): string {
 }
 
 export default function WaitlistFeed() {
-  const { waitlist, cancelParty } = useDashboard();
+  const { waitlist, waitlistLoading, cancelParty, notifyParty } = useDashboard();
   const [selectedEntry, setSelectedEntry] = useState<WaitlistEntry | null>(null);
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -100,9 +100,14 @@ export default function WaitlistFeed() {
                     }`}
                   >
                     {/* Guest Name */}
-                    <span className="text-base font-bold text-zinc-100 truncate">
-                      {entry.guestName}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base font-bold text-zinc-100 truncate">
+                        {entry.guestName}
+                      </span>
+                      {entry.notifiedAt && (
+                        <BellRing size={13} strokeWidth={1.5} className="text-emerald-400 shrink-0" />
+                      )}
+                    </div>
 
                     {/* Party Size Badge */}
                     <div className="flex items-center gap-1.5">
@@ -158,10 +163,15 @@ export default function WaitlistFeed() {
                           </motion.button>
                           <motion.button
                             whileTap={{ scale: 0.95 }}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors"
+                            onClick={() => notifyParty(entry.id)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                              entry.notifiedAt
+                                ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                                : "bg-zinc-800 border border-white/10 text-zinc-300 hover:bg-zinc-700"
+                            }`}
                           >
-                            <MessageSquare size={16} strokeWidth={1.5} />
-                            Text Update
+                            <Bell size={16} strokeWidth={1.5} />
+                            {entry.notifiedAt ? "Notified" : "Notify"}
                           </motion.button>
                           <motion.button
                             whileTap={{ scale: 0.95 }}
@@ -180,7 +190,14 @@ export default function WaitlistFeed() {
             })}
           </AnimatePresence>
 
-          {waitingList.length === 0 && (
+          {waitlistLoading && (
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
+              <div className="w-6 h-6 rounded-full border-2 border-zinc-700 border-t-amber-500 animate-spin mb-4" />
+              <p className="text-sm text-zinc-600">Loading waitlist...</p>
+            </div>
+          )}
+
+          {!waitlistLoading && waitingList.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
               <Users size={48} strokeWidth={1} className="mb-4" />
               <p className="text-lg font-medium">No parties waiting</p>

@@ -4,15 +4,17 @@ import { Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
     session: Session | null;
-    restaurantId: number | null; // Changed to number to match your BigInt SQL
+    restaurantId: number | null;
+    isAdmin: boolean;
     loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType>({ session: null, restaurantId: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ session: null, restaurantId: null, isAdmin: false, loading: true });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [restaurantId, setRestaurantId] = useState<number | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -29,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (session) fetchRestaurantId(session.user.id);
             else {
                 setRestaurantId(null);
+                setIsAdmin(false);
                 setLoading(false);
             }
         });
@@ -40,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             const { data, error } = await supabase
                 .from('restaurant_staff')
-                .select('restaurant_id')
+                .select('restaurant_id, role')
                 .eq('user_id', userId)
                 .single();
 
@@ -50,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             if (data) {
                 setRestaurantId(data.restaurant_id);
+                setIsAdmin(data.role === 'admin');
             }
         } catch (error) {
             console.error("Unexpected error:", error);
@@ -59,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ session, restaurantId, loading }}>
+        <AuthContext.Provider value={{ session, restaurantId, isAdmin, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -7,13 +7,14 @@ export interface WaitlistEntry {
   phone: string;
   addedAt: Date;
   status: "waiting" | "seated" | "cancelled";
+  notifiedAt?: Date;
 }
 
 export interface TableInfo {
   id: string;
   tableNumber: number;
   capacity: number;
-  status: "available" | "occupied" | "reserved";
+  status: "available" | "occupied" | "reserved" | "unavailable";
   seatedAt?: Date;
   guestName?: string;
   partySize?: number;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Clock, LogOut, Armchair } from "lucide-react";
+import { Users, Clock, LogOut, Armchair, Plus, Trash2, CheckCircle2, Ban, CalendarClock } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TableInfo } from "@/types/dashboard";
 import {
@@ -25,29 +25,54 @@ function getTimerColor(seatedAt?: Date): string {
   return "text-red-400";
 }
 
+const STATUS_CONFIG = {
+  available: {
+    label: "Available",
+    dot: "bg-emerald-500",
+    border: "border-emerald-500/30 hover:border-emerald-500/60",
+    bg: "bg-zinc-900/40 hover:bg-zinc-800/40",
+    badge: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+  },
+  occupied: {
+    label: "Occupied",
+    dot: "bg-amber-500",
+    border: "border-zinc-700 hover:border-zinc-600",
+    bg: "bg-zinc-800/80",
+    badge: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+  },
+  reserved: {
+    label: "Reserved",
+    dot: "bg-blue-500",
+    border: "border-blue-500/30 hover:border-blue-500/50",
+    bg: "bg-zinc-900/40 hover:bg-zinc-800/30",
+    badge: "bg-blue-500/10 border-blue-500/20 text-blue-400",
+  },
+  unavailable: {
+    label: "Unavailable",
+    dot: "bg-zinc-600",
+    border: "border-zinc-700/50 hover:border-zinc-600/60",
+    bg: "bg-zinc-900/60 hover:bg-zinc-800/40 opacity-60",
+    badge: "bg-zinc-700/30 border-zinc-600/30 text-zinc-500",
+  },
+};
+
+const CAPACITY_OPTIONS = [2, 4, 6, 8, 10, 12];
+
 export default function FloorPlan() {
-  const { tables, clearTable, quickSeatNext, waitlist } = useDashboard();
+  const { tables, clearTable, quickSeatNext, waitlist, setTableStatus, addTable, removeTable } = useDashboard();
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [showAddTable, setShowAddTable] = useState(false);
+  const [newCapacity, setNewCapacity] = useState(4);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
 
   const handleTableTap = (table: TableInfo) => {
-    if (table.status === "available") {
-      // Quick seat next party
-      if (waitingCount > 0) {
-        const seated = quickSeatNext(table.id);
-        if (seated) {
-          showToast(`${seated.guestName} seated at Table ${table.tableNumber}`);
-        }
-      } else {
-        showToast("No parties waiting");
-      }
-    } else if (table.status === "occupied") {
-      setSelectedTable(table);
-      setShowDetails(true);
-    }
+    setSelectedTable(table);
+    setConfirmRemove(false);
+    setShowManage(true);
   };
 
   const showToast = (message: string) => {
@@ -58,10 +83,53 @@ export default function FloorPlan() {
   const handleClearTable = () => {
     if (selectedTable) {
       clearTable(selectedTable.id);
-      setShowDetails(false);
+      setShowManage(false);
       setSelectedTable(null);
-      showToast(`Table ${selectedTable.tableNumber} is now available`);
+      showToast(`Table ${selectedTable.tableNumber} cleared`);
     }
+  };
+
+  const handleQuickSeat = () => {
+    if (selectedTable) {
+      const seated = quickSeatNext(selectedTable.id);
+      if (seated) {
+        showToast(`${seated.guestName} seated at Table ${selectedTable.tableNumber}`);
+      } else {
+        showToast("No parties waiting");
+      }
+      setShowManage(false);
+      setSelectedTable(null);
+    }
+  };
+
+  const handleStatusChange = (status: TableInfo["status"]) => {
+    if (selectedTable) {
+      setTableStatus(selectedTable.id, status);
+      setSelectedTable((prev) => prev ? { ...prev, status } : null);
+      showToast(`Table ${selectedTable.tableNumber} → ${STATUS_CONFIG[status].label}`);
+    }
+  };
+
+  const handleRemoveTable = () => {
+    if (selectedTable) {
+      removeTable(selectedTable.id);
+      setShowManage(false);
+      setSelectedTable(null);
+      setConfirmRemove(false);
+      showToast(`Table ${selectedTable.tableNumber} removed`);
+    }
+  };
+
+  const handleAddTable = () => {
+    addTable(newCapacity);
+    setShowAddTable(false);
+    showToast(`New table added (seats ${newCapacity})`);
+  };
+
+  const closeManage = () => {
+    setShowManage(false);
+    setSelectedTable(null);
+    setConfirmRemove(false);
   };
 
   return (
@@ -71,87 +139,101 @@ export default function FloorPlan() {
         <h2 className="text-lg font-semibold text-zinc-100 tracking-tight">
           Floor Plan
         </h2>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm border-2 border-emerald-500 bg-transparent" />
-            <span className="text-zinc-400">Available</span>
+        <div className="flex items-center gap-4">
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-zinc-400">Available</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <span className="text-zinc-400">Occupied</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-zinc-400">Reserved</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-zinc-600" />
+              <span className="text-zinc-400">Unavailable</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-zinc-700 border border-zinc-600" />
-            <span className="text-zinc-400">Occupied</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm border-2 border-blue-500 bg-transparent" />
-            <span className="text-zinc-400">Reserved</span>
-          </div>
+          {/* Add Table */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowAddTable(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
+          >
+            <Plus size={13} strokeWidth={2} />
+            Add Table
+          </motion.button>
         </div>
       </div>
 
       {/* Floor Grid */}
       <div className="flex-1 p-4 floor-grid rounded-lg mx-4 mb-4">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 h-full content-start">
-          {tables.map((table, index) => (
-            <motion.button
-              key={table.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, delay: index * 0.04 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => handleTableTap(table)}
-              className={`relative p-4 rounded-xl border transition-all duration-200 text-left min-h-[120px] flex flex-col justify-between ${
-                table.status === "available"
-                  ? "bg-zinc-900/40 border-emerald-500/30 hover:border-emerald-500/60 hover:bg-zinc-800/40"
-                  : table.status === "occupied"
-                  ? "bg-zinc-800/80 border-zinc-700 hover:border-zinc-600"
-                  : "bg-zinc-900/40 border-blue-500/30 hover:border-blue-500/50"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <span className="text-2xl font-bold text-zinc-200 tabular-nums">
-                  {table.tableNumber}
-                </span>
-                <div
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    table.status === "available"
-                      ? "bg-emerald-500"
-                      : table.status === "occupied"
-                      ? "bg-amber-500"
-                      : "bg-blue-500"
-                  }`}
-                />
-              </div>
+          {tables.map((table, index) => {
+            const cfg = STATUS_CONFIG[table.status];
+            return (
+              <motion.button
+                key={table.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: index * 0.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => handleTableTap(table)}
+                className={`relative p-4 rounded-xl border transition-all duration-200 text-left min-h-[120px] flex flex-col justify-between ${cfg.bg} ${cfg.border}`}
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-2xl font-bold text-zinc-200 tabular-nums">
+                    {table.tableNumber}
+                  </span>
+                  <div className={`w-2.5 h-2.5 rounded-full mt-1 ${cfg.dot}`} />
+                </div>
 
-              <div className="mt-auto">
-                {table.status === "occupied" && (
-                  <>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Users size={14} strokeWidth={1.5} className="text-zinc-500" />
-                      <span className="text-sm font-medium text-zinc-300">
-                        {table.guestName}
-                      </span>
-                    </div>
+                <div className="mt-auto">
+                  {table.status === "occupied" && (
+                    <>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Users size={14} strokeWidth={1.5} className="text-zinc-500" />
+                        <span className="text-sm font-medium text-zinc-300">
+                          {table.guestName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} strokeWidth={1.5} className={getTimerColor(table.seatedAt)} />
+                        <span className={`text-xs font-medium tabular-nums ${getTimerColor(table.seatedAt)}`}>
+                          {getSeatedDuration(table.seatedAt)} ago
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {table.status === "available" && (
                     <div className="flex items-center gap-1.5">
-                      <Clock size={12} strokeWidth={1.5} className={getTimerColor(table.seatedAt)} />
-                      <span className={`text-xs font-medium tabular-nums ${getTimerColor(table.seatedAt)}`}>
-                        seated {getSeatedDuration(table.seatedAt)} ago
+                      <Armchair size={14} strokeWidth={1.5} className="text-emerald-500/60" />
+                      <span className="text-xs text-zinc-500">
+                        Seats {table.capacity}
                       </span>
                     </div>
-                  </>
-                )}
-                {table.status === "available" && (
-                  <div className="flex items-center gap-1.5">
-                    <Armchair size={14} strokeWidth={1.5} className="text-emerald-500/60" />
-                    <span className="text-xs text-zinc-500">
-                      Seats {table.capacity} · Tap to seat
-                    </span>
-                  </div>
-                )}
-                {table.status === "reserved" && (
-                  <span className="text-xs text-blue-400 font-medium">Reserved</span>
-                )}
-              </div>
-            </motion.button>
-          ))}
+                  )}
+                  {table.status === "reserved" && (
+                    <div className="flex items-center gap-1.5">
+                      <CalendarClock size={14} strokeWidth={1.5} className="text-blue-400/60" />
+                      <span className="text-xs text-blue-400/80">Reserved · Seats {table.capacity}</span>
+                    </div>
+                  )}
+                  {table.status === "unavailable" && (
+                    <div className="flex items-center gap-1.5">
+                      <Ban size={14} strokeWidth={1.5} className="text-zinc-600" />
+                      <span className="text-xs text-zinc-600">Unavailable</span>
+                    </div>
+                  )}
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
@@ -169,52 +251,174 @@ export default function FloorPlan() {
         )}
       </AnimatePresence>
 
-      {/* Party Details Modal */}
-      <Dialog open={showDetails} onOpenChange={(o) => !o && setShowDetails(false)}>
+      {/* Table Management Modal */}
+      <Dialog open={showManage} onOpenChange={(o) => !o && closeManage()}>
         <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
-            <DialogTitle className="text-xl font-bold text-zinc-100 tracking-tight">
-              Table {selectedTable?.tableNumber} Details
-            </DialogTitle>
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-bold text-zinc-100 tracking-tight">
+                Table {selectedTable?.tableNumber}
+              </DialogTitle>
+              {selectedTable && (
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${STATUS_CONFIG[selectedTable.status].badge}`}>
+                  {STATUS_CONFIG[selectedTable.status].label}
+                </span>
+              )}
+            </div>
+            {selectedTable && (
+              <p className="text-xs text-zinc-500 mt-1">Seats {selectedTable.capacity}</p>
+            )}
           </DialogHeader>
+
           {selectedTable && (
-            <div className="p-6 space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-500">Guest</span>
-                  <span className="text-sm font-semibold text-zinc-100">
-                    {selectedTable.guestName}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-500">Party Size</span>
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-                    <Users size={12} strokeWidth={1.5} className="text-amber-500" />
-                    <span className="text-sm font-semibold text-amber-500 tabular-nums">
-                      {selectedTable.partySize}
+            <div className="p-6 space-y-5">
+              {/* Occupied guest info */}
+              {selectedTable.status === "occupied" && (
+                <div className="space-y-2.5 pb-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">Guest</span>
+                    <span className="text-sm font-semibold text-zinc-100">{selectedTable.guestName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">Party Size</span>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
+                      <Users size={12} strokeWidth={1.5} className="text-amber-500" />
+                      <span className="text-sm font-semibold text-amber-500 tabular-nums">{selectedTable.partySize}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">Seated</span>
+                    <span className={`text-sm font-semibold tabular-nums ${getTimerColor(selectedTable.seatedAt)}`}>
+                      {getSeatedDuration(selectedTable.seatedAt)} ago
                     </span>
                   </div>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleClearTable}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors mt-1"
+                  >
+                    <LogOut size={15} strokeWidth={1.5} />
+                    Clear Table
+                  </motion.button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-500">Seated Duration</span>
-                  <span className={`text-sm font-semibold tabular-nums ${getTimerColor(selectedTable.seatedAt)}`}>
-                    {getSeatedDuration(selectedTable.seatedAt)}
-                  </span>
+              )}
+
+              {/* Quick seat button for available tables */}
+              {selectedTable.status === "available" && waitingCount > 0 && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleQuickSeat}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 transition-colors"
+                >
+                  <Users size={15} strokeWidth={1.5} />
+                  Seat Next Party ({waitingCount} waiting)
+                </motion.button>
+              )}
+
+              {/* Status section */}
+              <div>
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2.5">Set Status</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["available", "reserved", "unavailable"] as const).map((s) => (
+                    <motion.button
+                      key={s}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleStatusChange(s)}
+                      disabled={selectedTable.status === s}
+                      className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
+                        selectedTable.status === s
+                          ? `${STATUS_CONFIG[s].badge} opacity-100 cursor-default`
+                          : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
+                      }`}
+                    >
+                      {s === "available" && <CheckCircle2 size={15} strokeWidth={1.5} />}
+                      {s === "reserved" && <CalendarClock size={15} strokeWidth={1.5} />}
+                      {s === "unavailable" && <Ban size={15} strokeWidth={1.5} />}
+                      {STATUS_CONFIG[s].label}
+                      {selectedTable.status === s && (
+                        <span className="text-[9px] opacity-60">current</span>
+                      )}
+                    </motion.button>
+                  ))}
                 </div>
               </div>
 
-              <div className="pt-2">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleClearTable}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors"
-                >
-                  <LogOut size={16} strokeWidth={1.5} />
-                  Clear Table
-                </motion.button>
+              {/* Remove table */}
+              <div className="pt-1 border-t border-white/5">
+                {confirmRemove ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-400 text-center">Remove Table {selectedTable.tableNumber}?</p>
+                    <div className="flex gap-2">
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setConfirmRemove(false)}
+                        className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                      >
+                        Cancel
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleRemoveTable}
+                        className="flex-1 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
+                      >
+                        Yes, Remove
+                      </motion.button>
+                    </div>
+                  </div>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setConfirmRemove(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-zinc-600 text-xs font-medium hover:text-red-400 hover:bg-red-500/5 transition-colors"
+                  >
+                    <Trash2 size={13} strokeWidth={1.5} />
+                    Remove Table
+                  </motion.button>
+                )}
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Table Modal */}
+      <Dialog open={showAddTable} onOpenChange={setShowAddTable}>
+        <DialogContent className="glass-modal max-w-xs border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
+            <DialogTitle className="text-lg font-bold text-zinc-100 tracking-tight">
+              Add New Table
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div>
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Capacity</p>
+              <div className="grid grid-cols-3 gap-2">
+                {CAPACITY_OPTIONS.map((cap) => (
+                  <motion.button
+                    key={cap}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setNewCapacity(cap)}
+                    className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
+                      newCapacity === cap
+                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
+                        : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
+                    }`}
+                  >
+                    {cap}
+                    <span className="text-[10px] font-normal opacity-60">seats</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleAddTable}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 transition-colors"
+            >
+              <Plus size={15} strokeWidth={2} />
+              Add Table (seats {newCapacity})
+            </motion.button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
