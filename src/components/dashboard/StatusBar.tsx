@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { Users, Clock, Minus, Plus } from "lucide-react";
+import { Users } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { Switch } from "@/components/ui/switch";
+import { WaitTimeWidget } from "@/components/WaitTimeWidget";
 
 export default function StatusBar() {
   const {
@@ -25,17 +26,15 @@ export default function StatusBar() {
           <Switch
             checked={waitlistOpen}
             onCheckedChange={setWaitlistOpen}
-            className={`${
-              waitlistOpen
-                ? "data-[state=checked]:bg-emerald-500"
-                : "data-[state=unchecked]:bg-zinc-700"
-            }`}
+            className={`${waitlistOpen
+              ? "data-[state=checked]:bg-emerald-500"
+              : "data-[state=unchecked]:bg-zinc-700"
+              }`}
           />
           <motion.span
             animate={{ opacity: 1 }}
-            className={`text-sm font-medium tracking-tight ${
-              waitlistOpen ? "text-emerald-400" : "text-zinc-500"
-            }`}
+            className={`text-sm font-medium tracking-tight ${waitlistOpen ? "text-emerald-400" : "text-zinc-500"
+              }`}
           >
             {waitlistOpen ? "Waitlist Open" : "Waitlist Closed"}
           </motion.span>
@@ -54,31 +53,7 @@ export default function StatusBar() {
       </div>
 
       {/* Center: Current Wait Time */}
-      <div className="flex items-center gap-3">
-        <Clock size={18} strokeWidth={1.5} className="text-zinc-500" />
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setCurrentWaitTime(Math.max(0, currentWaitTime - 5))}
-            className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            <Minus size={14} strokeWidth={1.5} />
-          </motion.button>
-          <div className="flex items-baseline gap-1">
-            <span className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">
-              {currentWaitTime}
-            </span>
-            <span className="text-sm text-zinc-500 font-medium">min</span>
-          </div>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setCurrentWaitTime(currentWaitTime + 5)}
-            className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            <Plus size={14} strokeWidth={1.5} />
-          </motion.button>
-        </div>
-      </div>
+      <WaitTimeWidget />
 
       {/* Right: Table Stats */}
       <div className="flex items-center gap-4">
