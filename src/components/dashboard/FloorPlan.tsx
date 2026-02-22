@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Clock, LogOut, Armchair, Plus, Trash2, CheckCircle2, Ban, CalendarClock } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
-import { TableInfo } from "@/types/dashboard";
+import { TableInfo, WaitlistEntry } from "@/types/dashboard";
 import {
   Dialog,
   DialogContent,
@@ -59,15 +59,23 @@ const STATUS_CONFIG = {
 const CAPACITY_OPTIONS = [2, 4, 6, 8, 10, 12];
 
 export default function FloorPlan() {
-  const { tables, clearTable, quickSeatNext, waitlist, setTableStatus, addTable, removeTable } = useDashboard();
+  const { tables, clearTable, seatParty, waitlist, setTableStatus, addTable, removeTable } = useDashboard();
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
   const [showManage, setShowManage] = useState(false);
   const [showAddTable, setShowAddTable] = useState(false);
   const [newCapacity, setNewCapacity] = useState(4);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [pickingParty, setPickingParty] = useState(false);
+  const [confirmSeat, setConfirmSeat] = useState<WaitlistEntry | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
+
+  const eligibleParties = selectedTable
+    ? waitlist
+        .filter((w) => w.status === "waiting" && w.partySize <= selectedTable.capacity)
+        .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
+    : [];
 
   const handleTableTap = (table: TableInfo) => {
     setSelectedTable(table);
@@ -89,14 +97,14 @@ export default function FloorPlan() {
     }
   };
 
-  const handleQuickSeat = () => {
-    if (selectedTable) {
-      const seated = quickSeatNext(selectedTable.id);
-      if (seated) {
-        showToast(`${seated.guestName} seated at Table ${selectedTable.tableNumber}`);
-      } else {
-        showToast("No parties waiting");
-      }
+  const handleConfirmSeat = async () => {
+    if (selectedTable && confirmSeat) {
+      const guestName = confirmSeat.guestName;
+      const tableNum = selectedTable.tableNumber;
+      await seatParty(confirmSeat.id, selectedTable.id);
+      showToast(`${guestName} seated at Table ${tableNum}`);
+      setConfirmSeat(null);
+      setPickingParty(false);
       setShowManage(false);
       setSelectedTable(null);
     }
@@ -130,6 +138,8 @@ export default function FloorPlan() {
     setShowManage(false);
     setSelectedTable(null);
     setConfirmRemove(false);
+    setPickingParty(false);
+    setConfirmSeat(null);
   };
 
   return (
@@ -303,16 +313,106 @@ export default function FloorPlan() {
                 </div>
               )}
 
-              {/* Quick seat button for available tables */}
+              {/* Quick seat section for available tables */}
               {selectedTable.status === "available" && waitingCount > 0 && (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleQuickSeat}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 transition-colors"
-                >
-                  <Users size={15} strokeWidth={1.5} />
-                  Seat Next Party ({waitingCount} waiting)
-                </motion.button>
+                <div>
+                  {confirmSeat ? (
+                    /* Step 3: Confirm the selected party */
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Confirm Seating</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-zinc-100">{confirmSeat.guestName}</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Users size={12} strokeWidth={1.5} className="text-amber-500" />
+                            <span className="text-xs font-semibold text-amber-500">
+                              {confirmSeat.partySize} guests
+                            </span>
+                            <span className="text-zinc-600 mx-1">·</span>
+                            <span className="text-xs text-zinc-500">
+                              {Math.floor((Date.now() - confirmSeat.addedAt.getTime()) / 60000)}m waiting
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-zinc-500">→ Table {selectedTable.tableNumber}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => { setConfirmSeat(null); setPickingParty(true); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                        >
+                          Back
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleConfirmSeat}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 transition-colors"
+                        >
+                          <CheckCircle2 size={14} strokeWidth={2} />
+                          Confirm
+                        </motion.button>
+                      </div>
+                    </div>
+                  ) : pickingParty ? (
+                    /* Step 2: Pick which eligible party to seat */
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                          Choose a Party
+                        </p>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setPickingParty(false)}
+                          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        >
+                          Cancel
+                        </motion.button>
+                      </div>
+                      <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+                        {eligibleParties.map((party) => {
+                          const waited = Math.floor((Date.now() - party.addedAt.getTime()) / 60000);
+                          return (
+                            <motion.button
+                              key={party.id}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => { setConfirmSeat(party); setPickingParty(false); }}
+                              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-zinc-800/60 border border-white/8 hover:bg-zinc-700/60 hover:border-emerald-500/30 transition-all text-left"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-zinc-100">{party.guestName}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Users size={11} strokeWidth={1.5} className="text-amber-500" />
+                                  <span className="text-xs text-amber-500 font-medium">{party.partySize}</span>
+                                </div>
+                              </div>
+                              <span className={`text-xs font-semibold tabular-nums ${
+                                waited < 15 ? "text-emerald-400" : waited <= 30 ? "text-amber-400" : "text-red-400"
+                              }`}>
+                                {waited}m
+                              </span>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : eligibleParties.length > 0 ? (
+                    /* Step 1: Initial button */
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setPickingParty(true)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 transition-colors"
+                    >
+                      <Users size={15} strokeWidth={1.5} />
+                      Seat a Party · {eligibleParties.length} eligible
+                    </motion.button>
+                  ) : (
+                    <div className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800/40 border border-white/5 text-zinc-500 text-sm">
+                      <Users size={15} strokeWidth={1.5} />
+                      No parties fit (table seats {selectedTable.capacity})
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Status section */}

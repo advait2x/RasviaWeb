@@ -208,12 +208,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const quickSeatNext = useCallback(async (tableId: string): Promise<WaitlistEntry | null> => {
-    const waiting = waitlist.filter((w) => w.status === "waiting");
+    const table = tables.find((t) => t.id === tableId);
+    if (!table) return null;
+    const waiting = waitlist.filter(
+      (w) => w.status === "waiting" && w.partySize <= table.capacity
+    );
     if (waiting.length === 0) return null;
     const next = waiting[0];
     await seatParty(next.id, tableId);
     return next;
-  }, [waitlist, seatParty]);
+  }, [waitlist, tables, seatParty]);
 
   // ── Table mutations (local only for now) ─────────────────────────────────
 

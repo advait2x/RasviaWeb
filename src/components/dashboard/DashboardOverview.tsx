@@ -84,7 +84,7 @@ export default function DashboardOverview() {
   ];
 
   return (
-    <div className="flex flex-col h-full p-4">
+    <div className="flex flex-col h-full p-4 overflow-y-auto">
       <h2 className="text-lg font-semibold text-zinc-100 tracking-tight mb-4">
         Dashboard Overview
       </h2>
