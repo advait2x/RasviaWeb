@@ -25,7 +25,7 @@ interface DashboardState {
   cancelParty: (waitlistId: string) => Promise<void>;
   notifyParty: (waitlistId: string) => Promise<void>;
   toggleMenuItem: (itemId: string) => void;
-  addMenuItem: (data: Omit<MenuItem, "id">) => Promise<void>;
+  addMenuItem: (data: Omit<MenuItem, "id">, force?: boolean) => Promise<void>;
   updateMenuItem: (id: string, data: Partial<Omit<MenuItem, "id">>) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
   markNotificationsRead: () => void;
@@ -188,19 +188,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchMenuItems = useCallback(async () => {
     if (!restaurantId) return;
-    // Don't filter by restaurant_id so pre-existing items without it still load.
-    // New items are tagged on insert.
     const { data, error } = await supabase
       .from("menu_items")
       .select("*")
-      .order("created_at", { ascending: true });
+      .eq("restaurant_id", restaurantId);
 
     if (error) {
       console.error("fetchMenuItems failed:", error.message);
       setMenuLoading(false);
       return;
     }
-    setMenuItems((data ?? []).map(mapMenuItem));
+
+    // Sort array in memory by name
+    const items = (data ?? []).map(mapMenuItem).sort((a, b) => a.name.localeCompare(b.name));
+    setMenuItems(items);
     setMenuLoading(false);
   }, [restaurantId]);
 
@@ -336,9 +337,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
   }, [menuItems]);
 
-  const addMenuItem = useCallback(async (data: Omit<MenuItem, "id">) => {
+  const addMenuItem = useCallback(async (data: Omit<MenuItem, "id">, force: boolean = false) => {
     if (!restaurantId) throw new Error("Not authenticated");
-    const { error } = await supabase.from("menu_items").insert({
+
+    // Check for duplicates
+    if (!force) {
+      const isDuplicate = menuItems.some(
+        (item) => item.name.trim().toLowerCase() === data.name.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        throw new Error("Duplicate Item");
+      }
+    }
+
+    const { data: insertedData, error } = await supabase.from("menu_items").insert({
       restaurant_id: restaurantId,
       name: data.name,
       description: data.description,
@@ -346,9 +359,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       image_url: data.imageUrl,
       meal_times: data.mealTimes,
       in_stock: data.inStock,
-    });
+    }).select().single();
     if (error) throw new Error(error.message);
-  }, [restaurantId]);
+    if (insertedData) {
+      setMenuItems((prev) => [...prev, mapMenuItem(insertedData)]);
+    }
+  }, [restaurantId, menuItems]);
 
   const updateMenuItem = useCallback(async (id: string, data: Partial<Omit<MenuItem, "id">>) => {
     const patch: Record<string, unknown> = {};
@@ -358,13 +374,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
     if (data.mealTimes !== undefined) patch.meal_times = data.mealTimes;
     if (data.inStock !== undefined) patch.in_stock = data.inStock;
-    const { error } = await supabase.from("menu_items").update(patch).eq("id", id);
+    const { data: updatedData, error } = await supabase.from("menu_items").update(patch).eq("id", id).select().single();
     if (error) throw new Error(error.message);
+    if (updatedData) {
+      setMenuItems((prev) => prev.map((m) => m.id === id ? mapMenuItem(updatedData) : m));
+    }
   }, []);
 
   const deleteMenuItem = useCallback(async (id: string) => {
     const { error } = await supabase.from("menu_items").delete().eq("id", id);
-    if (error) console.error("deleteMenuItem failed:", error.message);
+    if (error) {
+      console.error("deleteMenuItem failed:", error.message);
+    } else {
+      setMenuItems((prev) => prev.filter((m) => m.id !== id));
+    }
   }, []);
 
   // ── Notification helpers ──────────────────────────────────────────────────

@@ -8,6 +8,8 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
+import { useAuth } from "@/context/AuthContext";
+import LiveGroupWidget from "@/components/LiveGroupWidget";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
@@ -15,6 +17,7 @@ function getWaitMinutes(addedAt: Date): number {
 
 export default function DashboardOverview() {
   const { waitlist, tables, menuItems } = useDashboard();
+  const { restaurantId } = useAuth();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
   const occupiedCount = tables.filter((t) => t.status === "occupied").length;
@@ -23,19 +26,19 @@ export default function DashboardOverview() {
   const avgWait =
     waitingCount > 0
       ? Math.round(
-          waitlist
-            .filter((w) => w.status === "waiting")
-            .reduce((acc, w) => acc + getWaitMinutes(w.addedAt), 0) / waitingCount
-        )
+        waitlist
+          .filter((w) => w.status === "waiting")
+          .reduce((acc, w) => acc + getWaitMinutes(w.addedAt), 0) / waitingCount
+      )
       : 0;
 
   const longestWait =
     waitingCount > 0
       ? Math.max(
-          ...waitlist
-            .filter((w) => w.status === "waiting")
-            .map((w) => getWaitMinutes(w.addedAt))
-        )
+        ...waitlist
+          .filter((w) => w.status === "waiting")
+          .map((w) => getWaitMinutes(w.addedAt))
+      )
       : 0;
 
   const stats = [
@@ -114,51 +117,60 @@ export default function DashboardOverview() {
         ))}
       </div>
 
-      {/* Quick Waitlist Preview */}
-      {waitingCount > 0 && (
-        <div className="mt-6 glass-card rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
-            Next Up
-          </h3>
-          <div className="space-y-2">
-            {waitlist
-              .filter((w) => w.status === "waiting")
-              .slice(0, 3)
-              .map((entry) => {
-                const minutes = getWaitMinutes(entry.addedAt);
-                return (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-zinc-200">
-                        {entry.guestName}
-                      </span>
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-                        <Users size={12} strokeWidth={1.5} className="text-amber-500" />
-                        <span className="text-xs font-semibold text-amber-500 tabular-nums">
-                          {entry.partySize}
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-sm font-semibold tabular-nums ${
-                        minutes < 15
-                          ? "text-emerald-400"
-                          : minutes <= 30
-                          ? "text-amber-400"
-                          : "text-red-400"
-                      }`}
+      {/* Lower Section Grid */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
+        {/* Quick Waitlist Preview */}
+        {waitingCount > 0 ? (
+          <div className="glass-card rounded-xl p-4 flex flex-col">
+            <h3 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
+              Next Up
+            </h3>
+            <div className="space-y-2">
+              {waitlist
+                .filter((w) => w.status === "waiting")
+                .slice(0, 3)
+                .map((entry) => {
+                  const minutes = getWaitMinutes(entry.addedAt);
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
                     >
-                      {minutes}m
-                    </span>
-                  </div>
-                );
-              })}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-zinc-200">
+                          {entry.guestName}
+                        </span>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
+                          <Users size={12} strokeWidth={1.5} className="text-amber-500" />
+                          <span className="text-xs font-semibold text-amber-500 tabular-nums">
+                            {entry.partySize}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-sm font-semibold tabular-nums ${minutes < 15
+                            ? "text-emerald-400"
+                            : minutes <= 30
+                              ? "text-amber-400"
+                              : "text-red-400"
+                          }`}
+                      >
+                        {minutes}m
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="glass-card rounded-xl p-4 flex items-center justify-center text-zinc-500 text-sm">
+            No parties currently waiting.
+          </div>
+        )}
+
+        {/* Live Group Widget */}
+        {restaurantId && <LiveGroupWidget restaurantId={restaurantId} />}
+      </div>
     </div>
   );
 }

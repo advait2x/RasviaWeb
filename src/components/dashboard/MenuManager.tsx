@@ -22,10 +22,10 @@ import { useAuth } from "@/context/AuthContext";
 
 const MEAL_TIMES: { value: MealTime; label: string; icon: typeof Coffee; color: string }[] = [
   { value: "breakfast", label: "Breakfast", icon: Coffee, color: "bg-orange-500/10 border-orange-500/30 text-orange-400" },
-  { value: "lunch",     label: "Lunch",     icon: Sun,    color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
-  { value: "dinner",    label: "Dinner",    icon: Moon,   color: "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" },
-  { value: "specials",  label: "Specials",  icon: Star,   color: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
-  { value: "all_day",   label: "All Day",   icon: Clock,  color: "bg-sky-500/10 border-sky-500/30 text-sky-400" },
+  { value: "lunch", label: "Lunch", icon: Sun, color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
+  { value: "dinner", label: "Dinner", icon: Moon, color: "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" },
+  { value: "specials", label: "Specials", icon: Star, color: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
+  { value: "all_day", label: "All Day", icon: Clock, color: "bg-sky-500/10 border-sky-500/30 text-sky-400" },
 ];
 
 function getMealTimeConfig(value: MealTime) {
@@ -74,15 +74,20 @@ function ItemFormDialog({
   open: boolean;
   item: MenuItem | null;
   onClose: () => void;
-  onSave: (data: Omit<MenuItem, "id">) => Promise<void>;
+  onSave: (data: Omit<MenuItem, "id">, force?: boolean) => Promise<void>;
 }) {
   const { restaurantId } = useAuth();
   const [form, setForm] = useState<FormState>(() => item ? itemToForm(item) : emptyForm());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [nameError, setNameError] = useState(false);
+  const [priceError, setPriceError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Custom Duplicate Confirmation State
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
 
@@ -120,14 +125,27 @@ function ItemFormDialog({
     setUploading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (force: boolean = false) => {
+    let hasError = false;
     if (!form.name.trim()) {
       setNameError(true);
-      return;
+      hasError = true;
+    } else {
+      setNameError(false);
     }
-    setNameError(false);
+
+    if (!form.price || isNaN(parseFloat(form.price))) {
+      setPriceError(true);
+      hasError = true;
+    } else {
+      setPriceError(false);
+    }
+
+    if (hasError) return;
+
     setSaveError(null);
     setSaving(true);
+    setShowDuplicateConfirm(false);
     try {
       await onSave({
         name: form.name.trim(),
@@ -136,10 +154,14 @@ function ItemFormDialog({
         imageUrl: form.imageUrl.trim() || null,
         mealTimes: form.mealTimes,
         inStock: form.inStock,
-      });
+      }, force);
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Something went wrong. Check the console.");
+      if (err instanceof Error && err.message === "Duplicate Item") {
+        setShowDuplicateConfirm(true);
+        return;
+      }
+      setSaveError("Something went wrong. Check the console for more details.");
     } finally {
       setSaving(false);
     }
@@ -177,9 +199,8 @@ function ItemFormDialog({
                 value={form.name}
                 onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); if (nameError) setNameError(false); }}
                 placeholder="e.g. Wagyu Tartare"
-                className={`h-10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 ${
-                  nameError ? "border-red-500/60 focus:border-red-500" : "border-white/10"
-                }`}
+                className={`h-10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 ${nameError ? "border-red-500/60 focus:border-red-500" : "border-white/10"
+                  }`}
               />
               {nameError && (
                 <p className="text-xs text-red-400 flex items-center gap-1">
@@ -202,19 +223,27 @@ function ItemFormDialog({
 
             {/* Price */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Price</label>
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Price <span className="text-red-400">*</span>
+              </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">$</span>
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${priceError ? "text-red-400" : "text-zinc-500"}`}>$</span>
                 <Input
                   type="number"
                   min={0}
                   step={0.01}
                   value={form.price}
-                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, price: e.target.value })); if (priceError) setPriceError(false); }}
                   placeholder="0.00"
-                  className="h-10 pl-7 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
+                  className={`h-10 pl-7 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 ${priceError ? "border-red-500/50 focus:border-red-500" : "border-white/10"
+                    }`}
                 />
               </div>
+              {priceError && (
+                <p className="text-xs text-red-400 flex items-center gap-1">
+                  <X size={11} strokeWidth={2} /> Price is required
+                </p>
+              )}
             </div>
 
             {/* Image */}
@@ -257,9 +286,8 @@ function ItemFormDialog({
                       key={value}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => toggleMealTime(value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                        active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
-                      }`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
+                        }`}
                     >
                       <Icon size={12} strokeWidth={1.5} />
                       {label}
@@ -285,11 +313,22 @@ function ItemFormDialog({
         </ScrollArea>
 
         {/* Save error */}
-        {saveError && (
-          <div className="mx-6 mb-3 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-xs text-red-400">
-            <span className="font-semibold">Error: </span>{saveError}
-          </div>
-        )}
+        <AnimatePresence>
+          {saveError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mx-6 mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col items-center justify-center text-center gap-1.5"
+            >
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                <X size={16} strokeWidth={2} />
+              </div>
+              <p className="text-xs font-medium text-red-200">Failed to save item</p>
+              <p className="text-xs text-red-400/80">{saveError}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-white/5 flex items-center gap-3 justify-end">
@@ -303,8 +342,8 @@ function ItemFormDialog({
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleSave}
-            disabled={!form.name.trim() || saving}
+            onClick={() => handleSave(false)}
+            disabled={saving}
             className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check size={14} strokeWidth={2} />
@@ -312,6 +351,38 @@ function ItemFormDialog({
           </motion.button>
         </div>
       </DialogContent>
+
+      <Dialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <span className="text-2xl">🤔</span>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-zinc-100 tracking-tight">Duplicate Item</h3>
+              <p className="text-sm text-zinc-400">
+                You already have an item named <span className="font-semibold text-zinc-200">"{form.name}"</span> on your menu. Are you sure you want to add it again?
+              </p>
+            </div>
+            <div className="flex items-center gap-3 w-full pt-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowDuplicateConfirm(false)}
+                className="flex-1 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleSave(true)}
+                className="flex-1 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors"
+              >
+                Add Anyway
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -348,11 +419,13 @@ export default function MenuManager() {
 
   const outOfStock = menuItems.filter((m) => !m.inStock).length;
 
-  const handleSave = async (data: Omit<MenuItem, "id">) => {
+  const handleSave = async (data: Omit<MenuItem, "id">, force?: boolean) => {
     if (editingItem) {
+      // updateMenuItem takes (id, data), 'force' is not applicable for edits
       await updateMenuItem(editingItem.id, data);
     } else {
-      await addMenuItem(data);
+      // addMenuItem takes (data, force)
+      await addMenuItem(data, force);
     }
   };
 
@@ -404,9 +477,8 @@ export default function MenuManager() {
               key={value}
               whileTap={{ scale: 0.95 }}
               onClick={() => toggleFilter(value)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${
-                active ? color : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
-              }`}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${active ? color : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
+                }`}
             >
               <Icon size={11} strokeWidth={1.5} />
               {label}
@@ -466,11 +538,10 @@ export default function MenuManager() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.15, delay: index * 0.02 }}
-                className={`rounded-xl border transition-all duration-200 ${
-                  item.inStock
-                    ? "bg-zinc-800/40 border-white/5 hover:border-white/10"
-                    : "bg-red-500/5 border-red-500/10"
-                }`}
+                className={`rounded-xl border transition-all duration-200 ${item.inStock
+                  ? "bg-zinc-800/40 border-white/5 hover:border-white/10"
+                  : "bg-red-500/5 border-red-500/10"
+                  }`}
               >
                 <div className="flex items-start gap-3 p-3">
                   {/* Thumbnail */}

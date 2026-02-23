@@ -4,8 +4,13 @@ import { useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
 import Home from "./components/home";
+import JoinBridge from "./pages/JoinBridge";
 
 function AppContent() {
+  if (window.location.pathname.startsWith('/join')) {
+    return <JoinBridge />;
+  }
+
   const { session, restaurantId, loading } = useAuth();
 
   if (loading) {
