@@ -24,7 +24,7 @@ export default function JoinBridge() {
         } else {
             // DEVELOPMENT (Testing on your phone via Expo Go)
             // Replace with the specific LAN IP that Expo Go displays when running your mobile app
-            appScheme = `exp://172.20.10.5:8081/--/join/${sessionId}`;
+            appScheme = `exp://192.168.1.96:8081/--/join/${sessionId}`;
         }
 
         setSchemeUrl(appScheme);

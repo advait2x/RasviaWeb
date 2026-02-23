@@ -74,12 +74,25 @@ export default function Sidebar() {
   return (
     <TooltipProvider delayDuration={200}>
       <aside className="fixed left-0 top-0 h-screen w-20 glass-card flex flex-col items-center py-6 z-50">
-        {/* Logo */}
-        <div className="mb-8 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-            <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
-          </div>
-        </div>
+        {/* Logo / Profile — click to go to settings */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.button
+              whileTap={{ scale: 0.93 }}
+              onClick={() => setActiveView("settings")}
+              className={`mb-8 w-10 h-10 rounded-lg border flex items-center justify-center transition-colors ${
+                activeView === "settings"
+                  ? "bg-amber-500/20 border-amber-500/50"
+                  : "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+              }`}
+            >
+              <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
+            </motion.button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700">
+            Restaurant Profile
+          </TooltipContent>
+        </Tooltip>
 
         {/* Nav — evenly distributed across remaining height */}
         <nav className="flex-1 flex flex-col items-center justify-evenly w-full">

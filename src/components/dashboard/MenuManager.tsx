@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
-  Coffee, Sun, Moon, Star, Clock,
+  Coffee, Sun, Moon, Star, Clock, ArrowUpDown,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { MenuItem, MealTime } from "@/types/dashboard";
@@ -48,9 +48,12 @@ const emptyForm = (): FormState => ({
   description: "",
   price: "",
   imageUrl: "",
-  mealTimes: [],
+  mealTimes: ["all_day"],
   inStock: true,
 });
+
+// The three specific times that together equal "all day"
+const SPECIFIC_TIMES: MealTime[] = ["breakfast", "lunch", "dinner"];
 
 function itemToForm(item: MenuItem): FormState {
   return {
@@ -92,12 +95,39 @@ function ItemFormDialog({
 
 
   const toggleMealTime = (mt: MealTime) => {
-    setForm((f) => ({
-      ...f,
-      mealTimes: f.mealTimes.includes(mt)
-        ? f.mealTimes.filter((x) => x !== mt)
-        : [...f.mealTimes, mt],
-    }));
+    setForm((f) => {
+      const cur = f.mealTimes;
+
+      // "All Day" button clicked — just ensure all_day is set
+      if (mt === "all_day") return { ...f, mealTimes: ["all_day"] };
+
+      // Specials is exclusive — clicking it clears everything else
+      if (mt === "specials") {
+        if (cur.includes("specials")) return f; // already only specials, keep it (enforce at-least-one)
+        return { ...f, mealTimes: ["specials"] };
+      }
+
+      // Clicking a specific time while in all_day or specials mode → switch to specific mode
+      if (cur.includes("all_day") || cur.includes("specials")) {
+        return { ...f, mealTimes: [mt] };
+      }
+
+      // Already in specific mode — toggle the time
+      let next: MealTime[];
+      if (cur.includes(mt)) {
+        next = cur.filter((x) => x !== mt);
+        if (next.length === 0) return f; // enforce at-least-one
+      } else {
+        next = [...cur, mt];
+      }
+
+      // If all three specific times selected → auto-switch back to all_day
+      if (SPECIFIC_TIMES.every((t) => next.includes(t))) {
+        return { ...f, mealTimes: ["all_day"] };
+      }
+
+      return { ...f, mealTimes: next };
+    });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,18 +306,28 @@ function ItemFormDialog({
             {/* Meal Times */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Served During
+                Served During <span className="text-red-400">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {MEAL_TIMES.map(({ value, label, icon: Icon, color }) => {
                   const active = form.mealTimes.includes(value);
+                  const isAllDay = value === "all_day";
+                  // Hide "All Day" button when user is in specific-times mode
+                  const inSpecificMode = !form.mealTimes.includes("all_day");
+                  if (isAllDay && inSpecificMode) return null;
                   return (
                     <motion.button
                       key={value}
+                      layout
                       whileTap={{ scale: 0.95 }}
                       onClick={() => toggleMealTime(value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
-                        }`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.15 }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                        active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
+                      }`}
                     >
                       <Icon size={12} strokeWidth={1.5} />
                       {label}
@@ -389,10 +429,21 @@ function ItemFormDialog({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name_asc",   label: "Name A–Z" },
+  { value: "name_desc",  label: "Name Z–A" },
+  { value: "price_asc",  label: "Price ↑" },
+  { value: "price_desc", label: "Price ↓" },
+];
+
 export default function MenuManager() {
   const { menuItems, menuLoading, toggleMenuItem, addMenuItem, updateMenuItem, deleteMenuItem } = useDashboard();
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("name_asc");
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -414,8 +465,15 @@ export default function MenuManager() {
         (m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)
       );
     }
-    return items;
-  }, [menuItems, search, activeFilters]);
+    return [...items].sort((a, b) => {
+      switch (sortKey) {
+        case "name_asc":   return a.name.localeCompare(b.name);
+        case "name_desc":  return b.name.localeCompare(a.name);
+        case "price_asc":  return (a.price ?? 0) - (b.price ?? 0);
+        case "price_desc": return (b.price ?? 0) - (a.price ?? 0);
+      }
+    });
+  }, [menuItems, search, activeFilters, sortKey]);
 
   const outOfStock = menuItems.filter((m) => !m.inStock).length;
 
@@ -458,14 +516,53 @@ export default function MenuManager() {
             </p>
           )}
         </div>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={openAdd}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
-        >
-          <Plus size={14} strokeWidth={2} />
-          Add Item
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {/* Sort */}
+          <div className="relative">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowSortMenu((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 transition-colors"
+            >
+              <ArrowUpDown size={13} strokeWidth={1.5} />
+              {SORT_OPTIONS.find((s) => s.value === sortKey)?.label}
+            </motion.button>
+            <AnimatePresence>
+              {showSortMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute right-0 top-full mt-1.5 w-32 rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-xl shadow-xl z-20 py-1"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => { setSortKey(opt.value); setShowSortMenu(false); }}
+                      className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
+                        sortKey === opt.value
+                          ? "text-amber-400 bg-amber-500/10"
+                          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+          >
+            <Plus size={14} strokeWidth={2} />
+            Add Item
+          </motion.button>
+        </div>
       </div>
 
       {/* Meal time filters */}
