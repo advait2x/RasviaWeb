@@ -7,6 +7,7 @@ import FloorPlan from "./FloorPlan";
 import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
+import NotificationsPanel from "./NotificationsPanel";
 
 export default function DashboardLayout() {
   const { activeView } = useDashboard();
@@ -23,6 +24,8 @@ export default function DashboardLayout() {
         return <MenuManager />;
       case "settings":
         return <SettingsPanel />;
+      case "notifications":
+        return <NotificationsPanel />;
       default:
         return <WaitlistFeed />;
     }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bug, Zap, ChevronUp, ChevronDown } from "lucide-react";
+import { Bug, Zap, ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 
 const FIRST_NAMES = [
@@ -57,11 +57,12 @@ function generateEntry() {
 }
 
 export default function DebugPanel() {
-  const { bulkAddWalkIns } = useDashboard();
+  const { bulkAddWalkIns, clearAllWaitlist, waitlist } = useDashboard();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(5);
   const [flashing, setFlashing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -169,6 +170,17 @@ export default function DebugPanel() {
               <Zap size={14} strokeWidth={1.5} />
               Generate {count} {count === 1 ? "guest" : "guests"}
             </motion.button>
+
+            {waitingCount > 0 && (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={async () => { await clearAllWaitlist(); setOpen(false); }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 font-medium text-sm hover:bg-red-500/20 transition-colors"
+              >
+                <Trash2 size={14} strokeWidth={1.5} />
+                Clear All ({waitingCount} waiting)
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

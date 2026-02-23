@@ -14,7 +14,7 @@ function getWaitMinutes(addedAt: Date): number {
 }
 
 export default function DashboardOverview() {
-  const { waitlist, tables, menuItems, currentWaitTime } = useDashboard();
+  const { waitlist, tables, menuItems } = useDashboard();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
   const occupiedCount = tables.filter((t) => t.status === "occupied").length;
@@ -88,19 +88,6 @@ export default function DashboardOverview() {
       <h2 className="text-lg font-semibold text-zinc-100 tracking-tight mb-4">
         Dashboard Overview
       </h2>
-
-      {/* Current Wait Time Hero */}
-      <div className="glass-card rounded-2xl p-8 mb-6 text-center">
-        <p className="text-sm text-zinc-500 font-medium uppercase tracking-wider mb-2">
-          Current Wait Time
-        </p>
-        <div className="flex items-baseline justify-center gap-2">
-          <span className="text-[72px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">
-            {currentWaitTime}
-          </span>
-          <span className="text-xl text-zinc-500 font-medium">min</span>
-        </div>
-      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-3">

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase"; // adjust path
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 import { Clock, Minus, Plus } from "lucide-react";
@@ -7,11 +7,12 @@ import { Clock, Minus, Plus } from "lucide-react";
 export function WaitTimeWidget() {
     const { restaurantId } = useAuth();
     const [waitTime, setWaitTime] = useState(0);
+    const [editing, setEditing] = useState(false);
+    const [inputVal, setInputVal] = useState("");
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    // 1. Fetch initial time
     useEffect(() => {
         if (!restaurantId) return;
-
         const fetchTime = async () => {
             const { data } = await supabase
                 .from('restaurants')
@@ -23,51 +24,38 @@ export function WaitTimeWidget() {
         fetchTime();
     }, [restaurantId]);
 
-    // 2. Update Function (Connected to your UI buttons)
+    useEffect(() => {
+        if (editing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [editing]);
+
     const updateTime = async (newTime: number) => {
-        setWaitTime(newTime); // Optimistic update for UI speed
+        const clamped = Math.max(0, Math.round(newTime));
+        setWaitTime(clamped);
+        if (!restaurantId) return;
+        const { error } = await supabase
+            .from('restaurants')
+            .update({ current_wait_time: clamped })
+            .eq('id', restaurantId);
+        if (error) console.error("Failed to update wait time:", error.message);
+    };
 
-        console.log(`Attempting to update wait time for Restaurant ID: ${restaurantId} to ${newTime} minutes.`);
-
-        if (!restaurantId) {
-            console.error("CRITICAL ERROR: No restaurantId found in context. Cannot update.");
-            // Optionally revert the optimistic update here
-            // setWaitTime(waitTime); 
-            return;
-        }
-
-        try {
-            const { data, error } = await supabase
-                .from('restaurants')
-                .update({ current_wait_time: newTime })
-                .eq('id', restaurantId)
-                .select(); // Adding .select() is helpful to see the returned data
-
-            if (error) {
-                console.error("SUPABASE UPDATE FAILED:", error.message, error.details, error.hint);
-                // Revert the optimistic update on error
-                // setWaitTime(waitTime); 
-                alert(`Failed to update: ${error.message}`);
-            } else {
-                console.log("SUCCESS: Supabase update confirmed.", data);
-            }
-
-        } catch (err) {
-            console.error("Unexpected error during update:", err);
-        }
+    const commitEdit = () => {
+        const parsed = parseInt(inputVal, 10);
+        if (!isNaN(parsed)) updateTime(parsed);
+        setEditing(false);
     };
 
     if (!restaurantId) {
-        // Render an empty placeholder if no restaurantId (or loading) to keep layout stable
         return (
             <div className="flex items-center gap-3 opacity-50">
                 <Clock size={18} strokeWidth={1.5} className="text-zinc-500" />
                 <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10" />
                     <div className="flex items-baseline gap-1">
-                        <span className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">
-                            --
-                        </span>
+                        <span className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">--</span>
                         <span className="text-sm text-zinc-500 font-medium">min</span>
                     </div>
                     <div className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10" />
@@ -87,12 +75,34 @@ export function WaitTimeWidget() {
                 >
                     <Minus size={14} strokeWidth={1.5} />
                 </motion.button>
+
                 <div className="flex items-baseline gap-1">
-                    <span className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">
-                        {waitTime}
-                    </span>
+                    {editing ? (
+                        <input
+                            ref={inputRef}
+                            type="number"
+                            min={0}
+                            value={inputVal}
+                            onChange={(e) => setInputVal(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") commitEdit();
+                                if (e.key === "Escape") setEditing(false);
+                            }}
+                            className="w-20 text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight bg-transparent border-b-2 border-amber-500/50 focus:outline-none focus:border-amber-500 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                    ) : (
+                        <span
+                            onClick={() => { setEditing(true); setInputVal(String(waitTime)); }}
+                            className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight cursor-text hover:text-amber-400 transition-colors select-none"
+                            title="Click to edit"
+                        >
+                            {waitTime}
+                        </span>
+                    )}
                     <span className="text-sm text-zinc-500 font-medium">min</span>
                 </div>
+
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => updateTime(waitTime + 5)}

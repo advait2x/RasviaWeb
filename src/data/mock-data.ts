@@ -1,4 +1,4 @@
-import { WaitlistEntry, TableInfo, MenuItem } from "@/types/dashboard";
+import { WaitlistEntry, TableInfo } from "@/types/dashboard";
 
 export const initialWaitlist: WaitlistEntry[] = [
   {
@@ -74,21 +74,3 @@ export const initialTables: TableInfo[] = [
   { id: "t12", tableNumber: 12, capacity: 2, status: "available" },
 ];
 
-export const initialMenuItems: MenuItem[] = [
-  { id: "m1", name: "Wagyu Tartare", category: "Appetizer", inStock: true },
-  { id: "m2", name: "Burrata Caprese", category: "Appetizer", inStock: true },
-  { id: "m3", name: "Lobster Bisque", category: "Soup", inStock: false },
-  { id: "m4", name: "Caesar Salad", category: "Salad", inStock: true },
-  { id: "m5", name: "Truffle Arancini", category: "Appetizer", inStock: true },
-  { id: "m6", name: "Pan-Seared Halibut", category: "Entrée", inStock: true },
-  { id: "m7", name: "Dry-Aged Ribeye 16oz", category: "Entrée", inStock: true },
-  { id: "m8", name: "Duck Confit", category: "Entrée", inStock: false },
-  { id: "m9", name: "Wild Mushroom Risotto", category: "Entrée", inStock: true },
-  { id: "m10", name: "Rack of Lamb", category: "Entrée", inStock: true },
-  { id: "m11", name: "Crème Brûlée", category: "Dessert", inStock: true },
-  { id: "m12", name: "Chocolate Soufflé", category: "Dessert", inStock: true },
-  { id: "m13", name: "Tiramisu", category: "Dessert", inStock: false },
-  { id: "m14", name: "Cheese Board", category: "Dessert", inStock: true },
-  { id: "m15", name: "Espresso Martini", category: "Cocktail", inStock: true },
-  { id: "m16", name: "Old Fashioned", category: "Cocktail", inStock: true },
-];

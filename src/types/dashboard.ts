@@ -1,4 +1,4 @@
-export type NavView = "dashboard" | "waitlist" | "floorplan" | "menu" | "settings";
+export type NavView = "dashboard" | "waitlist" | "floorplan" | "menu" | "settings" | "notifications";
 
 export interface WaitlistEntry {
   id: string;
@@ -20,9 +20,23 @@ export interface TableInfo {
   partySize?: number;
 }
 
+export type MealTime = "breakfast" | "lunch" | "dinner" | "specials" | "all_day";
+
 export interface MenuItem {
   id: string;
   name: string;
-  category: string;
+  description: string;
+  price: number | null;
+  imageUrl: string | null;
+  mealTimes: MealTime[];
   inStock: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  type: "joined" | "left";
+  guestName: string;
+  partySize: number;
+  timestamp: Date;
+  read: boolean;
 }
