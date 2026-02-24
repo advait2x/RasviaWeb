@@ -73,8 +73,8 @@ export default function FloorPlan() {
 
   const eligibleParties = selectedTable
     ? waitlist
-        .filter((w) => w.status === "waiting" && w.partySize <= selectedTable.capacity)
-        .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
+      .filter((w) => w.status === "waiting" && w.partySize <= selectedTable.capacity)
+      .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
     : [];
 
   const handleTableTap = (table: TableInfo) => {
@@ -145,23 +145,23 @@ export default function FloorPlan() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="text-lg font-semibold text-zinc-100 tracking-tight">
+      <div className="flex items-center justify-between px-5 py-4">
+        <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
           Floor Plan
         </h2>
         <div className="flex items-center gap-4">
           {/* Legend */}
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" style={{ boxShadow: "0 0 6px rgba(16,185,129,0.4)" }} />
               <span className="text-zinc-400">Available</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" style={{ boxShadow: "0 0 6px rgba(245,158,11,0.4)" }} />
               <span className="text-zinc-400">Occupied</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" style={{ boxShadow: "0 0 6px rgba(59,130,246,0.4)" }} />
               <span className="text-zinc-400">Reserved</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -173,7 +173,7 @@ export default function FloorPlan() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAddTable(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 hover:border-white/15 transition-colors"
           >
             <Plus size={13} strokeWidth={2} />
             Add Table
@@ -182,7 +182,7 @@ export default function FloorPlan() {
       </div>
 
       {/* Floor Grid */}
-      <div className="flex-1 p-4 floor-grid rounded-lg mx-4 mb-4">
+      <div className="flex-1 p-4 floor-grid rounded-lg mx-5 mb-4">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 h-full content-start">
           {tables.map((table, index) => {
             const cfg = STATUS_CONFIG[table.status];
@@ -386,9 +386,8 @@ export default function FloorPlan() {
                                   <span className="text-xs text-amber-500 font-medium">{party.partySize}</span>
                                 </div>
                               </div>
-                              <span className={`text-xs font-semibold tabular-nums ${
-                                waited < 15 ? "text-emerald-400" : waited <= 30 ? "text-amber-400" : "text-red-400"
-                              }`}>
+                              <span className={`text-xs font-semibold tabular-nums ${waited < 15 ? "text-emerald-400" : waited <= 30 ? "text-amber-400" : "text-red-400"
+                                }`}>
                                 {waited}m
                               </span>
                             </motion.button>
@@ -425,11 +424,10 @@ export default function FloorPlan() {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => handleStatusChange(s)}
                       disabled={selectedTable.status === s}
-                      className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                        selectedTable.status === s
+                      className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${selectedTable.status === s
                           ? `${STATUS_CONFIG[s].badge} opacity-100 cursor-default`
                           : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
-                      }`}
+                        }`}
                     >
                       {s === "available" && <CheckCircle2 size={15} strokeWidth={1.5} />}
                       {s === "reserved" && <CalendarClock size={15} strokeWidth={1.5} />}
@@ -498,11 +496,10 @@ export default function FloorPlan() {
                     key={cap}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setNewCapacity(cap)}
-                    className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
-                      newCapacity === cap
+                    className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all ${newCapacity === cap
                         ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
                         : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
-                    }`}
+                      }`}
                   >
                     {cap}
                     <span className="text-[10px] font-normal opacity-60">seats</span>

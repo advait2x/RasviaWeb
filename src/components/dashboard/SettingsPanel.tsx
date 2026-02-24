@@ -61,11 +61,11 @@ export default function SettingsPanel() {
 
     const row = profileRes.data as Record<string, unknown> | null;
     const p: RestaurantProfile = {
-      name:        String(row?.name        ?? row?.restaurant_name ?? ""),
-      address:     String(row?.address     ?? row?.location        ?? ""),
-      phone:       String(row?.phone       ?? row?.phone_number    ?? ""),
+      name: String(row?.name ?? row?.restaurant_name ?? ""),
+      address: String(row?.address ?? row?.location ?? ""),
+      phone: String(row?.phone ?? row?.phone_number ?? ""),
       cuisineTags: Array.isArray(row?.cuisine_tags) ? (row.cuisine_tags as string[]) : [],
-      description: String(row?.description ?? row?.bio             ?? ""),
+      description: String(row?.description ?? row?.bio ?? ""),
     };
     setProfile(p);
     setDraft(p);
@@ -164,18 +164,18 @@ export default function SettingsPanel() {
     placeholder: string;
     multiline?: boolean;
   }[] = [
-    { key: "name",        label: "Restaurant Name", icon: Store,           placeholder: "e.g. The Golden Fork" },
-    { key: "address",     label: "Address",          icon: MapPin,          placeholder: "123 Main St, City, State ZIP" },
-    { key: "phone",       label: "Phone Number",     icon: Phone,           placeholder: "(555) 000-0000" },
-    { key: "description", label: "Description",      icon: FileText,        placeholder: "Brief description of your restaurant...", multiline: true },
-  ];
+      { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
+      { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
+      { key: "phone", label: "Phone Number", icon: Phone, placeholder: "(555) 000-0000" },
+      { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
+    ];
 
   return (
-    <div className="flex flex-col h-full p-4 overflow-y-auto">
+    <div className="flex flex-col h-full p-5 overflow-y-auto">
       <div className="max-w-lg mx-auto w-full space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-100 tracking-tight">Restaurant Profile</h2>
+            <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Restaurant Profile</h2>
             <p className="text-xs text-zinc-500 mt-0.5">
               This info is shown to guests in the Rasvia mobile app
             </p>
@@ -214,11 +214,10 @@ export default function SettingsPanel() {
                       readOnly={!editing}
                       placeholder={editing ? placeholder : "—"}
                       rows={3}
-                      className={`w-full rounded-lg border text-sm px-3 py-2 focus:outline-none resize-none transition-colors ${
-                        editing
+                      className={`w-full rounded-lg border text-sm px-3 py-2 focus:outline-none resize-none transition-colors ${editing
                           ? "bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
                           : "bg-zinc-900/40 border-white/5 text-zinc-400 cursor-default select-none"
-                      }`}
+                        }`}
                     />
                   ) : (
                     <Input
@@ -226,11 +225,10 @@ export default function SettingsPanel() {
                       onChange={(e) => editing && setDraft((d) => ({ ...d, [key]: e.target.value }))}
                       readOnly={!editing}
                       placeholder={editing ? placeholder : "—"}
-                      className={`h-10 transition-colors ${
-                        editing
+                      className={`h-10 transition-colors ${editing
                           ? "bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
                           : "bg-zinc-900/40 border-white/5 text-zinc-500 cursor-default"
-                      }`}
+                        }`}
                     />
                   )}
                 </div>
@@ -264,11 +262,10 @@ export default function SettingsPanel() {
                         key={c}
                         whileTap={editing ? { scale: 0.95 } : undefined}
                         onClick={() => editing && toggleTag(c)}
-                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
-                          active
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${active
                             ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
                             : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300 hover:border-white/15"
-                        } ${!editing ? "cursor-default" : ""}`}
+                          } ${!editing ? "cursor-default" : ""}`}
                       >
                         {c}
                       </motion.button>

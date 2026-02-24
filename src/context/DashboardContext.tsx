@@ -73,7 +73,7 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { restaurantId } = useAuth();
 
-  const [activeView, setActiveView] = useState<NavView>("waitlist");
+  const [activeView, setActiveView] = useState<NavView>("dashboard");
   const [waitlistOpen, setWaitlistOpen] = useState(true);
   const [currentWaitTime, setCurrentWaitTime] = useState(25);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);

@@ -32,12 +32,22 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="h-screen w-screen bg-[#09090b] overflow-hidden flex">
+    <div className="h-screen w-screen overflow-hidden flex" style={{ background: "#09090b" }}>
+      {/* Ambient background gradients */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/3 w-[600px] h-[400px] rounded-full opacity-30"
+          style={{ background: "radial-gradient(ellipse, rgba(120,53,15,0.15) 0%, transparent 70%)" }}
+        />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full opacity-20"
+          style={{ background: "radial-gradient(ellipse, rgba(245,158,11,0.06) 0%, transparent 70%)" }}
+        />
+      </div>
+
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col ml-20 h-full">
+      <div className="flex-1 flex flex-col ml-[72px] h-full relative z-10">
         {/* Status Bar */}
         <StatusBar />
 
@@ -46,10 +56,10 @@ export default function DashboardLayout() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               className="h-full"
             >
               {renderView()}

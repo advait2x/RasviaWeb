@@ -46,17 +46,17 @@ export default function WaitlistFeed() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="text-lg font-semibold text-zinc-100 tracking-tight">
+      <div className="flex items-center justify-between px-5 py-4">
+        <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
           Waitlist
-          <span className="ml-2 text-sm font-medium text-zinc-500">
+          <span className="ml-2.5 text-sm font-medium text-zinc-500">
             {waitingList.length} {waitingList.length === 1 ? "party" : "parties"}
           </span>
         </h2>
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors amber-glow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
         >
           <UserPlus size={16} strokeWidth={1.5} />
           Add Walk-In
@@ -64,7 +64,7 @@ export default function WaitlistFeed() {
       </div>
 
       {/* Table Header */}
-      <div className="grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 px-4 py-2 text-xs font-medium text-zinc-500 uppercase tracking-wider border-b border-white/5">
+      <div className="grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 px-5 py-2.5 text-[11px] font-bold text-zinc-500 uppercase tracking-widest border-b border-white/5">
         <span>Guest</span>
         <span>Party</span>
         <span>Wait</span>
@@ -74,7 +74,7 @@ export default function WaitlistFeed() {
 
       {/* Waitlist Rows */}
       <ScrollArea className="flex-1">
-        <div className="px-4 py-2">
+        <div className="px-5 py-2">
           <AnimatePresence mode="popLayout">
             {waitingList.map((entry, index) => {
               const minutes = getWaitMinutes(entry.addedAt);
@@ -93,11 +93,10 @@ export default function WaitlistFeed() {
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                    className={`grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 items-center h-16 px-4 rounded-lg cursor-pointer transition-colors duration-150 ${
-                      isExpanded
+                    className={`grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 items-center h-16 px-4 rounded-lg cursor-pointer transition-colors duration-150 ${isExpanded
                         ? "bg-zinc-800/80 border border-amber-500/20"
                         : "hover:bg-zinc-800/50 border border-transparent"
-                    }`}
+                      }`}
                   >
                     {/* Guest Name */}
                     <div className="flex items-center gap-2 min-w-0">
@@ -164,11 +163,10 @@ export default function WaitlistFeed() {
                           <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={() => notifyParty(entry.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                              entry.notifiedAt
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${entry.notifiedAt
                                 ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
                                 : "bg-zinc-800 border border-white/10 text-zinc-300 hover:bg-zinc-700"
-                            }`}
+                              }`}
                           >
                             <Bell size={16} strokeWidth={1.5} />
                             {entry.notifiedAt ? "Notified" : "Notify"}
@@ -191,17 +189,19 @@ export default function WaitlistFeed() {
           </AnimatePresence>
 
           {waitlistLoading && (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
-              <div className="w-6 h-6 rounded-full border-2 border-zinc-700 border-t-amber-500 animate-spin mb-4" />
-              <p className="text-sm text-zinc-600">Loading waitlist...</p>
+            <div className="flex flex-col items-center justify-center py-24 text-zinc-600">
+              <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-amber-500 animate-spin mb-4" />
+              <p className="text-sm text-zinc-500">Loading waitlist…</p>
             </div>
           )}
 
           {!waitlistLoading && waitingList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
-              <Users size={48} strokeWidth={1} className="mb-4" />
-              <p className="text-lg font-medium">No parties waiting</p>
-              <p className="text-sm text-zinc-700 mt-1">Add a walk-in to get started</p>
+            <div className="flex flex-col items-center justify-center py-24">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800/60 border border-white/5 flex items-center justify-center mb-4">
+                <Users size={28} strokeWidth={1} className="text-zinc-600" />
+              </div>
+              <p className="text-base font-semibold text-zinc-400">No parties waiting</p>
+              <p className="text-sm text-zinc-600 mt-1">Add a walk-in to get started</p>
             </div>
           )}
         </div>

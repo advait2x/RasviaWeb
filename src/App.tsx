@@ -16,7 +16,13 @@ function AppContent() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
-        <div className="text-amber-500 font-medium tracking-tight animate-pulse">Loading Rasvia...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+            <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-transparent border-b-amber-500/20 animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+          </div>
+          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Rasvia…</span>
+        </div>
       </div>
     );
   }
@@ -30,13 +36,21 @@ function AppContent() {
   if (!restaurantId) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-red-400">Access Denied</h1>
-          <p className="text-zinc-400">You are logged in, but not linked to a restaurant.</p>
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Access Denied</h1>
+          <p className="text-sm text-zinc-400 max-w-xs mx-auto">
+            You're logged in, but your account isn't linked to a restaurant yet. Contact your administrator.
+          </p>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-md transition-colors border border-white/10"
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-white/15"
         >
           Sign Out
         </button>
@@ -48,7 +62,12 @@ function AppContent() {
   return (
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
-        <div className="text-amber-500 font-medium tracking-tight animate-pulse">Loading Dashboard...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+          </div>
+          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Dashboard…</span>
+        </div>
       </div>
     }>
       <Routes>

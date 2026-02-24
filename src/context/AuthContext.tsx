@@ -28,8 +28,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 2. Listen for login/logout events
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            if (session) fetchRestaurantId(session.user.id);
-            else {
+            if (session) {
+                setLoading(true); // stay in loading while we fetch the restaurant
+                fetchRestaurantId(session.user.id);
+            } else {
                 setRestaurantId(null);
                 setIsAdmin(false);
                 setLoading(false);

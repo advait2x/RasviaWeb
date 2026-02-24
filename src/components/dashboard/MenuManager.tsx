@@ -325,9 +325,8 @@ function ItemFormDialog({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.15 }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
-                        active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
-                      }`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
+                        }`}
                     >
                       <Icon size={12} strokeWidth={1.5} />
                       {label}
@@ -432,9 +431,9 @@ function ItemFormDialog({
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "name_asc",   label: "Name A–Z" },
-  { value: "name_desc",  label: "Name Z–A" },
-  { value: "price_asc",  label: "Price ↑" },
+  { value: "name_asc", label: "Name A–Z" },
+  { value: "name_desc", label: "Name Z–A" },
+  { value: "price_asc", label: "Price ↑" },
   { value: "price_desc", label: "Price ↓" },
 ];
 
@@ -467,9 +466,9 @@ export default function MenuManager() {
     }
     return [...items].sort((a, b) => {
       switch (sortKey) {
-        case "name_asc":   return a.name.localeCompare(b.name);
-        case "name_desc":  return b.name.localeCompare(a.name);
-        case "price_asc":  return (a.price ?? 0) - (b.price ?? 0);
+        case "name_asc": return a.name.localeCompare(b.name);
+        case "name_desc": return b.name.localeCompare(a.name);
+        case "price_asc": return (a.price ?? 0) - (b.price ?? 0);
         case "price_desc": return (b.price ?? 0) - (a.price ?? 0);
       }
     });
@@ -505,9 +504,9 @@ export default function MenuManager() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-5 py-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100 tracking-tight">
+          <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
             Menu Manager
           </h2>
           {outOfStock > 0 && (
@@ -540,11 +539,10 @@ export default function MenuManager() {
                     <button
                       key={opt.value}
                       onClick={() => { setSortKey(opt.value); setShowSortMenu(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
-                        sortKey === opt.value
+                      className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${sortKey === opt.value
                           ? "text-amber-400 bg-amber-500/10"
                           : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -566,7 +564,7 @@ export default function MenuManager() {
       </div>
 
       {/* Meal time filters */}
-      <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+      <div className="px-5 pb-3 flex flex-wrap gap-1.5">
         {MEAL_TIMES.map(({ value, label, icon: Icon, color }) => {
           const active = activeFilters.includes(value);
           return (
@@ -593,7 +591,7 @@ export default function MenuManager() {
       </div>
 
       {/* Search */}
-      <div className="px-4 pb-3">
+      <div className="px-5 pb-3">
         <div className="relative">
           <Search size={15} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <Input
@@ -607,7 +605,7 @@ export default function MenuManager() {
 
       {/* Item List */}
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 space-y-2">
+        <div className="px-5 pb-4 space-y-2">
           {menuLoading && (
             <div className="text-center py-12 text-zinc-600">
               <p className="text-sm">Loading menu items...</p>
