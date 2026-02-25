@@ -126,9 +126,9 @@ export default function NotificationsPanel() {
       {/* Content */}
       <ScrollArea className="flex-1">
         <div className="px-5 pb-4 space-y-2">
-          <AnimatePresence mode="wait">
+          <AnimatePresence initial={false}>
             {displayed.length === 0 ? (
-              <EmptyState key={activeTab} tab={activeTab} />
+              <EmptyState key={`empty-${activeTab}`} tab={activeTab} />
             ) : (
               <motion.div
                 key={activeTab}

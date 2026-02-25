@@ -34,6 +34,8 @@ interface DashboardState {
   setTableStatus: (tableId: string, status: TableInfo["status"]) => void;
   addTable: (capacity: number) => void;
   removeTable: (tableId: string) => void;
+  combineTablesForParty: (tableIds: string[]) => string | null;
+  splitCombinedTable: (combinedId: string) => void;
 }
 
 const DashboardContext = createContext<DashboardState | null>(null);
@@ -399,13 +401,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // ── Table mutations ───────────────────────────────────────────────────────
 
   const clearTable = useCallback((tableId: string) => {
-    setTables((prev) =>
-      prev.map((t) =>
+    setTables((prev) => {
+      const target = prev.find((t) => t.id === tableId);
+      if (target?.combinedTableIds && target.combinedTableIds.length > 0) {
+        // Restore child tables and remove the combined virtual table
+        return prev
+          .filter((t) => t.id !== tableId)
+          .map((t) =>
+            target.combinedTableIds!.includes(t.id)
+              ? { ...t, isCombinedChild: false, status: "available" as const }
+              : t
+          );
+      }
+      return prev.map((t) =>
         t.id === tableId
           ? { ...t, status: "available" as const, seatedAt: undefined, guestName: undefined, partySize: undefined }
           : t
-      )
-    );
+      );
+    });
   }, []);
 
   const setTableStatus = useCallback((tableId: string, status: TableInfo["status"]) => {
@@ -433,6 +446,43 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const removeTable = useCallback((tableId: string) => {
     setTables((prev) => prev.filter((t) => t.id !== tableId));
+  }, []);
+
+  const combineTablesForParty = useCallback((tableIds: string[]): string | null => {
+    const allTables = tables;
+    const children = allTables.filter((t) => tableIds.includes(t.id));
+    if (children.length < 2) return null;
+    const totalCapacity = children.reduce((sum, t) => sum + t.capacity, 0);
+    const numbers = children.map((t) => t.tableNumber).sort((a, b) => a - b);
+    const newId = `combined-${Date.now()}`;
+    const combinedTable: TableInfo = {
+      id: newId,
+      tableNumber: numbers[0],
+      capacity: totalCapacity,
+      status: "available",
+      combinedTableIds: tableIds,
+    };
+    setTables((prev) => [
+      ...prev.map((t) =>
+        tableIds.includes(t.id) ? { ...t, isCombinedChild: true } : t
+      ),
+      combinedTable,
+    ]);
+    return newId;
+  }, [tables]);
+
+  const splitCombinedTable = useCallback((combinedId: string) => {
+    setTables((prev) => {
+      const combined = prev.find((t) => t.id === combinedId);
+      if (!combined?.combinedTableIds) return prev;
+      return prev
+        .filter((t) => t.id !== combinedId)
+        .map((t) =>
+          combined.combinedTableIds!.includes(t.id)
+            ? { ...t, isCombinedChild: false, status: "available" as const }
+            : t
+        );
+    });
   }, []);
 
   const quickSeatNext = useCallback(async (tableId: string): Promise<WaitlistEntry | null> => {
@@ -479,6 +529,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setTableStatus,
         addTable,
         removeTable,
+        combineTablesForParty,
+        splitCombinedTable,
       }}
     >
       {children}

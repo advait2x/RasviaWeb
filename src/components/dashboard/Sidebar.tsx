@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -7,6 +8,7 @@ import {
   Settings,
   Bell,
   LogOut,
+  AlertTriangle,
 } from "lucide-react";
 import { NavView } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -17,6 +19,10 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
@@ -29,6 +35,15 @@ const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView }[]
 
 export default function Sidebar() {
   const { activeView, setActiveView, unreadCount } = useDashboard();
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    setSigningOut(false);
+    setShowSignOutConfirm(false);
+  };
 
   const renderNavItem = (icon: typeof LayoutDashboard, label: string, view: NavView) => {
     const Icon = icon;
@@ -117,7 +132,7 @@ export default function Sidebar() {
           <TooltipTrigger asChild>
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => setShowSignOutConfirm(true)}
               className="mb-3 w-10 h-10 rounded-xl flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200"
             >
               <LogOut size={18} strokeWidth={1.5} />
@@ -134,6 +149,40 @@ export default function Sidebar() {
           <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-50" />
         </div>
       </aside>
+
+      {/* Sign Out Confirmation Dialog */}
+      <Dialog open={showSignOutConfirm} onOpenChange={(o) => !o && setShowSignOutConfirm(false)}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <AlertTriangle size={22} strokeWidth={1.5} className="text-red-400" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base font-semibold text-zinc-100">Sign out?</h3>
+              <p className="text-sm text-zinc-400">
+                You'll be returned to the login screen.
+              </p>
+            </div>
+            <div className="flex gap-3 w-full pt-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-colors disabled:opacity-60"
+              >
+                {signingOut ? "Signing out..." : "Sign Out"}
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

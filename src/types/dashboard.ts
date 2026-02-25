@@ -1,4 +1,10 @@
-export type NavView = "dashboard" | "waitlist" | "floorplan" | "menu" | "settings" | "notifications";
+export type NavView =
+  | "dashboard"
+  | "waitlist"
+  | "floorplan"
+  | "menu"
+  | "settings"
+  | "notifications";
 
 export interface WaitlistEntry {
   id: string;
@@ -18,9 +24,18 @@ export interface TableInfo {
   seatedAt?: Date;
   guestName?: string;
   partySize?: number;
+  /** IDs of the child tables that make up this combined table */
+  combinedTableIds?: string[];
+  /** True when this table is hidden because it has been merged into a combined table */
+  isCombinedChild?: boolean;
 }
 
-export type MealTime = "breakfast" | "lunch" | "dinner" | "specials" | "all_day";
+export type MealTime =
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "specials"
+  | "all_day";
 
 export interface MenuItem {
   id: string;
