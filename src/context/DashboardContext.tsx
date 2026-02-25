@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification } from "@/types/dashboard";
+import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification, Order, OrderItem, OrderStatus, OrderType, DietType, CompletedTableSession } from "@/types/dashboard";
 import { initialTables } from "@/data/mock-data";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 interface DashboardState {
   activeView: NavView;
@@ -18,6 +19,8 @@ interface DashboardState {
   menuLoading: boolean;
   notifications: AppNotification[];
   unreadCount: number;
+  orders: Order[];
+  completedSessions: CompletedTableSession[];
   addWalkIn: (partyLeaderName: string, partySize: number, phone: string) => Promise<void>;
   bulkAddWalkIns: (entries: { guestName: string; partySize: number; phone: string; minutesAgo: number }[]) => Promise<void>;
   clearAllWaitlist: () => Promise<void>;
@@ -36,6 +39,14 @@ interface DashboardState {
   removeTable: (tableId: string) => void;
   combineTablesForParty: (tableIds: string[]) => string | null;
   splitCombinedTable: (combinedId: string) => void;
+  createOrder: (tableId: string, orderType: OrderType, guestName?: string, partySize?: number, customerPhone?: string) => Promise<Order>;
+  addItemToOrder: (orderId: string, menuItemId: string, qty: number, specialInstructions?: string, dietType?: DietType) => void;
+  removeItemFromOrder: (orderId: string, itemId: string) => void;
+  updateItemQuantity: (orderId: string, itemId: string, qty: number) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  getOrdersForTable: (tableId: string) => Order[];
+  clearTableWithTip: (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => Promise<void>;
+  notifyCustomer: (orderId: string) => void;
 }
 
 const DashboardContext = createContext<DashboardState | null>(null);
@@ -84,6 +95,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [completedSessions, setCompletedSessions] = useState<CompletedTableSession[]>([]);
+
+  const TAX_RATE = 0.0825;
 
   // Prevent notification spam on first load
   const waitlistInitialized = useRef(false);
@@ -133,49 +148,43 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "waitlist_entries", filter: `restaurant_id=eq.${restaurantId}` },
-        () => fetchRef.current()
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "waitlist_entries", filter: `restaurant_id=eq.${restaurantId}` },
         (payload) => {
+          fetchRef.current();
+
           if (!waitlistInitialized.current) return;
           const row = payload.new as Record<string, unknown>;
-          if (row.status === "waiting") {
+          const eventType = payload.eventType;
+
+          if (eventType === "INSERT" && row.status === "waiting") {
             const entry = mapRow(row);
-            setNotifications((prev) => [
-              {
-                id: `n-${Date.now()}-${Math.random()}`,
-                type: "joined",
-                guestName: entry.guestName,
-                partySize: entry.partySize,
-                timestamp: new Date(),
-                read: false,
-              },
-              ...prev,
-            ]);
+            const notif: AppNotification = {
+              id: `n-${Date.now()}-${Math.random()}`,
+              type: "joined",
+              guestName: entry.guestName,
+              partySize: entry.partySize,
+              timestamp: new Date(),
+              read: false,
+            };
+            setNotifications((prev) => [notif, ...prev]);
+            toast(`${entry.guestName} joined the waitlist`, {
+              description: `Party of ${entry.partySize}`,
+            });
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "waitlist_entries", filter: `restaurant_id=eq.${restaurantId}` },
-        (payload) => {
-          if (!waitlistInitialized.current) return;
-          const row = payload.new as Record<string, unknown>;
-          if (row.status === "cancelled") {
+
+          if (eventType === "UPDATE" && row.status === "cancelled") {
             const entry = mapRow(row);
-            setNotifications((prev) => [
-              {
-                id: `n-${Date.now()}-${Math.random()}`,
-                type: "left",
-                guestName: entry.guestName,
-                partySize: entry.partySize,
-                timestamp: new Date(),
-                read: false,
-              },
-              ...prev,
-            ]);
+            const notif: AppNotification = {
+              id: `n-${Date.now()}-${Math.random()}`,
+              type: "left",
+              guestName: entry.guestName,
+              partySize: entry.partySize,
+              timestamp: new Date(),
+              read: false,
+            };
+            setNotifications((prev) => [notif, ...prev]);
+            toast(`${entry.guestName} left the waitlist`, {
+              description: `Party of ${entry.partySize}`,
+            });
           }
         }
       )
@@ -495,6 +504,347 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return next;
   }, [waitlist, tables, seatParty]);
 
+  // ── Order helpers ─────────────────────────────────────────────────────────
+
+  const TAX_RATE_LOCAL = TAX_RATE; // keep reference accessible inside closures
+
+  // Map DB status → app status
+  const dbStatusToApp = (s: string): OrderStatus => s === "active" ? "pending" : s as OrderStatus;
+  // Map app status → DB status
+  const appStatusToDb = (s: OrderStatus): string => s === "pending" ? "active" : s;
+
+  // Parse metadata stored in the notes field as JSON
+  const parseMeta = (notes: string | null): Record<string, unknown> => {
+    if (!notes) return {};
+    try { return JSON.parse(notes); } catch { return {}; }
+  };
+
+  const mapOrder = useCallback((
+    row: Record<string, unknown>,
+    itemRows: Record<string, unknown>[]
+  ): Order => {
+    const meta = parseMeta(row.notes as string | null);
+    const items: OrderItem[] = itemRows.map((ir) => {
+      const itemMeta = parseMeta(ir.notes as string | null);
+      return {
+        id: String(ir.id),
+        menuItemId: String(ir.menu_item_id ?? ""),
+        menuItemName: ir.name as string,
+        quantity: ir.quantity as number,
+        unitPrice: Number(ir.price),
+        specialInstructions: (itemMeta.specialInstructions as string) || undefined,
+        dietType: (itemMeta.dietType as DietType) || ((ir.is_vegetarian as boolean) ? "veg" : undefined),
+      };
+    });
+    const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+    const tax = Math.round(subtotal * TAX_RATE_LOCAL * 100) / 100;
+    return {
+      id: String(row.id),
+      tableId: (meta.tableId as string) ?? "",
+      tableNumber: Number(row.table_number) || 0,
+      guestName: (row.customer_name as string) ?? (meta.guestName as string) ?? "Guest",
+      partySize: (row.party_size as number) ?? 1,
+      items,
+      status: dbStatusToApp(row.status as string),
+      orderType: row.order_type as OrderType,
+      createdAt: new Date(row.created_at as string),
+      updatedAt: row.closed_at ? new Date(row.closed_at as string) : new Date(row.created_at as string),
+      completedAt: row.closed_at ? new Date(row.closed_at as string) : undefined,
+      subtotal,
+      tax,
+      total: Math.round((subtotal + tax) * 100) / 100,
+      tipAmount: row.tip_amount ? Number(row.tip_amount) : undefined,
+      tipPercent: row.tip_percent ? Number(row.tip_percent) : undefined,
+      paymentMethod: (row.payment_method as "cash" | "card" | "other") ?? "cash",
+      customerPhone: (meta.customerPhone as string) || undefined,
+      customerNotifiedAt: meta.customerNotifiedAt ? new Date(meta.customerNotifiedAt as string) : undefined,
+    };
+  }, []);
+
+  // ── Orders fetch + realtime ───────────────────────────────────────────────
+
+  const fetchOrders = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data: orderRows, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .not("status", "in", "(completed,cancelled)")
+      .order("created_at", { ascending: false });
+
+    if (error) { console.error("fetchOrders failed:", error.message); return; }
+
+    const ids = (orderRows ?? []).map((r) => r.id as number);
+    let itemRows: Record<string, unknown>[] = [];
+    if (ids.length > 0) {
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("*")
+        .in("order_id", ids);
+      itemRows = (items ?? []) as Record<string, unknown>[];
+    }
+
+    const mapped = (orderRows ?? []).map((row) =>
+      mapOrder(
+        row as Record<string, unknown>,
+        itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id)
+      )
+    );
+    setOrders(mapped);
+  }, [restaurantId, mapOrder]);
+
+  const fetchOrdersRef = useRef(fetchOrders);
+  fetchOrdersRef.current = fetchOrders;
+
+  useEffect(() => {
+    if (!restaurantId) { setOrders([]); return; }
+    fetchOrdersRef.current();
+
+    const channel = supabase
+      .channel(`orders-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          fetchOrdersRef.current();
+          // Toast on new takeout / pre-order coming in
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as Record<string, unknown>;
+            const meta = parseMeta(row.notes as string | null);
+            const orderType = row.order_type as string;
+            const guestName = (row.customer_name as string) ?? (meta.guestName as string) ?? "Guest";
+            if (orderType === "takeout" || orderType === "pre_order") {
+              const label = orderType === "takeout" ? "Takeout" : "Pre-Order";
+              toast(`New ${label} order received`, {
+                description: `Table ${row.table_number} · ${guestName}`,
+              });
+              setNotifications((prev) => [{
+                id: `n-order-${Date.now()}`,
+                type: "joined",
+                guestName,
+                partySize: (row.party_size as number) ?? 1,
+                timestamp: new Date(),
+                read: false,
+              }, ...prev]);
+            }
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_items" },
+        () => fetchOrdersRef.current()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurantId]);
+
+  // ── Order mutations ───────────────────────────────────────────────────────
+
+  const recalcOrderTotals = (items: OrderItem[]): { subtotal: number; tax: number; total: number } => {
+    const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    const tax = Math.round(subtotal * TAX_RATE_LOCAL * 100) / 100;
+    const total = Math.round((subtotal + tax) * 100) / 100;
+    return { subtotal, tax, total };
+  };
+
+  const createOrder = useCallback(async (tableId: string, orderType: OrderType, guestName?: string, partySize?: number, customerPhone?: string): Promise<Order> => {
+    const table = tables.find((t) => t.id === tableId);
+    const effectiveGuestName = guestName ?? table?.guestName ?? "Guest";
+    const effectivePartySize = partySize ?? table?.partySize ?? 1;
+    const tableNumber = table ? String(table.tableNumber) : "0";
+
+    const meta = JSON.stringify({
+      tableId,
+      customerPhone: customerPhone?.trim() || undefined,
+    });
+
+    const { data, error } = await supabase.from("orders").insert({
+      restaurant_id: restaurantId,
+      table_number: tableNumber,
+      party_size: effectivePartySize,
+      order_type: orderType,
+      status: "active",  // DB uses 'active' for pending
+      payment_method: "cash",
+      customer_name: effectiveGuestName,
+      notes: meta,
+    }).select().single();
+
+    if (error || !data) {
+      console.error("createOrder failed:", error?.message);
+      // Fallback: return a local order so the UI doesn't break
+      const fallback: Order = {
+        id: `local-${Date.now()}`,
+        tableId,
+        tableNumber: table?.tableNumber ?? 0,
+        guestName: effectiveGuestName,
+        partySize: effectivePartySize,
+        items: [],
+        status: "pending",
+        orderType,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        subtotal: 0, tax: 0, total: 0,
+        paymentMethod: "cash",
+        customerPhone: customerPhone?.trim() || undefined,
+      };
+      setOrders((prev) => [fallback, ...prev]);
+      return fallback;
+    }
+
+    const newOrder = mapOrder(data as Record<string, unknown>, []);
+    setOrders((prev) => [newOrder, ...prev]);
+    return newOrder;
+  }, [tables, restaurantId, mapOrder]);
+
+  const addItemToOrder = useCallback(async (orderId: string, menuItemId: string, qty: number, specialInstructions?: string, dietType?: DietType) => {
+    const menuItem = menuItems.find((m) => m.id === menuItemId);
+    if (!menuItem || menuItem.price == null) return;
+
+    const itemMeta = JSON.stringify({
+      specialInstructions: specialInstructions || undefined,
+      dietType: dietType ?? menuItem.dietType,
+    });
+
+    const { data, error } = await supabase.from("order_items").insert({
+      order_id: Number(orderId),
+      menu_item_id: Number(menuItemId),
+      name: menuItem.name,
+      price: menuItem.price,
+      quantity: qty,
+      is_vegetarian: (dietType ?? menuItem.dietType) === "veg" || (dietType ?? menuItem.dietType) === "vegan",
+      notes: itemMeta,
+    }).select().single();
+
+    if (error) { console.error("addItemToOrder failed:", error.message); return; }
+
+    // Optimistic update
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const newItem: OrderItem = {
+        id: String((data as Record<string, unknown>).id),
+        menuItemId,
+        menuItemName: menuItem.name,
+        quantity: qty,
+        unitPrice: menuItem.price!,
+        specialInstructions,
+        dietType: dietType ?? menuItem.dietType,
+      };
+      const existing = o.items.find((i) => i.menuItemId === menuItemId && i.specialInstructions === (specialInstructions ?? ""));
+      const items = existing
+        ? o.items.map((i) => i.id === existing.id ? { ...i, quantity: i.quantity + qty } : i)
+        : [...o.items, newItem];
+      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+    }));
+
+    // Also update order subtotal in DB
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      const newItems = [...order.items, { unitPrice: menuItem.price!, quantity: qty } as OrderItem];
+      const { subtotal } = recalcOrderTotals(newItems);
+      await supabase.from("orders").update({ subtotal }).eq("id", Number(orderId));
+    }
+  }, [menuItems, orders]);
+
+  const removeItemFromOrder = useCallback(async (orderId: string, itemId: string) => {
+    await supabase.from("order_items").delete().eq("id", Number(itemId));
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const items = o.items.filter((i) => i.id !== itemId);
+      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+    }));
+  }, []);
+
+  const updateItemQuantity = useCallback(async (orderId: string, itemId: string, qty: number) => {
+    if (qty <= 0) { removeItemFromOrder(orderId, itemId); return; }
+    await supabase.from("order_items").update({ quantity: qty }).eq("id", Number(itemId));
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const items = o.items.map((i) => i.id === itemId ? { ...i, quantity: qty } : i);
+      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+    }));
+  }, [removeItemFromOrder]);
+
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    const dbStatus = appStatusToDb(status);
+    const patch: Record<string, unknown> = { status: dbStatus };
+    if (status === "completed" || status === "cancelled") patch.closed_at = new Date().toISOString();
+    await supabase.from("orders").update(patch).eq("id", Number(orderId));
+    setOrders((prev) => prev.map((o) => o.id !== orderId ? o : {
+      ...o, status, updatedAt: new Date(),
+      completedAt: status === "completed" || status === "cancelled" ? new Date() : o.completedAt,
+    }));
+  }, []);
+
+  const getOrdersForTable = useCallback((tableId: string): Order[] => {
+    return orders.filter((o) => o.tableId === tableId && o.status !== "completed" && o.status !== "cancelled");
+  }, [orders]);
+
+  const notifyCustomer = useCallback(async (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const notifiedAt = new Date().toISOString();
+    // Update the meta in notes to include notification timestamp
+    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
+    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+    const newMeta = JSON.stringify({ ...currentMeta, customerNotifiedAt: notifiedAt });
+    await supabase.from("orders").update({ notes: newMeta }).eq("id", Number(orderId));
+    setOrders((prev) => prev.map((o) =>
+      o.id !== orderId ? o : { ...o, customerNotifiedAt: new Date(notifiedAt) }
+    ));
+    toast(`Customer notified`, {
+      description: `${order.guestName} · ${order.customerPhone}`,
+    });
+  }, [orders]);
+
+  const clearTableWithTip = useCallback(async (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => {
+    const tableOrders = orders.filter((o) => o.tableId === tableId && o.status !== "completed" && o.status !== "cancelled");
+    const orderTotal = tableOrders.reduce((sum, o) => sum + o.total, 0);
+
+    // Bulk update all active orders to completed with tip info
+    for (const o of tableOrders) {
+      const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(o.id)).single();
+      const existingMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+      await supabase.from("orders").update({
+        status: "completed",
+        closed_at: new Date().toISOString(),
+        tip_amount: tipAmount,
+        tip_percent: tipPercent,
+        notes: JSON.stringify({ ...existingMeta, sessionNotes: notes }),
+      }).eq("id", Number(o.id));
+    }
+
+    // Optimistic update local state
+    setOrders((prev) => prev.map((o) => {
+      if (o.tableId !== tableId || o.status === "completed" || o.status === "cancelled") return o;
+      return { ...o, status: "completed" as const, completedAt: new Date(), updatedAt: new Date(), tipAmount, tipPercent };
+    }));
+
+    // Record session
+    const table = tables.find((t) => t.id === tableId);
+    if (table?.seatedAt) {
+      const session: CompletedTableSession = {
+        id: `session-${Date.now()}`,
+        tableId,
+        tableNumber: table.tableNumber,
+        guestName: table.guestName ?? "Guest",
+        partySize: table.partySize ?? 1,
+        seatedAt: table.seatedAt,
+        clearedAt: new Date(),
+        durationMinutes: Math.floor((Date.now() - table.seatedAt.getTime()) / 60000),
+        orderTotal,
+        tipAmount,
+        tipPercent,
+        notes,
+      };
+      setCompletedSessions((prev) => [session, ...prev]);
+    }
+
+    clearTable(tableId);
+  }, [orders, tables, clearTable]);
+
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
@@ -513,6 +863,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         menuLoading,
         notifications,
         unreadCount,
+        orders,
+        completedSessions,
         addWalkIn,
         bulkAddWalkIns,
         clearAllWaitlist,
@@ -531,6 +883,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         removeTable,
         combineTablesForParty,
         splitCombinedTable,
+        createOrder,
+        addItemToOrder,
+        removeItemFromOrder,
+        updateItemQuantity,
+        updateOrderStatus,
+        getOrdersForTable,
+        clearTableWithTip,
+        notifyCustomer,
       }}
     >
       {children}

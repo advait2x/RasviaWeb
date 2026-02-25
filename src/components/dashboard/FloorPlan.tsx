@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Clock, LogOut, Armchair, Plus, Trash2, CheckCircle2, Ban,
-  CalendarClock, Link2, Unlink, X, Check,
+  CalendarClock, Link2, Unlink, X, Check, Receipt, ShoppingBag,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { TableInfo, WaitlistEntry } from "@/types/dashboard";
@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import UnseatModal from "./UnseatModal";
+import TakeOrderModal from "./TakeOrderModal";
 
 function getSeatedDuration(seatedAt?: Date): string {
   if (!seatedAt) return "";
@@ -65,7 +67,13 @@ export default function FloorPlan() {
   const {
     tables, clearTable, seatParty, waitlist, setTableStatus,
     addTable, removeTable, combineTablesForParty, splitCombinedTable,
+    getOrdersForTable,
   } = useDashboard();
+
+  const [showUnseat, setShowUnseat] = useState(false);
+  const [unseatTableId, setUnseatTableId] = useState<string | null>(null);
+  const [showTakeOrder, setShowTakeOrder] = useState(false);
+  const [takeOrderTableId, setTakeOrderTableId] = useState<string | undefined>(undefined);
 
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
   const [showManage, setShowManage] = useState(false);
@@ -141,14 +149,32 @@ export default function FloorPlan() {
       const isCombined = !!selectedTable.combinedTableIds?.length;
       const tableNum = selectedTable.combinedTableIds
         ? selectedTable.combinedTableIds.map((cid) => {
-            const t = tables.find((x) => x.id === cid);
-            return t ? t.tableNumber : "";
-          }).join("+")
+          const t = tables.find((x) => x.id === cid);
+          return t ? t.tableNumber : "";
+        }).join("+")
         : selectedTable.tableNumber;
       clearTable(selectedTable.id);
       setShowManage(false);
       setSelectedTable(null);
       showToast(isCombined ? `Combined table ${tableNum} cleared` : `Table ${tableNum} cleared`);
+    }
+  };
+
+  const handleUnseatTable = () => {
+    if (selectedTable) {
+      setUnseatTableId(selectedTable.id);
+      setShowManage(false);
+      setSelectedTable(null);
+      setShowUnseat(true);
+    }
+  };
+
+  const handleTakeOrder = () => {
+    if (selectedTable) {
+      setTakeOrderTableId(selectedTable.id);
+      setShowManage(false);
+      setSelectedTable(null);
+      setShowTakeOrder(true);
     }
   };
 
@@ -320,8 +346,8 @@ export default function FloorPlan() {
               {combineSelection.length === 0
                 ? "Select two or more available tables to combine them into a single larger table."
                 : combineSelection.length === 1
-                ? "Select at least one more table to combine."
-                : `${combineSelection.length} tables selected · ${combinedCapacity} total seats${partiesFitInSelection.length > 0 ? ` — fits ${partiesFitInSelection.map(p => p.guestName).join(", ")}` : ""}`}
+                  ? "Select at least one more table to combine."
+                  : `${combineSelection.length} tables selected · ${combinedCapacity} total seats${partiesFitInSelection.length > 0 ? ` — fits ${partiesFitInSelection.map(p => p.guestName).join(", ")}` : ""}`}
             </p>
             {/* Oversized party hint */}
             {combineSelection.length === 0 && oversizedParties.length > 0 && (
@@ -354,10 +380,10 @@ export default function FloorPlan() {
                   ${isCombined
                     ? "border-dashed border-violet-500/50 bg-violet-500/5 hover:bg-violet-500/10"
                     : combineMode && !isSelectable
-                    ? `${cfg.bg} ${cfg.border} opacity-40 cursor-not-allowed`
-                    : isSelected
-                    ? "border-violet-500/70 bg-violet-500/15 ring-2 ring-violet-500/30"
-                    : `${cfg.bg} ${cfg.border}`
+                      ? `${cfg.bg} ${cfg.border} opacity-40 cursor-not-allowed`
+                      : isSelected
+                        ? "border-violet-500/70 bg-violet-500/15 ring-2 ring-violet-500/30"
+                        : `${cfg.bg} ${cfg.border}`
                   }`}
               >
                 {/* Selection checkbox */}
@@ -406,11 +432,19 @@ export default function FloorPlan() {
                         <Users size={14} strokeWidth={1.5} className="text-zinc-500" />
                         <span className="text-sm font-medium text-zinc-300">{table.guestName}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={12} strokeWidth={1.5} className={getTimerColor(table.seatedAt)} />
-                        <span className={`text-xs font-medium tabular-nums ${getTimerColor(table.seatedAt)}`}>
-                          {getSeatedDuration(table.seatedAt)} ago
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={12} strokeWidth={1.5} className={getTimerColor(table.seatedAt)} />
+                          <span className={`text-xs font-medium tabular-nums ${getTimerColor(table.seatedAt)}`}>
+                            {getSeatedDuration(table.seatedAt)} ago
+                          </span>
+                        </div>
+                        {getOrdersForTable(table.id).length > 0 && (
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                            <Receipt size={9} strokeWidth={1.5} className="text-amber-400" />
+                            <span className="text-[10px] font-semibold text-amber-400 tabular-nums">{getOrdersForTable(table.id).length}</span>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
@@ -498,11 +532,10 @@ export default function FloorPlan() {
                   : `Table ${selectedTable?.tableNumber}`}
               </DialogTitle>
               {selectedTable && (
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                  selectedTable.combinedTableIds
-                    ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
-                    : STATUS_CONFIG[selectedTable.status].badge
-                }`}>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${selectedTable.combinedTableIds
+                  ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
+                  : STATUS_CONFIG[selectedTable.status].badge
+                  }`}>
                   {selectedTable.combinedTableIds ? "Combined" : STATUS_CONFIG[selectedTable.status].label}
                 </span>
               )}
@@ -538,14 +571,24 @@ export default function FloorPlan() {
                       {getSeatedDuration(selectedTable.seatedAt)} ago
                     </span>
                   </div>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleClearTable}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors mt-1"
-                  >
-                    <LogOut size={15} strokeWidth={1.5} />
-                    Clear Table
-                  </motion.button>
+                  <div className="flex gap-2 mt-1">
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleTakeOrder}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 font-medium text-sm hover:bg-amber-500/20 transition-colors"
+                    >
+                      <ShoppingBag size={14} strokeWidth={1.5} />
+                      Take Order
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleUnseatTable}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors"
+                    >
+                      <LogOut size={14} strokeWidth={1.5} />
+                      Unseat
+                    </motion.button>
+                  </div>
                 </div>
               )}
 
@@ -655,11 +698,10 @@ export default function FloorPlan() {
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleStatusChange(s)}
                         disabled={selectedTable.status === s}
-                        className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                          selectedTable.status === s
-                            ? `${STATUS_CONFIG[s].badge} opacity-100 cursor-default`
-                            : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
-                        }`}
+                        className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${selectedTable.status === s
+                          ? `${STATUS_CONFIG[s].badge} opacity-100 cursor-default`
+                          : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
+                          }`}
                       >
                         {s === "available" && <CheckCircle2 size={15} strokeWidth={1.5} />}
                         {s === "reserved" && <CalendarClock size={15} strokeWidth={1.5} />}
@@ -764,11 +806,10 @@ export default function FloorPlan() {
                     key={cap}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setNewCapacity(cap)}
-                    className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
-                      newCapacity === cap
-                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
-                        : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
-                    }`}
+                    className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all ${newCapacity === cap
+                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
+                      : "bg-zinc-800/60 border-white/8 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200"
+                      }`}
                   >
                     {cap}
                     <span className="text-[10px] font-normal opacity-60">seats</span>
@@ -787,6 +828,20 @@ export default function FloorPlan() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Unseat Modal */}
+      <UnseatModal
+        open={showUnseat}
+        onClose={() => { setShowUnseat(false); setUnseatTableId(null); }}
+        tableId={unseatTableId}
+      />
+
+      {/* Take Order Modal */}
+      <TakeOrderModal
+        open={showTakeOrder}
+        onClose={() => { setShowTakeOrder(false); setTakeOrderTableId(undefined); }}
+        preselectedTableId={takeOrderTableId}
+      />
     </div>
   );
 }

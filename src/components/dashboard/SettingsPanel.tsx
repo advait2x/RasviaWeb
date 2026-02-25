@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Store, MapPin, Phone, UtensilsCrossed, FileText,
   Check, X, Loader2, AlertTriangle, Plus, Pencil, Clock,
+  ImageIcon, Upload, Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -20,7 +21,37 @@ interface RestaurantProfile {
   phone: string;
   cuisineTags: string[];
   description: string;
+  imageUrl: string;
 }
+
+const DEFAULT_CUISINE_OPTIONS = [
+  "North Indian",
+  "South Indian",
+  "Mughlai",
+  "Punjabi",
+  "Bengali",
+  "Rajasthani",
+  "Gujarati",
+  "Kerala",
+  "Hyderabadi",
+  "Goan",
+  "Chettinad",
+  "Awadhi",
+  "Kashmiri",
+  "Maharashtrian",
+  "Street Food",
+  "Chaat",
+  "Tandoori",
+  "Biryani",
+  "Dosa & Idli",
+  "Indo-Chinese",
+  "Coastal",
+  "Vegetarian",
+  "Vegan",
+  "Jain",
+  "Thali",
+  "Mithai & Desserts",
+];
 
 interface DayHours {
   open: string;   // "09:00"
@@ -45,6 +76,7 @@ const empty = (): RestaurantProfile => ({
   phone: "",
   cuisineTags: [],
   description: "",
+  imageUrl: "",
 });
 
 function parseHoursRows(rows: Record<string, unknown>[]): OperatingHours {
@@ -85,6 +117,8 @@ export default function SettingsPanel() {
   const [otherValue, setOtherValue] = useState("");
   const otherInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -120,18 +154,21 @@ export default function SettingsPanel() {
       phone: String(row?.phone ?? row?.phone_number ?? ""),
       cuisineTags: Array.isArray(row?.cuisine_tags) ? (row.cuisine_tags as string[]) : [],
       description: String(row?.description ?? row?.bio ?? ""),
+      imageUrl: String(row?.image_url ?? ""),
     };
     setProfile(p);
     setDraft(p);
 
+    const dbTags: string[] = [];
     if (!cuisinesRes.error && cuisinesRes.data) {
       const allTags = (cuisinesRes.data as { cuisine_tags: unknown }[])
         .flatMap((r) => Array.isArray(r.cuisine_tags) ? (r.cuisine_tags as string[]) : [])
         .map((t) => t?.trim())
         .filter(Boolean);
-      const unique = [...new Set(allTags)].sort();
-      setCuisineOptions(unique);
+      dbTags.push(...allTags);
     }
+    const merged = [...new Set([...DEFAULT_CUISINE_OPTIONS, ...dbTags])].sort();
+    setCuisineOptions(merged);
 
     setLoading(false);
   }, [restaurantId]);
@@ -153,6 +190,66 @@ export default function SettingsPanel() {
       ...d,
       cuisineTags: d.cuisineTags.includes(tag) ? d.cuisineTags.filter((t) => t !== tag) : [...d.cuisineTags, tag],
     }));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !restaurantId) return;
+
+    setImageUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `restaurants/${restaurantId}/profile.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("restaurant-images")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("restaurant-images")
+        .getPublicUrl(path);
+
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from("restaurants")
+        .update({ image_url: publicUrl })
+        .eq("id", restaurantId);
+
+      if (updateError) throw updateError;
+
+      setProfile((p) => ({ ...p, imageUrl: publicUrl }));
+      setDraft((d) => ({ ...d, imageUrl: publicUrl }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setSaveError(msg);
+      setTimeout(() => setSaveError(null), 4000);
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!restaurantId) return;
+    setImageUploading(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ image_url: null })
+        .eq("id", restaurantId);
+      if (error) throw error;
+
+      setProfile((p) => ({ ...p, imageUrl: "" }));
+      setDraft((d) => ({ ...d, imageUrl: "" }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to remove image";
+      setSaveError(msg);
+      setTimeout(() => setSaveError(null), 4000);
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   // ── Fetch operating hours from restaurant_hours table ────────────────────
@@ -312,6 +409,76 @@ export default function SettingsPanel() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Restaurant Image */}
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  <ImageIcon size={12} strokeWidth={1.5} />
+                  Restaurant Image
+                </label>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <div className="relative group">
+                  {draft.imageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden border border-white/10">
+                      <img
+                        src={draft.imageUrl}
+                        alt="Restaurant"
+                        className="w-full h-48 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={imageUploading}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800/90 border border-white/15 text-zinc-200 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                        >
+                          <Upload size={13} strokeWidth={1.5} />
+                          Replace
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleImageRemove}
+                          disabled={imageUploading}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/25 transition-colors"
+                        >
+                          <Trash2 size={13} strokeWidth={1.5} />
+                          Remove
+                        </motion.button>
+                      </div>
+                      {imageUploading && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <Loader2 size={24} strokeWidth={1.5} className="text-amber-500 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={imageUploading}
+                      className="w-full h-40 rounded-xl border-2 border-dashed border-white/10 bg-zinc-900/40 flex flex-col items-center justify-center gap-2 hover:border-amber-500/30 hover:bg-zinc-800/30 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {imageUploading ? (
+                        <Loader2 size={24} strokeWidth={1.5} className="text-amber-500 animate-spin" />
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-white/8 flex items-center justify-center">
+                            <Upload size={18} strokeWidth={1.5} className="text-zinc-500" />
+                          </div>
+                          <p className="text-xs font-medium text-zinc-500">Click to upload restaurant photo</p>
+                          <p className="text-[10px] text-zinc-600">JPG, PNG, or WebP · Max 5 MB</p>
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+
               {fields.map(({ key, label, icon: Icon, placeholder, multiline }) => {
                 const val = draft[key] as string;
                 return (

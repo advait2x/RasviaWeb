@@ -2,6 +2,7 @@ export type NavView =
   | "dashboard"
   | "waitlist"
   | "floorplan"
+  | "orders"
   | "menu"
   | "settings"
   | "notifications";
@@ -37,6 +38,18 @@ export type MealTime =
   | "specials"
   | "all_day";
 
+export type DietType = "veg" | "non_veg" | "vegan";
+
+export type OrderType = "dine_in" | "pre_order" | "takeout";
+
+export type OrderStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
+  | "served"
+  | "completed"
+  | "cancelled";
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -45,6 +58,55 @@ export interface MenuItem {
   imageUrl: string | null;
   mealTimes: MealTime[];
   inStock: boolean;
+  dietType?: DietType;
+}
+
+export interface OrderItem {
+  id: string;
+  menuItemId: string;
+  menuItemName: string;
+  quantity: number;
+  unitPrice: number;
+  specialInstructions?: string;
+  dietType?: DietType;
+}
+
+export interface Order {
+  id: string;
+  tableId: string;
+  tableNumber: number;
+  guestName: string;
+  partySize: number;
+  items: OrderItem[];
+  status: OrderStatus;
+  orderType: OrderType;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  subtotal: number;
+  tax: number;
+  total: number;
+  tipAmount?: number;
+  tipPercent?: number;
+  paymentMethod: "cash" | "card" | "other";
+  notes?: string;
+  customerPhone?: string;
+  customerNotifiedAt?: Date;
+}
+
+export interface CompletedTableSession {
+  id: string;
+  tableId: string;
+  tableNumber: number;
+  guestName: string;
+  partySize: number;
+  seatedAt: Date;
+  clearedAt: Date;
+  durationMinutes: number;
+  orderTotal: number;
+  tipAmount: number;
+  tipPercent: number;
+  notes?: string;
 }
 
 export interface AppNotification {

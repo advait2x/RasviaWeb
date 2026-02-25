@@ -1,35 +1,49 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { useDashboard } from "@/context/DashboardContext";
 import Sidebar from "./Sidebar";
 import StatusBar from "./StatusBar";
 import WaitlistFeed from "./WaitlistFeed";
 import FloorPlan from "./FloorPlan";
+import OrdersPanel from "./OrdersPanel";
 import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
 import NotificationsPanel from "./NotificationsPanel";
 
+const VIEW_COMPONENTS: Record<string, React.FC> = {
+  dashboard: DashboardOverview,
+  waitlist: WaitlistFeed,
+  floorplan: FloorPlan,
+  orders: OrdersPanel,
+  menu: MenuManager,
+  settings: SettingsPanel,
+  notifications: NotificationsPanel,
+};
+
 export default function DashboardLayout() {
   const { activeView } = useDashboard();
+  const [fadeIn, setFadeIn] = useState(false);
+  const prevView = useRef(activeView);
 
-  const renderView = () => {
-    switch (activeView) {
-      case "dashboard":
-        return <DashboardOverview />;
-      case "waitlist":
-        return <WaitlistFeed />;
-      case "floorplan":
-        return <FloorPlan />;
-      case "menu":
-        return <MenuManager />;
-      case "settings":
-        return <SettingsPanel />;
-      case "notifications":
-        return <NotificationsPanel />;
-      default:
-        return <WaitlistFeed />;
+  useEffect(() => {
+    if (prevView.current !== activeView) {
+      setFadeIn(false);
+      const raf = requestAnimationFrame(() => setFadeIn(true));
+      prevView.current = activeView;
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setFadeIn(true);
     }
-  };
+  }, [activeView]);
+
+  const mountedViews = useRef(new Set<string>());
+  mountedViews.current.add(activeView);
+
+  const views = useMemo(
+    () => Array.from(mountedViews.current),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeView]
+  );
 
   return (
     <div className="h-screen w-screen overflow-hidden flex" style={{ background: "#09090b" }}>
@@ -51,20 +65,26 @@ export default function DashboardLayout() {
         {/* Status Bar */}
         <StatusBar />
 
-        {/* View Content */}
-        <div className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="h-full"
-            >
-              {renderView()}
-            </motion.div>
-          </AnimatePresence>
+        {/* View Content — keep-alive: each view stays mounted once visited */}
+        <div className="flex-1 overflow-hidden relative">
+          {views.map((view) => {
+            const Component = VIEW_COMPONENTS[view] ?? WaitlistFeed;
+            const isActive = view === activeView;
+            return (
+              <div
+                key={view}
+                className="absolute inset-0 transition-opacity duration-100 ease-out"
+                style={{
+                  opacity: isActive && fadeIn ? 1 : 0,
+                  pointerEvents: isActive ? "auto" : "none",
+                  zIndex: isActive ? 1 : 0,
+                  visibility: isActive ? "visible" : "hidden",
+                }}
+              >
+                <Component />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
