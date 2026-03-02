@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import StripeConnect from "@/components/dashboard/StripeConnect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -374,11 +375,11 @@ export default function SettingsPanel() {
     placeholder: string;
     multiline?: boolean;
   }[] = [
-    { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
-    { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
-    { key: "phone", label: "Phone Number", icon: Phone, placeholder: "(555) 000-0000" },
-    { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
-  ];
+      { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
+      { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
+      { key: "phone", label: "Phone Number", icon: Phone, placeholder: "(555) 000-0000" },
+      { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
+    ];
 
   return (
     <div className="flex flex-col h-full p-5 overflow-y-auto">
@@ -797,6 +798,10 @@ export default function SettingsPanel() {
             </div>
           )}
         </div>
+
+        {/* ── Payouts / Stripe Connect ─────────────────────────────── */}
+        <StripeConnect />
+
       </div>
 
       {/* Profile Confirmation Dialog */}
