@@ -16,7 +16,7 @@ function getWaitMinutes(addedAt: Date): number {
 }
 
 export default function DashboardOverview() {
-  const { waitlist, tables, menuItems } = useDashboard();
+  const { waitlist, tables, menuItems, setActiveView } = useDashboard();
   const { restaurantId } = useAuth();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
@@ -49,6 +49,7 @@ export default function DashboardOverview() {
       color: "text-amber-500",
       iconBg: "bg-amber-500/10 border-amber-500/20",
       glowColor: "rgba(245,158,11,0.06)",
+      tab: "waitlist" as const,
     },
     {
       label: "Avg Wait Time",
@@ -57,6 +58,7 @@ export default function DashboardOverview() {
       color: "text-emerald-400",
       iconBg: "bg-emerald-500/10 border-emerald-500/20",
       glowColor: "rgba(16,185,129,0.06)",
+      tab: "waitlist" as const,
     },
     {
       label: "Tables Available",
@@ -65,6 +67,7 @@ export default function DashboardOverview() {
       color: "text-emerald-400",
       iconBg: "bg-emerald-500/10 border-emerald-500/20",
       glowColor: "rgba(16,185,129,0.06)",
+      tab: "floorplan" as const,
     },
     {
       label: "Tables Occupied",
@@ -73,6 +76,7 @@ export default function DashboardOverview() {
       color: "text-blue-400",
       iconBg: "bg-blue-500/10 border-blue-500/20",
       glowColor: "rgba(59,130,246,0.06)",
+      tab: "floorplan" as const,
     },
     {
       label: "Longest Wait",
@@ -81,6 +85,7 @@ export default function DashboardOverview() {
       color: longestWait > 30 ? "text-red-400" : "text-amber-400",
       iconBg: longestWait > 30 ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20",
       glowColor: longestWait > 30 ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
+      tab: "waitlist" as const,
     },
     {
       label: "Items 86'd",
@@ -89,6 +94,7 @@ export default function DashboardOverview() {
       color: eightySixed > 0 ? "text-red-400" : "text-zinc-400",
       iconBg: eightySixed > 0 ? "bg-red-500/10 border-red-500/20" : "bg-zinc-500/10 border-zinc-500/20",
       glowColor: eightySixed > 0 ? "rgba(239,68,68,0.06)" : "rgba(0,0,0,0)",
+      tab: "menu" as const,
     },
   ];
 
@@ -106,8 +112,9 @@ export default function DashboardOverview() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, delay: index * 0.05 }}
-            className="card-premium rounded-xl p-5 group"
+            className="card-premium rounded-xl p-5 group cursor-pointer hover:ring-1 hover:ring-white/10 transition-all"
             style={{ boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px ${stat.glowColor}` }}
+            onClick={() => setActiveView(stat.tab)}
           >
             <div className="flex items-center justify-between mb-3">
               <div className={`w-10 h-10 rounded-lg border flex items-center justify-center ${stat.iconBg}`}>
