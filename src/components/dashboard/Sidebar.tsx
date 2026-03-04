@@ -11,8 +11,9 @@ import {
   LogOut,
   AlertTriangle,
 } from "lucide-react";
-import { NavView } from "@/types/dashboard";
+import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
+import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import {
   Tooltip,
@@ -25,20 +26,25 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 
-const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView }[] = [
-  { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
-  { icon: ClipboardList, label: "Waitlist", view: "waitlist" },
-  { icon: Map, label: "Floor Plan", view: "floorplan" },
-  { icon: ShoppingBag, label: "Orders", view: "orders" },
-  { icon: UtensilsCrossed, label: "Menu Editor", view: "menu" },
-  { icon: Bell, label: "Notifications", view: "notifications" },
-  { icon: Settings, label: "Settings", view: "settings" },
+/** Maps each nav view to the permission required to see it */
+const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; requiredPermission: Permission }[] = [
+  { icon: LayoutDashboard, label: "Dashboard", view: "dashboard", requiredPermission: "view_dashboard" },
+  { icon: ClipboardList, label: "Waitlist", view: "waitlist", requiredPermission: "manage_waitlist" },
+  { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
+  { icon: ShoppingBag, label: "Orders", view: "orders", requiredPermission: "view_orders" },
+  { icon: UtensilsCrossed, label: "Menu Editor", view: "menu", requiredPermission: "view_menu" },
+  { icon: Bell, label: "Notifications", view: "notifications", requiredPermission: "view_notifications" },
+  { icon: Settings, label: "Settings", view: "settings", requiredPermission: "view_settings" },
 ];
 
 export default function Sidebar() {
   const { activeView, setActiveView, unreadCount, preorderCount } = useDashboard();
+  const { hasPermission } = useAuth();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // Filter nav items to only those the user has permission for
+  const visibleNavItems = navItems.filter((item) => hasPermission(item.requiredPermission));
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -111,7 +117,7 @@ export default function Sidebar() {
           <TooltipTrigger asChild>
             <motion.button
               whileTap={{ scale: 0.93 }}
-              onClick={() => setActiveView("settings")}
+              onClick={() => hasPermission("view_settings") && setActiveView("settings")}
               className="mb-8 relative group"
             >
               <div
@@ -130,9 +136,9 @@ export default function Sidebar() {
           </TooltipContent>
         </Tooltip>
 
-        {/* Nav */}
+        {/* Nav — only show items the user has permission for */}
         <nav className="flex-1 flex flex-col items-center justify-evenly w-full">
-          {navItems.map(({ icon, label, view }) => renderNavItem(icon, label, view))}
+          {visibleNavItems.map(({ icon, label, view }) => renderNavItem(icon, label, view))}
         </nav>
 
         {/* Logout */}

@@ -1,5 +1,8 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { useDashboard } from "@/context/DashboardContext";
+import { useAuth } from "@/context/AuthContext";
+import { Permission } from "@/types/dashboard";
+import { ShieldX } from "lucide-react";
 import Sidebar from "./Sidebar";
 import StatusBar from "./StatusBar";
 import WaitlistFeed from "./WaitlistFeed";
@@ -20,10 +23,56 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   notifications: NotificationsPanel,
 };
 
+/** Maps each view to the permission needed to access it */
+const VIEW_PERMISSIONS: Record<string, Permission> = {
+  dashboard: "view_dashboard",
+  waitlist: "manage_waitlist",
+  floorplan: "view_floorplan",
+  orders: "view_orders",
+  menu: "view_menu",
+  settings: "view_settings",
+  notifications: "view_notifications",
+};
+
+function AccessDenied() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+        <ShieldX size={28} strokeWidth={1.5} className="text-red-400" />
+      </div>
+      <div className="space-y-1.5">
+        <h2 className="text-lg font-bold text-zinc-100">Access Denied</h2>
+        <p className="text-sm text-zinc-500 max-w-xs">
+          You don't have permission to access this section. Contact your restaurant owner to update your role.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout() {
-  const { activeView } = useDashboard();
+  const { activeView, setActiveView } = useDashboard();
+  const { hasPermission, permissions } = useAuth();
   const [fadeIn, setFadeIn] = useState(false);
   const prevView = useRef(activeView);
+  const hasSetInitialView = useRef(false);
+
+  // On first load, set the active view to the first one the user has permission for
+  useEffect(() => {
+    if (hasSetInitialView.current || permissions.length === 0) return;
+    hasSetInitialView.current = true;
+
+    const requiredPerm = VIEW_PERMISSIONS[activeView];
+    if (requiredPerm && hasPermission(requiredPerm)) return; // current view is fine
+
+    // Find the first permitted view
+    const viewOrder = ["dashboard", "waitlist", "floorplan", "orders", "menu", "notifications", "settings"];
+    const firstAllowed = viewOrder.find((v) => {
+      const perm = VIEW_PERMISSIONS[v];
+      return perm && hasPermission(perm);
+    });
+    if (firstAllowed) setActiveView(firstAllowed as typeof activeView);
+  }, [permissions, activeView, setActiveView, hasPermission]);
 
   useEffect(() => {
     if (prevView.current !== activeView) {
@@ -68,8 +117,11 @@ export default function DashboardLayout() {
         {/* View Content — keep-alive: each view stays mounted once visited */}
         <div className="flex-1 overflow-hidden relative">
           {views.map((view) => {
-            const Component = VIEW_COMPONENTS[view] ?? WaitlistFeed;
             const isActive = view === activeView;
+            const requiredPerm = VIEW_PERMISSIONS[view];
+            const allowed = requiredPerm ? hasPermission(requiredPerm) : true;
+            const Component = allowed ? (VIEW_COMPONENTS[view] ?? WaitlistFeed) : AccessDenied;
+
             return (
               <div
                 key={view}

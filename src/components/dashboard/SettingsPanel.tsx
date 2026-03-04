@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import TeamRolesPanel from "@/components/dashboard/TeamRolesPanel";
 import {
   Dialog,
   DialogContent,
@@ -107,7 +108,7 @@ function fmt12(time24: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SettingsPanel() {
-  const { restaurantId } = useAuth();
+  const { restaurantId, isAdmin } = useAuth();
 
   // Profile
   const [profile, setProfile] = useState<RestaurantProfile>(empty());
@@ -801,6 +802,9 @@ export default function SettingsPanel() {
 
         {/* ── Payouts / Stripe Connect ─────────────────────────────── */}
         <StripeConnect />
+
+        {/* ── Team & Roles (owner-only) ────────────────────────────── */}
+        {isAdmin && <TeamRolesPanel />}
 
       </div>
 
