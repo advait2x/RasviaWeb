@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, X, Armchair, Bell, BellRing, UserPlus } from "lucide-react";
+import { Users, X, Armchair, Bell, BellRing, UserPlus, AlertTriangle } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { WaitlistEntry } from "@/types/dashboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +29,7 @@ export default function WaitlistFeed() {
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   const waitingList = waitlist.filter((w) => w.status === "waiting");
 
@@ -38,9 +39,18 @@ export default function WaitlistFeed() {
     setExpandedRow(null);
   };
 
-  const handleCancel = (id: string) => {
+  const handleCancelRequest = (id: string) => {
+    setCancelConfirmId(id);
+  };
+
+  const handleCancelConfirm = (id: string) => {
     cancelParty(id);
+    setCancelConfirmId(null);
     setExpandedRow(null);
+  };
+
+  const handleCancelDismiss = () => {
+    setCancelConfirmId(null);
   };
 
   return (
@@ -171,14 +181,39 @@ export default function WaitlistFeed() {
                             <Bell size={16} strokeWidth={1.5} />
                             {entry.notifiedAt ? "Notified" : "Notify"}
                           </motion.button>
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleCancel(entry.id)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/20 transition-colors"
-                          >
-                            <X size={16} strokeWidth={1.5} />
-                            Cancel
-                          </motion.button>
+                          {cancelConfirmId === entry.id ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30"
+                            >
+                              <AlertTriangle size={14} strokeWidth={1.5} className="text-red-400 shrink-0" />
+                              <span className="text-xs text-red-300 font-medium">Remove from waitlist?</span>
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleCancelDismiss}
+                                className="px-2.5 py-1 rounded-md bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-600 transition-colors"
+                              >
+                                Keep
+                              </motion.button>
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleCancelConfirm(entry.id)}
+                                className="px-2.5 py-1 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-semibold hover:bg-red-500/30 transition-colors"
+                              >
+                                Remove
+                              </motion.button>
+                            </motion.div>
+                          ) : (
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleCancelRequest(entry.id)}
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/20 transition-colors"
+                            >
+                              <X size={16} strokeWidth={1.5} />
+                              Cancel
+                            </motion.button>
+                          )}
                         </div>
                       </motion.div>
                     )}

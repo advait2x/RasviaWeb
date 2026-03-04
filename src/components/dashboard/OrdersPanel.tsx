@@ -3,13 +3,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Plus, Clock, Users, ChefHat, CheckCircle2, XCircle,
     ShoppingBag, ArrowRight, ArrowLeft, Leaf, Drumstick, Vegan, Coffee, Sun, Moon, Star,
-    Filter, X, Receipt, Bell, BellRing, Phone,
+    Filter, X, Receipt, Bell, BellRing, Phone, AlertTriangle,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { Order, OrderStatus, DietType, MealTime } from "@/types/dashboard";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TakeOrderModal from "./TakeOrderModal";
+import {
+    Dialog,
+    DialogContent,
+} from "@/components/ui/dialog";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
@@ -65,6 +69,14 @@ function getTimeSince(date: Date): string {
     return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
 }
 
+function getTimeColor(date: Date): string {
+    const mins = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (mins < 10) return "text-emerald-400";
+    if (mins < 20) return "text-blue-400";
+    if (mins < 35) return "text-amber-400";
+    return "text-red-400";
+}
+
 export default function OrdersPanel() {
     const { orders, tables, updateOrderStatus, notifyCustomer } = useDashboard();
     const [tab, setTab] = useState<TabKey>("active");
@@ -76,6 +88,7 @@ export default function OrdersPanel() {
     const [statusFilter, setStatusFilter] = useState<OrderStatus[]>([]);
     const [tableFilter, setTableFilter] = useState<number | null>(null);
     const [showTakeOrder, setShowTakeOrder] = useState(false);
+    const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
     const occupiedTables = tables.filter((t) => t.status === "occupied" && !t.isCombinedChild);
 
@@ -159,6 +172,11 @@ export default function OrdersPanel() {
         if (prev) updateOrderStatus(orderId, prev);
     };
 
+    const handleCancelOrder = (orderId: string) => {
+        updateOrderStatus(orderId, "cancelled");
+        setCancelConfirmId(null);
+    };
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -215,7 +233,12 @@ export default function OrdersPanel() {
                         >
                             {label}
                             {count > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === key ? "bg-amber-500/20 text-amber-400" : "bg-zinc-700/60 text-zinc-500"
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                    tab === key
+                                        ? "bg-amber-500/20 text-amber-400"
+                                        : key === "preorders"
+                                            ? "bg-red-500 text-white"
+                                            : "bg-zinc-700/60 text-zinc-500"
                                     }`}>
                                     {count}
                                 </span>
@@ -428,8 +451,8 @@ export default function OrdersPanel() {
                                                     <Users size={11} strokeWidth={1.5} className="text-zinc-500" />
                                                     <span className="text-xs text-zinc-500">{order.partySize}</span>
                                                     <span className="text-zinc-700">·</span>
-                                                    <Clock size={11} strokeWidth={1.5} className="text-zinc-500" />
-                                                    <span className="text-xs text-zinc-500">{getTimeSince(order.createdAt)}</span>
+                                                    <Clock size={11} strokeWidth={1.5} className={getTimeColor(order.createdAt)} />
+                                                    <span className={`text-xs ${getTimeColor(order.createdAt)}`}>{getTimeSince(order.createdAt)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -543,6 +566,18 @@ export default function OrdersPanel() {
                                                     {STATUS_CONFIG[NEXT_STATUS[order.status]!].label}
                                                 </motion.button>
                                             )}
+                                            {/* Cancel button */}
+                                            {order.status !== "cancelled" && order.status !== "completed" && (
+                                                <motion.button
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => setCancelConfirmId(order.id)}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
+                                                    title="Cancel this order"
+                                                >
+                                                    <X size={11} strokeWidth={2} />
+                                                    Cancel
+                                                </motion.button>
+                                            )}
                                             {order.status === "completed" && order.tipAmount != null && order.tipPercent != null && (
                                                 <span className="text-xs text-zinc-500">
                                                     {order.tipPercent.toFixed(0)}% tip
@@ -562,6 +597,39 @@ export default function OrdersPanel() {
                 open={showTakeOrder}
                 onClose={() => setShowTakeOrder(false)}
             />
+
+            {/* Cancel Order Confirmation Dialog */}
+            <Dialog open={cancelConfirmId !== null} onOpenChange={(o) => !o && setCancelConfirmId(null)}>
+                <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+                    <div className="flex flex-col items-center text-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                            <AlertTriangle size={22} strokeWidth={1.5} className="text-red-400" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <h3 className="text-base font-semibold text-zinc-100">Cancel this order?</h3>
+                            <p className="text-sm text-zinc-400">
+                                This will mark the order as cancelled. This cannot be undone.
+                            </p>
+                        </div>
+                        <div className="flex gap-3 w-full pt-1">
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setCancelConfirmId(null)}
+                                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+                            >
+                                Keep Order
+                            </motion.button>
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => cancelConfirmId && handleCancelOrder(cancelConfirmId)}
+                                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-colors"
+                            >
+                                Cancel Order
+                            </motion.button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

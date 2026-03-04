@@ -26,7 +26,12 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
     const newErrors: Record<string, string> = {};
     if (!leaderName.trim()) newErrors.name = "Party leader name is required";
     if (!partySize || parseInt(partySize) < 1) newErrors.partySize = "Party size must be at least 1";
-    if (!phone.trim()) newErrors.phone = "Phone number is required";
+    const digits = phone.replace(/\D/g, "");
+    if (!phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (digits.length !== 10) {
+      newErrors.phone = "Enter a valid 10-digit phone number";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);

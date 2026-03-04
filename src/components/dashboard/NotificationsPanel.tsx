@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, UserPlus, UserMinus, Inbox } from "lucide-react";
+import { Bell, UserPlus, UserMinus, Inbox, UsersRound } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { AppNotification } from "@/types/dashboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,6 +42,33 @@ function PartyNotif({ notif }: { notif: AppNotification }) {
   );
 }
 
+function GroupNotif({ notif }: { notif: AppNotification }) {
+  return (
+    <motion.div
+      key={notif.id}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-start gap-3 p-3.5 rounded-xl border bg-violet-500/5 border-violet-500/15"
+    >
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-violet-500/15">
+        <UsersRound size={15} strokeWidth={1.5} className="text-violet-400" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-zinc-100">{notif.guestName}</p>
+        <p className="text-xs mt-0.5 text-violet-400">
+          Started a group session{notif.partySize > 0 ? ` · Party of ${notif.partySize}` : ""}
+        </p>
+        {notif.sessionId && (
+          <p className="text-[10px] text-zinc-600 mt-0.5 font-mono">#{notif.sessionId.slice(0, 6)}</p>
+        )}
+      </div>
+      <span className="text-[11px] text-zinc-600 flex-shrink-0 mt-0.5">{formatTime(notif.timestamp)}</span>
+    </motion.div>
+  );
+}
+
 function EmptyState() {
   return (
     <motion.div
@@ -54,7 +81,7 @@ function EmptyState() {
       </div>
       <p className="text-sm font-medium text-zinc-500">No notifications yet</p>
       <p className="text-xs text-zinc-600">
-        New and departed waitlist guests will appear here
+        Waitlist activity and group orders will appear here
       </p>
     </motion.div>
   );
@@ -67,7 +94,9 @@ export default function NotificationsPanel() {
     markNotificationsRead();
   }, [markNotificationsRead]);
 
-  const displayed = notifications.filter((n) => n.type === "joined" || n.type === "left");
+  const displayed = notifications.filter(
+    (n) => n.type === "joined" || n.type === "left" || n.type === "group_created"
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -90,7 +119,11 @@ export default function NotificationsPanel() {
                 exit={{ opacity: 0 }}
                 className="space-y-2"
               >
-                {displayed.map((n) => <PartyNotif key={n.id} notif={n} />)}
+              {displayed.map((n) =>
+                n.type === "group_created"
+                  ? <GroupNotif key={n.id} notif={n} />
+                  : <PartyNotif key={n.id} notif={n} />
+              )}
               </motion.div>
             )}
           </AnimatePresence>

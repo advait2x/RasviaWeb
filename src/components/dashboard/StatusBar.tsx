@@ -7,6 +7,10 @@ import { supabase } from "@/lib/supabase";
 import { Switch } from "@/components/ui/switch";
 import { WaitTimeWidget } from "@/components/WaitTimeWidget";
 import DebugPanel from "./DebugPanel";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 
 
 
@@ -35,6 +39,9 @@ export default function StatusBar() {
 
   // Whether the restaurant is currently open per its operating hours
   const [restaurantOpen, setRestaurantOpen] = useState<boolean | null>(null);
+
+  // Pending toggle state — when set, shows confirmation dialog
+  const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
 
   // Fetch operating hours for today and determine open/closed
   useEffect(() => {
@@ -91,6 +98,22 @@ export default function StatusBar() {
     }
   };
 
+  // Instead of toggling immediately, show a confirmation dialog
+  const handleSwitchChange = (open: boolean) => {
+    setPendingToggle(open);
+  };
+
+  const handleConfirmToggle = () => {
+    if (pendingToggle !== null) {
+      handleToggleWaitlist(pendingToggle);
+      setPendingToggle(null);
+    }
+  };
+
+  const handleCancelToggle = () => {
+    setPendingToggle(null);
+  };
+
   // Disable the toggle when the restaurant is known to be closed
   const isToggleDisabled = restaurantOpen === false;
 
@@ -110,7 +133,7 @@ export default function StatusBar() {
           <div className="flex items-center gap-3">
             <Switch
               checked={waitlistOpen}
-              onCheckedChange={handleToggleWaitlist}
+              onCheckedChange={handleSwitchChange}
               disabled={isToggleDisabled}
               className={`${waitlistOpen && !isToggleDisabled
                   ? "data-[state=checked]:bg-emerald-500"
@@ -187,6 +210,51 @@ export default function StatusBar() {
       </div>
       {/* Subtle gradient accent line */}
       <div className="gradient-accent-bar" />
+
+      {/* Waitlist toggle confirmation dialog */}
+      <Dialog open={pendingToggle !== null} onOpenChange={(o) => !o && handleCancelToggle()}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+              pendingToggle
+                ? "bg-emerald-500/10 border border-emerald-500/20"
+                : "bg-zinc-700/40 border border-zinc-600/30"
+            }`}>
+              <Users size={22} strokeWidth={1.5} className={pendingToggle ? "text-emerald-400" : "text-zinc-400"} />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base font-semibold text-zinc-100">
+                {pendingToggle ? "Open the waitlist?" : "Close the waitlist?"}
+              </h3>
+              <p className="text-sm text-zinc-400">
+                {pendingToggle
+                  ? "Guests will be able to join the waitlist."
+                  : "No new guests will be able to join the waitlist."}
+              </p>
+            </div>
+            <div className="flex gap-3 w-full pt-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancelToggle}
+                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleConfirmToggle}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  pendingToggle
+                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                    : "bg-zinc-700/60 border border-zinc-600/40 text-zinc-300 hover:bg-zinc-700"
+                }`}
+              >
+                {pendingToggle ? "Open Waitlist" : "Close Waitlist"}
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

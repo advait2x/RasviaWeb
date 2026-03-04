@@ -111,9 +111,10 @@ export interface CompletedTableSession {
 
 export interface AppNotification {
   id: string;
-  type: "joined" | "left";
+  type: "joined" | "left" | "group_created";
   guestName: string;
   partySize: number;
   timestamp: Date;
   read: boolean;
+  sessionId?: string;
 }

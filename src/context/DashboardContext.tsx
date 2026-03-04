@@ -47,6 +47,7 @@ interface DashboardState {
   getOrdersForTable: (tableId: string) => Order[];
   clearTableWithTip: (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => Promise<void>;
   notifyCustomer: (orderId: string) => void;
+  preorderCount: number;
 }
 
 const DashboardContext = createContext<DashboardState | null>(null);
@@ -640,6 +641,50 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [restaurantId]);
 
+  // ── Group session notifications ────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    const channel = supabase
+      .channel(`party-sessions-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "party_sessions",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const sessionId = String(row.id ?? "");
+          const hostName = (row.host_name as string) ?? (row.name as string) ?? "A guest";
+          const partySize = (row.party_size as number) ?? 0;
+
+          toast(`New group session started`, {
+            description: `${hostName} created a group${partySize > 0 ? ` · Party of ${partySize}` : ""}`,
+          });
+
+          setNotifications((prev) => [
+            {
+              id: `n-group-${Date.now()}`,
+              type: "group_created" as const,
+              guestName: hostName,
+              partySize,
+              timestamp: new Date(),
+              read: false,
+              sessionId,
+            },
+            ...prev,
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurantId]);
+
   // ── Order mutations ───────────────────────────────────────────────────────
 
   const recalcOrderTotals = (items: OrderItem[]): { subtotal: number; tax: number; total: number } => {
@@ -846,6 +891,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
+  const preorderCount = orders.filter(
+    (o) => activeStatuses.includes(o.status) && (o.orderType === "pre_order" || o.orderType === "takeout")
+  ).length;
 
   return (
     <DashboardContext.Provider
@@ -891,6 +940,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         getOrdersForTable,
         clearTableWithTip,
         notifyCustomer,
+        preorderCount,
       }}
     >
       {children}

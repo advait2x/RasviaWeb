@@ -36,7 +36,7 @@ const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView }[]
 ];
 
 export default function Sidebar() {
-  const { activeView, setActiveView, unreadCount } = useDashboard();
+  const { activeView, setActiveView, unreadCount, preorderCount } = useDashboard();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -80,6 +80,12 @@ export default function Sidebar() {
             {view === "notifications" && unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
                 {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+            {/* Pre-order badge for orders */}
+            {view === "orders" && preorderCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
+                {preorderCount > 99 ? "99+" : preorderCount}
               </span>
             )}
           </motion.button>
