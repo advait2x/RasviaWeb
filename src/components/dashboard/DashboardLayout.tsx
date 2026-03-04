@@ -50,9 +50,41 @@ function AccessDenied() {
   );
 }
 
+function FullScreenAccessDenied() {
+  const handleSignOut = async () => {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 text-center"
+      style={{ background: "#09090b" }}
+    >
+      <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+        <ShieldX size={28} strokeWidth={1.5} className="text-red-400" />
+      </div>
+      <div className="space-y-1.5">
+        <h2 className="text-lg font-bold text-zinc-100">Access Denied</h2>
+        <p className="text-sm text-zinc-500 max-w-xs">
+          You don't have permission to access any section of this dashboard.
+          Contact your restaurant owner to update your role.
+        </p>
+      </div>
+      <button
+        onClick={handleSignOut}
+        className="mt-2 px-5 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+      >
+        Sign Out
+      </button>
+    </div>
+  );
+}
+
 export default function DashboardLayout() {
   const { activeView, setActiveView } = useDashboard();
-  const { hasPermission, permissions } = useAuth();
+  const { hasPermission, permissions, loading } = useAuth();
   const [fadeIn, setFadeIn] = useState(false);
   const prevView = useRef(activeView);
   const hasSetInitialView = useRef(false);
@@ -93,6 +125,11 @@ export default function DashboardLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeView]
   );
+
+  // If auth is resolved and the user has zero permissions, block the entire screen
+  if (!loading && permissions.length === 0) {
+    return <FullScreenAccessDenied />;
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden flex" style={{ background: "#09090b" }}>
