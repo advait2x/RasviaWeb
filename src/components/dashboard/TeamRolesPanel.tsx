@@ -241,22 +241,32 @@ export default function TeamRolesPanel() {
         setError(null);
 
         try {
-            // Check if user exists in restaurant_staff already
+            // 1. Resolve the user's UUID from their email via a secure DB function
+            //    (auth.users is not directly accessible from the client)
+            const { data: userId, error: lookupErr } = await supabase
+                .rpc("get_user_id_by_email", { lookup_email: inviteEmail.trim().toLowerCase() });
+
+            if (lookupErr) throw lookupErr;
+            if (!userId) {
+                throw new Error(`No account found for "${inviteEmail.trim()}". They must sign up first.`);
+            }
+
+            // 2. Check if they're already on this restaurant's team
             const { data: existing } = await supabase
                 .from("restaurant_staff")
                 .select("id")
                 .eq("restaurant_id", restaurantId)
-                .eq("user_id", inviteEmail.trim())
+                .eq("user_id", userId)
                 .maybeSingle();
 
             if (existing) {
-                throw new Error("This user is already a staff member of this restaurant");
+                throw new Error("This user is already a staff member of this restaurant.");
             }
 
-            // Insert staff row — user_id is the email/uid depending on your auth setup
+            // 3. Add them to the team with the selected role
             const { error: insertErr } = await supabase.from("restaurant_staff").insert({
                 restaurant_id: restaurantId,
-                user_id: inviteEmail.trim(),
+                user_id: userId,
                 role: "staff",
                 role_id: inviteRoleId,
             });
@@ -267,7 +277,7 @@ export default function TeamRolesPanel() {
             setShowInvite(false);
             setInviteEmail("");
             setInviteRoleId(null);
-            setSuccess("Staff member added");
+            setSuccess("Staff member added successfully");
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Failed to add staff");
@@ -275,6 +285,7 @@ export default function TeamRolesPanel() {
             setInviting(false);
         }
     };
+
 
     const handleRemoveStaff = async (s: StaffMember) => {
         setError(null);
@@ -605,8 +616,8 @@ export default function TeamRolesPanel() {
                                         <label
                                             key={key}
                                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all ${checked
-                                                    ? "bg-amber-500/8 border-amber-500/25"
-                                                    : "bg-zinc-800/40 border-white/5 hover:border-white/10"
+                                                ? "bg-amber-500/8 border-amber-500/25"
+                                                : "bg-zinc-800/40 border-white/5 hover:border-white/10"
                                                 }`}
                                         >
                                             <input

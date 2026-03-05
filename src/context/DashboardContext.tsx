@@ -509,10 +509,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const TAX_RATE_LOCAL = TAX_RATE; // keep reference accessible inside closures
 
-  // Map DB status → app status
-  const dbStatusToApp = (s: string): OrderStatus => s === "active" ? "pending" : s as OrderStatus;
-  // Map app status → DB status
-  const appStatusToDb = (s: OrderStatus): string => s === "pending" ? "active" : s;
+  // DB and app now both use 'pending' — no mapping needed
 
   // Parse metadata stored in the notes field as JSON
   const parseMeta = (notes: string | null): Record<string, unknown> => {
@@ -546,10 +543,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       guestName: (row.customer_name as string) ?? (meta.guestName as string) ?? "Guest",
       partySize: (row.party_size as number) ?? 1,
       items,
-      status: dbStatusToApp(row.status as string),
+      status: row.status as OrderStatus,
       orderType: row.order_type as OrderType,
       createdAt: new Date(row.created_at as string),
-      updatedAt: row.closed_at ? new Date(row.closed_at as string) : new Date(row.created_at as string),
+      updatedAt: row.updated_at ? new Date(row.updated_at as string) : (row.closed_at ? new Date(row.closed_at as string) : new Date(row.created_at as string)),
       completedAt: row.closed_at ? new Date(row.closed_at as string) : undefined,
       subtotal,
       tax,
@@ -557,7 +554,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       tipAmount: row.tip_amount ? Number(row.tip_amount) : undefined,
       tipPercent: row.tip_percent ? Number(row.tip_percent) : undefined,
       paymentMethod: (row.payment_method as "cash" | "card" | "other") ?? "cash",
-      customerPhone: (meta.customerPhone as string) || undefined,
+      customerPhone: (row.customer_phone as string) || (meta.customerPhone as string) || undefined,
       customerNotifiedAt: meta.customerNotifiedAt ? new Date(meta.customerNotifiedAt as string) : undefined,
     };
   }, []);
@@ -702,7 +699,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     const meta = JSON.stringify({
       tableId,
-      customerPhone: customerPhone?.trim() || undefined,
     });
 
     const { data, error } = await supabase.from("orders").insert({
@@ -710,9 +706,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       table_number: tableNumber,
       party_size: effectivePartySize,
       order_type: orderType,
-      status: "active",  // DB uses 'active' for pending
+      status: "pending",
       payment_method: "cash",
       customer_name: effectiveGuestName,
+      customer_phone: customerPhone?.trim() || null,
       notes: meta,
     }).select().single();
 
@@ -812,8 +809,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [removeItemFromOrder]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
-    const dbStatus = appStatusToDb(status);
-    const patch: Record<string, unknown> = { status: dbStatus };
+    const patch: Record<string, unknown> = { status };
     if (status === "completed" || status === "cancelled") patch.closed_at = new Date().toISOString();
     await supabase.from("orders").update(patch).eq("id", Number(orderId));
     setOrders((prev) => prev.map((o) => o.id !== orderId ? o : {
