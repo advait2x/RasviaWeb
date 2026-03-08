@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Plus, Clock, Users, ChefHat, CheckCircle2, XCircle,
-    ShoppingBag, ArrowRight, ArrowLeft, Leaf, Drumstick, Vegan, Coffee, Sun, Moon, Star,
+    ShoppingBag, ArrowRight, ArrowLeft, Leaf, Drumstick, Shield, Coffee, Sun, Moon, Star,
     Filter, X, Receipt, Bell, BellRing, Phone, AlertTriangle,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
@@ -52,7 +52,7 @@ const PARTY_SIZE_FILTERS = [
 const DIET_FILTERS: { value: DietType; label: string; icon: typeof Leaf }[] = [
     { value: "veg", label: "Veg", icon: Leaf },
     { value: "non_veg", label: "Non-Veg", icon: Drumstick },
-    { value: "vegan", label: "Vegan", icon: Vegan },
+    { value: "halal", label: "Halal", icon: Shield },
 ];
 
 const MEAL_FILTERS: { value: MealTime; label: string; icon: typeof Coffee }[] = [
@@ -290,7 +290,7 @@ export default function OrdersPanel() {
                                         }
                                         className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${dietFilter.includes(value)
                                             ? value === "veg" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                                : value === "vegan" ? "bg-green-500/10 border-green-500/30 text-green-400"
+                                                : value === "halal" ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
                                                     : "bg-red-500/10 border-red-500/30 text-red-400"
                                             : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
                                             }`}
@@ -517,7 +517,7 @@ export default function OrdersPanel() {
                                                         <span className="text-zinc-500 tabular-nums">{item.quantity}×</span>
                                                         <span className="text-zinc-300">{item.menuItemName}</span>
                                                         {item.dietType && (
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "vegan" ? "bg-green-500" : "bg-red-500"
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
                                                                 }`} />
                                                         )}
                                                     </div>

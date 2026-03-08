@@ -14,6 +14,8 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import StripeConnect from "@/components/dashboard/StripeConnect";
+import { getRestaurantFallback } from "@/lib/fallbackImages";
+import FallbackImage from "@/components/ui/FallbackImage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -427,8 +429,9 @@ export default function SettingsPanel() {
                 <div className="relative group">
                   {draft.imageUrl ? (
                     <div className="relative rounded-xl overflow-hidden border border-white/10">
-                      <img
+                      <FallbackImage
                         src={draft.imageUrl}
+                        fallbackSrc={restaurantId ? getRestaurantFallback(restaurantId) : ""}
                         alt="Restaurant"
                         className="w-full h-48 object-cover"
                       />

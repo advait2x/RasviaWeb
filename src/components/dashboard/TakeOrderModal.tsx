@@ -366,7 +366,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-sm font-medium text-zinc-200">{item.name}</span>
                                                         {item.dietType && (
-                                                            <span className={`w-2 h-2 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "vegan" ? "bg-green-500" : "bg-red-500"
+                                                            <span className={`w-2 h-2 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
                                                                 }`} />
                                                         )}
                                                     </div>
@@ -513,7 +513,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                                 <span className="text-xs text-zinc-500 tabular-nums">{item.quantity}×</span>
                                                 <span className="text-sm text-zinc-200">{item.name}</span>
                                                 {item.dietType && (
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "vegan" ? "bg-green-500" : "bg-red-500"
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
                                                         }`} />
                                                 )}
                                             </div>

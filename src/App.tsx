@@ -11,7 +11,7 @@ function AppContent() {
     return <JoinBridge />;
   }
 
-  const { session, restaurantId, loading } = useAuth();
+  const { session, restaurantId, loading, userRole, isAdmin, isRestaurantOwner } = useAuth();
 
   if (loading) {
     return (
@@ -32,8 +32,8 @@ function AppContent() {
     return <Login />;
   }
 
-  // 2. Logged in but NO restaurant linked? -> Show Error
-  if (!restaurantId) {
+  // 2. Platform-level 'user' role — no dashboard access
+  if (userRole === "user") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
         <div className="text-center space-y-3">
@@ -43,10 +43,19 @@ function AppContent() {
               <path d="M12 8v4M12 16h.01" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Access Denied</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Access Denied (Role Mismatch)</h1>
           <p className="text-sm text-zinc-400 max-w-xs mx-auto">
-            You're logged in, but your account isn't linked to a restaurant yet. Contact your administrator.
+            This dashboard is for restaurant staff and owners only. Please contact your administrator.
           </p>
+          
+          <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
+            <p>Debug Diagnostics:</p>
+            <p>- Session: {session ? "Active" : "None"}</p>
+            <p>- Role: "{userRole}"</p>
+            <p>- isAdmin: {isAdmin ? "true" : "false"}</p>
+            <p>- isRestaurantOwner: {isRestaurantOwner ? "true" : "false"}</p>
+            <p>- restaurantId: {restaurantId || "null"}</p>
+          </div>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -58,7 +67,42 @@ function AppContent() {
     );
   }
 
-  // 3. Logged in AND linked? -> Show the Dashboard!
+  // 3. Logged in but NO restaurant selected (admin with no restaurants in DB)
+  if (!restaurantId && !isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Access Denied (No Restaurant Linked)</h1>
+          <p className="text-sm text-zinc-400 max-w-xs mx-auto">
+            You're logged in, but your account isn't linked to a restaurant yet. Contact your administrator.
+          </p>
+
+          <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
+            <p>Debug Diagnostics:</p>
+            <p>- Session: {session ? "Active" : "None"}</p>
+            <p>- Role: "{userRole}"</p>
+            <p>- isAdmin: {isAdmin ? "true" : "false"}</p>
+            <p>- isRestaurantOwner: {isRestaurantOwner ? "true" : "false"}</p>
+            <p>- restaurantId: {restaurantId || "null"}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-white/15"
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
+
+  // 4. Logged in AND linked (or admin who will use switcher) -> Show Dashboard
   return (
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">

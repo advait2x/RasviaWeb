@@ -5,7 +5,8 @@ export type NavView =
   | "orders"
   | "menu"
   | "settings"
-  | "notifications";
+  | "notifications"
+  | "team";
 
 export interface WaitlistEntry {
   id: string;
@@ -38,7 +39,7 @@ export type MealTime =
   | "specials"
   | "all_day";
 
-export type DietType = "veg" | "non_veg" | "vegan";
+export type DietType = "veg" | "non_veg" | "halal";
 
 export type OrderType = "dine_in" | "pre_order" | "takeout";
 

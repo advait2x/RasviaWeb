@@ -10,11 +10,13 @@ import {
   Bell,
   LogOut,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import RestaurantSwitcher from "./RestaurantSwitcher";
 import {
   Tooltip,
   TooltipContent,
@@ -33,13 +35,14 @@ const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; re
   { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
   { icon: ShoppingBag, label: "Orders", view: "orders", requiredPermission: "view_orders" },
   { icon: UtensilsCrossed, label: "Menu Editor", view: "menu", requiredPermission: "view_menu" },
+  { icon: Users, label: "Team & Roles", view: "team", requiredPermission: "manage_team" },
   { icon: Bell, label: "Notifications", view: "notifications", requiredPermission: "view_notifications" },
   { icon: Settings, label: "Settings", view: "settings", requiredPermission: "view_settings" },
 ];
 
 export default function Sidebar() {
   const { activeView, setActiveView, unreadCount, preorderCount } = useDashboard();
-  const { hasPermission } = useAuth();
+  const { hasPermission, isAdmin } = useAuth();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -118,7 +121,7 @@ export default function Sidebar() {
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => hasPermission("view_settings") && setActiveView("settings")}
-              className="mb-8 relative group"
+              className="mb-2 relative group"
             >
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 ${activeView === "settings"
@@ -132,9 +135,12 @@ export default function Sidebar() {
             </motion.button>
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-            Restaurant Profile
+            {isAdmin ? "Admin — Restaurant Profile" : "Restaurant Profile"}
           </TooltipContent>
         </Tooltip>
+
+        {/* Restaurant Switcher — admins only */}
+        {isAdmin && <RestaurantSwitcher />}
 
         {/* Nav — only show items the user has permission for */}
         <nav className="flex-1 flex flex-col items-center justify-evenly w-full">

@@ -53,7 +53,8 @@ export default function StatusBar() {
         .select("open_time, close_time")
         .eq("restaurant_id", restaurantId)
         .eq("day_of_week", todayIndex)
-        .single();
+        .limit(1)
+        .maybeSingle();
       if (!data) {
         // No row for today → treat as closed
         setRestaurantOpen(false);

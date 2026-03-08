@@ -1,127 +1,263 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { Session } from "@supabase/supabase-js";
-import { Permission } from "@/types/dashboard";
+import { Permission, ALL_PERMISSIONS } from "@/types/dashboard";
+
+const ADMIN_RESTAURANT_KEY = "rasvia_admin_active_restaurant_id";
 
 type AuthContextType = {
     session: Session | null;
+    /** The restaurant ID currently in scope for all dashboard queries.
+     *  - admins: whichever restaurant they've selected in the switcher
+     *  - restaurant_owners: their owned restaurant
+     *  - staff: their linked restaurant */
     restaurantId: number | null;
+    /** Only populated for restaurant_owner role */
+    ownedRestaurantId: number | null;
     isAdmin: boolean;
+    isRestaurantOwner: boolean;
     userRole: string | null;
     permissions: Permission[];
     loading: boolean;
     hasPermission: (perm: Permission) => boolean;
+    /** Admins only: switch the active restaurant */
+    setActiveRestaurantId: (id: number) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
     session: null,
     restaurantId: null,
+    ownedRestaurantId: null,
     isAdmin: false,
+    isRestaurantOwner: false,
     userRole: null,
     permissions: [],
     loading: true,
     hasPermission: () => false,
+    setActiveRestaurantId: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [restaurantId, setRestaurantId] = useState<number | null>(null);
+    const [ownedRestaurantId, setOwnedRestaurantId] = useState<number | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isRestaurantOwner, setIsRestaurantOwner] = useState(false);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [permissions, setPermissions] = useState<Permission[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // 1. Check active session on load
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            if (session) fetchStaffData(session.user.id);
+            if (session) fetchUserData(session.user.id);
             else setLoading(false);
         });
 
-        // 2. Listen for login/logout events
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             if (session) {
                 setLoading(true);
-                fetchStaffData(session.user.id);
+                fetchUserData(session.user.id);
             } else {
-                setRestaurantId(null);
-                setIsAdmin(false);
-                setUserRole(null);
-                setPermissions([]);
+                resetState();
                 setLoading(false);
             }
         });
 
         return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchStaffData = async (userId: string) => {
-        try {
-            // Step 1: Get the staff row with role info
-            const { data: staffRow, error: staffError } = await supabase
-                .from('restaurant_staff')
-                .select('restaurant_id, role, role_id')
-                .eq('user_id', userId)
-                .single();
+    const resetState = () => {
+        setRestaurantId(null);
+        setOwnedRestaurantId(null);
+        setIsAdmin(false);
+        setIsRestaurantOwner(false);
+        setUserRole(null);
+        setPermissions([]);
+    };
 
-            if (staffError) {
-                console.error("Error fetching staff data:", staffError.message);
+    const allPermissionKeys: Permission[] = ALL_PERMISSIONS.map((p) => p.key);
+
+    const fetchUserData = async (userId: string) => {
+        try {
+            // Step 1: Check the profiles table for platform-level role
+            const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", userId)
+                .maybeSingle();
+
+            if (profileError) {
+                console.error("Error fetching profile:", profileError.message);
+            }
+
+            const platformRole = profile?.role ?? null;
+
+            if (platformRole === "admin") {
+                // Full admin: all permissions, uses restaurant switcher
+                setIsAdmin(true);
+                setIsRestaurantOwner(false);
+                setUserRole("admin");
+                setPermissions(allPermissionKeys);
+                setOwnedRestaurantId(null);
+
+                // Restore last selected restaurant from localStorage
+                const savedId = localStorage.getItem(ADMIN_RESTAURANT_KEY);
+                if (savedId) {
+                    setRestaurantId(Number(savedId));
+                } else {
+                    // Pick the first restaurant as default
+                    const { data: firstRestaurant } = await supabase
+                        .from("restaurants")
+                        .select("id")
+                        .order("id", { ascending: true })
+                        .limit(1)
+                        .maybeSingle();
+                    if (firstRestaurant) {
+                        setRestaurantId(firstRestaurant.id);
+                        localStorage.setItem(ADMIN_RESTAURANT_KEY, String(firstRestaurant.id));
+                    }
+                }
                 setLoading(false);
                 return;
             }
 
-            if (staffRow) {
-                setRestaurantId(staffRow.restaurant_id);
+            if (platformRole === "restaurant_owner") {
+                // Restaurant owner: scoped to their own restaurant
+                setIsAdmin(false);
+                setIsRestaurantOwner(true);
+                setUserRole("restaurant_owner");
 
-                // Step 2: If role_id exists, fetch role name + permissions from new RBAC tables
-                if (staffRow.role_id) {
-                    const { data: roleRow, error: roleError } = await supabase
-                        .from('restaurant_roles')
-                        .select('name, is_owner')
-                        .eq('id', staffRow.role_id)
-                        .single();
+                // Fetch their owned restaurant
+                const { data: restaurant, error: restError } = await supabase
+                    .from("restaurants")
+                    .select("id")
+                    .eq("owner_id", userId)
+                    .limit(1)
+                    .maybeSingle();
 
-                    if (!roleError && roleRow) {
-                        setUserRole(roleRow.name);
-                        setIsAdmin(roleRow.is_owner);
+                if (restError) console.error("Error fetching owned restaurant:", restError.message);
 
-                        // Fetch permissions for this role
-                        const { data: permRows, error: permError } = await supabase
-                            .from('role_permissions')
-                            .select('permission')
-                            .eq('role_id', staffRow.role_id);
+                const ownedId = restaurant?.id ?? null;
+                setOwnedRestaurantId(ownedId);
+                setRestaurantId(ownedId);
 
-                        if (!permError && permRows) {
-                            setPermissions(permRows.map((r) => r.permission as Permission));
-                        }
-                    }
-                } else {
-                    // Fallback: legacy role field (pre-migration)
-                    const isOwnerLegacy = staffRow.role === 'admin' || staffRow.role === 'owner';
-                    setIsAdmin(isOwnerLegacy);
-                    setUserRole(staffRow.role);
-                    // Legacy users with owner/admin get all permissions
-                    if (isOwnerLegacy) {
-                        const { ALL_PERMISSIONS } = await import("@/types/dashboard");
-                        setPermissions(ALL_PERMISSIONS.map((p) => p.key));
-                    }
-                }
+                // Fetch their staff permissions if they have a staff row
+                await fetchStaffPermissions(userId, ownedId);
+                setLoading(false);
+                return;
             }
+
+            // Fall through: no platform role / plain user — check restaurant_staff table
+            await fetchStaffData(userId);
         } catch (error) {
-            console.error("Unexpected error:", error);
+            console.error("Unexpected error in fetchUserData:", error);
         } finally {
             setLoading(false);
         }
     };
+
+    const fetchStaffPermissions = async (userId: string, restaurantId: number | null) => {
+        if (!restaurantId) {
+            // Owner with no restaurant yet — give them all permissions
+            setPermissions(allPermissionKeys);
+            return;
+        }
+        const { data: staffRow } = await supabase
+            .from("restaurant_staff")
+            .select("role, role_id")
+            .eq("user_id", userId)
+            .eq("restaurant_id", restaurantId)
+            .maybeSingle();
+
+        if (staffRow?.role_id) {
+            const { data: permRows } = await supabase
+                .from("role_permissions")
+                .select("permission")
+                .eq("role_id", staffRow.role_id);
+            if (permRows) {
+                setPermissions(permRows.map((r) => r.permission as Permission));
+                return;
+            }
+        }
+        // Default: restaurant_owner gets all permissions
+        setPermissions(allPermissionKeys);
+    };
+
+    const fetchStaffData = async (userId: string) => {
+        const { data: staffRow, error: staffError } = await supabase
+            .from("restaurant_staff")
+            .select("restaurant_id, role, role_id")
+            .eq("user_id", userId)
+            .limit(1)
+            .maybeSingle();
+
+        if (staffError) {
+            console.error("Error fetching staff data:", staffError.message);
+            // Not a staff member — treat as unprivileged user
+            setUserRole("user");
+            return;
+        }
+
+        if (staffRow) {
+            setRestaurantId(staffRow.restaurant_id);
+
+            if (staffRow.role_id) {
+                const { data: roleRow, error: roleError } = await supabase
+                    .from("restaurant_roles")
+                    .select("name, is_owner")
+                    .eq("id", staffRow.role_id)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!roleError && roleRow) {
+                    setUserRole(roleRow.name);
+                    setIsAdmin(roleRow.is_owner);
+
+                    const { data: permRows, error: permError } = await supabase
+                        .from("role_permissions")
+                        .select("permission")
+                        .eq("role_id", staffRow.role_id);
+
+                    if (!permError && permRows) {
+                        setPermissions(permRows.map((r) => r.permission as Permission));
+                    }
+                }
+            } else {
+                const isOwnerLegacy = staffRow.role === "admin" || staffRow.role === "owner";
+                setIsAdmin(isOwnerLegacy);
+                setUserRole(staffRow.role);
+                if (isOwnerLegacy) {
+                    setPermissions(allPermissionKeys);
+                }
+            }
+        }
+    };
+
+    const setActiveRestaurantId = useCallback((id: number) => {
+        setRestaurantId(id);
+        localStorage.setItem(ADMIN_RESTAURANT_KEY, String(id));
+    }, []);
 
     const hasPermission = (perm: Permission): boolean => {
         return permissions.includes(perm);
     };
 
     return (
-        <AuthContext.Provider value={{ session, restaurantId, isAdmin, userRole, permissions, loading, hasPermission }}>
+        <AuthContext.Provider value={{
+            session,
+            restaurantId,
+            ownedRestaurantId,
+            isAdmin,
+            isRestaurantOwner,
+            userRole,
+            permissions,
+            loading,
+            hasPermission,
+            setActiveRestaurantId,
+        }}>
             {!loading && children}
         </AuthContext.Provider>
     );

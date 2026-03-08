@@ -12,18 +12,23 @@ export default function Login() {
         setLoading(true);
         setError(null);
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
 
+        console.log("Login Attempt Result:", { data, error });
+
         if (error) {
+            console.error("Supabase Login Error:", error);
             setError(error.message);
             setLoading(false);
+        } else if (!data.session) {
+            console.error("Login succeeded but no session was returned!", data);
+            setError("No session initialized. Please try again.");
+            setLoading(false);
         } else {
-            // Clear any previous error immediately on success.
-            // Keep loading=true so we show the spinner while App.tsx
-            // transitions to the dashboard — prevents any error flash.
+            console.log("Login Success! Session:", data.session);
             setError(null);
         }
     };

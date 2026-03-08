@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { getMenuItemFallback } from "@/lib/fallbackImages";
+import FallbackImage from "@/components/ui/FallbackImage";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
 
@@ -641,20 +643,12 @@ export default function MenuManager() {
                 <div className="flex items-start gap-3 p-3">
                   {/* Thumbnail */}
                   <div className="w-14 h-14 rounded-lg overflow-hidden bg-zinc-700/40 flex-shrink-0 border border-white/5">
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-full h-full flex items-center justify-center ${item.imageUrl ? "hidden" : ""}`}>
-                      <ImageOff size={18} strokeWidth={1.5} className="text-zinc-600" />
-                    </div>
+                    <FallbackImage
+                      src={item.imageUrl || ""}
+                      fallbackSrc={getMenuItemFallback(item.id)}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   {/* Info */}

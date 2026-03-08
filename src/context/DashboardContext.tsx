@@ -755,7 +755,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       name: menuItem.name,
       price: menuItem.price,
       quantity: qty,
-      is_vegetarian: (dietType ?? menuItem.dietType) === "veg" || (dietType ?? menuItem.dietType) === "vegan",
+      is_vegetarian: (dietType ?? menuItem.dietType) === "veg",
       notes: itemMeta,
     }).select().single();
 

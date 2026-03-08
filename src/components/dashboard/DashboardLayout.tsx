@@ -12,6 +12,7 @@ import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
 import NotificationsPanel from "./NotificationsPanel";
+import TeamRolesPanel from "./TeamRolesPanel";
 
 const VIEW_COMPONENTS: Record<string, React.FC> = {
   dashboard: DashboardOverview,
@@ -21,6 +22,7 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   menu: MenuManager,
   settings: SettingsPanel,
   notifications: NotificationsPanel,
+  team: TeamRolesPanel,
 };
 
 /** Maps each view to the permission needed to access it */
@@ -32,6 +34,7 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
   menu: "view_menu",
   settings: "view_settings",
   notifications: "view_notifications",
+  team: "manage_team",
 };
 
 function AccessDenied() {
@@ -98,7 +101,7 @@ export default function DashboardLayout() {
     if (requiredPerm && hasPermission(requiredPerm)) return; // current view is fine
 
     // Find the first permitted view
-    const viewOrder = ["dashboard", "waitlist", "floorplan", "orders", "menu", "notifications", "settings"];
+    const viewOrder = ["dashboard", "waitlist", "floorplan", "orders", "menu", "notifications", "settings", "team"];
     const firstAllowed = viewOrder.find((v) => {
       const perm = VIEW_PERMISSIONS[v];
       return perm && hasPermission(perm);
