@@ -1,14 +1,37 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
 import Home from "./components/home";
 import JoinBridge from "./pages/JoinBridge";
+import KioskPage from "./pages/KioskPage";
 
 function AppContent() {
   if (window.location.pathname.startsWith('/join')) {
     return <JoinBridge />;
+  }
+
+  if (window.location.pathname.startsWith('/kiosk')) {
+    const params = new URLSearchParams(window.location.search);
+    const rawId = params.get('r') ?? params.get('restaurantId');
+    const restaurantId = rawId ? Number(rawId) : NaN;
+    if (!isNaN(restaurantId) && restaurantId > 0) {
+      return <KioskPage restaurantId={restaurantId} />;
+    }
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+        <div className="text-center space-y-3 p-8">
+          <p className="text-2xl font-bold text-zinc-100">Kiosk Setup Required</p>
+          <p className="text-zinc-400 text-base">
+            Add <code className="text-amber-400 font-mono">?r=YOUR_RESTAURANT_ID</code> to this URL.
+          </p>
+          <p className="text-zinc-500 text-sm">
+            Example: <span className="font-mono text-zinc-400">/kiosk?r=27</span>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const { session, restaurantId, loading, userRole, isAdmin, isRestaurantOwner } = useAuth();
@@ -47,7 +70,6 @@ function AppContent() {
           <p className="text-sm text-zinc-400 max-w-xs mx-auto">
             This dashboard is for restaurant staff and owners only. Please contact your administrator.
           </p>
-          
           <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
             <p>Debug Diagnostics:</p>
             <p>- Session: {session ? "Active" : "None"}</p>
@@ -67,7 +89,7 @@ function AppContent() {
     );
   }
 
-  // 3. Logged in but NO restaurant selected (admin with no restaurants in DB)
+  // 3. Logged in but NO restaurant selected
   if (!restaurantId && !isAdmin) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
@@ -82,7 +104,6 @@ function AppContent() {
           <p className="text-sm text-zinc-400 max-w-xs mx-auto">
             You're logged in, but your account isn't linked to a restaurant yet. Contact your administrator.
           </p>
-
           <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
             <p>Debug Diagnostics:</p>
             <p>- Session: {session ? "Active" : "None"}</p>
@@ -102,7 +123,7 @@ function AppContent() {
     );
   }
 
-  // 4. Logged in AND linked (or admin who will use switcher) -> Show Dashboard
+  // 4. Logged in AND linked -> Show Dashboard
   return (
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
