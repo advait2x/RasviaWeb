@@ -39,17 +39,20 @@ export default function WaitlistFeed() {
     setExpandedRow(null);
   };
 
-  const handleCancelRequest = (id: string) => {
+  const handleCancelRequest = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     setCancelConfirmId(id);
   };
 
-  const handleCancelConfirm = (id: string) => {
+  const handleCancelConfirm = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     cancelParty(id);
     setCancelConfirmId(null);
     setExpandedRow(null);
   };
 
-  const handleCancelDismiss = () => {
+  const handleCancelDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setCancelConfirmId(null);
   };
 
@@ -198,7 +201,7 @@ export default function WaitlistFeed() {
                               </motion.button>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => handleCancelConfirm(entry.id)}
+                                onClick={(e) => handleCancelConfirm(e, entry.id)}
                                 className="px-2.5 py-1 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-semibold hover:bg-red-500/30 transition-colors"
                               >
                                 Remove
@@ -207,7 +210,7 @@ export default function WaitlistFeed() {
                           ) : (
                             <motion.button
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => handleCancelRequest(entry.id)}
+                              onClick={(e) => handleCancelRequest(e, entry.id)}
                               className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/20 transition-colors"
                             >
                               <X size={16} strokeWidth={1.5} />

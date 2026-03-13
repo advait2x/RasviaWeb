@@ -17,18 +17,14 @@ export default function Login() {
             password,
         });
 
-        console.log("Login Attempt Result:", { data, error });
 
         if (error) {
-            console.error("Supabase Login Error:", error);
             setError(error.message);
             setLoading(false);
         } else if (!data.session) {
-            console.error("Login succeeded but no session was returned!", data);
             setError("No session initialized. Please try again.");
             setLoading(false);
         } else {
-            console.log("Login Success! Session:", data.session);
             setError(null);
         }
     };
