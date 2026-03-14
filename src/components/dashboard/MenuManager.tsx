@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
-  Coffee, Sun, Moon, Star, Clock, ArrowUpDown,
+  Coffee, Sun, Moon, Star, Clock, ArrowUpDown, Settings2, Loader2,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
-import { MenuItem, MealTime } from "@/types/dashboard";
+import { MenuItem, MealTime, ItemModifier } from "@/types/dashboard";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -439,8 +439,153 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "price_desc", label: "Price ↓" },
 ];
 
+// ── Modifier Management Sub-Panel ─────────────────────────────────────────────
+
+function ModifiersManager() {
+  const { restaurantId, hasPermission } = useAuth();
+  const [modifiers, setModifiers] = useState<ItemModifier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<ItemModifier | null>(null);
+  const [form, setForm] = useState({ name: "", priceAdjustment: "", category: "Extras" });
+  const [saving, setSaving] = useState(false);
+
+  const fetchMods = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase.from("item_modifiers").select("*").eq("restaurant_id", restaurantId).order("category").order("name");
+    setModifiers((data ?? []).map((m) => ({
+      id: String(m.id), restaurantId: m.restaurant_id, name: m.name,
+      priceAdjustment: Number(m.price_adjustment), category: m.category, active: m.active,
+    })));
+    setLoading(false);
+  }, [restaurantId]);
+
+  useEffect(() => { fetchMods(); }, [fetchMods]);
+
+  const handleSave = async () => {
+    if (!restaurantId || !form.name.trim()) return;
+    setSaving(true);
+    const payload = {
+      restaurant_id: restaurantId,
+      name: form.name.trim(),
+      price_adjustment: parseFloat(form.priceAdjustment) || 0,
+      category: form.category.trim() || "Extras",
+      active: true,
+    };
+    if (editing) {
+      await supabase.from("item_modifiers").update(payload).eq("id", Number(editing.id));
+    } else {
+      await supabase.from("item_modifiers").insert(payload);
+    }
+    await fetchMods();
+    setShowForm(false);
+    setEditing(null);
+    setForm({ name: "", priceAdjustment: "", category: "Extras" });
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("item_modifiers").delete().eq("id", Number(id));
+    await fetchMods();
+  };
+
+  const handleToggle = async (id: string, active: boolean) => {
+    await supabase.from("item_modifiers").update({ active: !active }).eq("id", Number(id));
+    setModifiers((prev) => prev.map((m) => m.id === id ? { ...m, active: !active } : m));
+  };
+
+  const categories = useMemo(() => {
+    const cats = new Map<string, ItemModifier[]>();
+    for (const mod of modifiers) {
+      const list = cats.get(mod.category) ?? [];
+      list.push(mod);
+      cats.set(mod.category, list);
+    }
+    return cats;
+  }, [modifiers]);
+
+  if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-zinc-600" /></div>;
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-5 py-4">
+        <div>
+          <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Item Modifiers</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">{modifiers.length} modifier{modifiers.length !== 1 ? "s" : ""}</p>
+        </div>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setEditing(null); setForm({ name: "", priceAdjustment: "", category: "Extras" }); setShowForm(true); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors">
+          <Plus size={14} strokeWidth={2} />New Modifier
+        </motion.button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="px-5 pb-4 space-y-4">
+          {Array.from(categories.entries()).map(([cat, mods]) => (
+            <div key={cat} className="space-y-1.5">
+              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{cat}</h3>
+              {mods.map((mod) => (
+                <div key={mod.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${mod.active ? "border-white/5 bg-zinc-800/40" : "border-white/5 bg-zinc-800/20 opacity-50"}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-100">{mod.name}</p>
+                    <p className="text-xs text-zinc-500">{mod.priceAdjustment > 0 ? "+" : ""}${mod.priceAdjustment.toFixed(2)}</p>
+                  </div>
+                  <Switch checked={mod.active} onCheckedChange={() => handleToggle(mod.id, mod.active)} />
+                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setEditing(mod); setForm({ name: mod.name, priceAdjustment: String(mod.priceAdjustment), category: mod.category }); setShowForm(true); }}
+                    className="w-7 h-7 rounded-lg bg-zinc-700/50 border border-white/8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
+                    <Pencil size={12} strokeWidth={1.5} />
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDelete(mod.id)}
+                    className="w-7 h-7 rounded-lg bg-red-500/8 border border-red-500/15 flex items-center justify-center text-red-400/60 hover:text-red-400 transition-colors">
+                    <Trash2 size={12} strokeWidth={1.5} />
+                  </motion.button>
+                </div>
+              ))}
+            </div>
+          ))}
+          {modifiers.length === 0 && (
+            <div className="text-center py-16">
+              <Settings2 size={32} strokeWidth={1} className="text-zinc-700 mx-auto mb-3" />
+              <p className="text-sm text-zinc-500">No modifiers yet</p>
+              <p className="text-xs text-zinc-600 mt-1">Add modifiers like "Extra Cheese", "Large", etc.</p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <Dialog open={showForm} onOpenChange={(o) => !o && setShowForm(false)}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-zinc-100">{editing ? "Edit Modifier" : "New Modifier"}</h3>
+            <div className="space-y-3">
+              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Modifier name"
+                className="h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50" />
+              <Input value={form.priceAdjustment} onChange={(e) => setForm((f) => ({ ...f, priceAdjustment: e.target.value }))} placeholder="Price adjustment (e.g. 2.00)" type="number" step="0.01"
+                className="h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50" />
+              <Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="Category (e.g. Size, Extras)"
+                className="h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50" />
+            </div>
+            <div className="flex gap-3">
+              <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowForm(false)}
+                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors">Cancel</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={handleSave} disabled={saving || !form.name.trim()}
+                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40">
+                {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : editing ? "Save" : "Create"}
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Main MenuManager ──────────────────────────────────────────────────────────
+
 export default function MenuManager() {
   const { menuItems, menuLoading, toggleMenuItem, addMenuItem, updateMenuItem, deleteMenuItem } = useDashboard();
+  const { hasPermission } = useAuth();
+  const [menuTab, setMenuTab] = useState<"items" | "modifiers">("items");
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
@@ -503,8 +648,29 @@ export default function MenuManager() {
     setShowForm(true);
   };
 
+  if (menuTab === "modifiers") {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
+            <button onClick={() => setMenuTab("items")} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-all">Menu Items</button>
+            <button onClick={() => setMenuTab("modifiers")} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-700 text-zinc-100">Modifiers</button>
+          </div>
+        </div>
+        <ModifiersManager />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
+      {/* Tab bar */}
+      <div className="px-5 pt-4 pb-2">
+        <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
+          <button onClick={() => setMenuTab("items")} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-700 text-zinc-100">Menu Items</button>
+          <button onClick={() => setMenuTab("modifiers")} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-all">Modifiers</button>
+        </div>
+      </div>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <div>

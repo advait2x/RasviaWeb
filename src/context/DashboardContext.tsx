@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification, Order, OrderItem, OrderStatus, OrderType, DietType, CompletedTableSession } from "@/types/dashboard";
+import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification, Order, OrderItem, OrderStatus, OrderType, DietType, CompletedTableSession, Shift, Discount, ItemModifier, HeldOrder, OrderDiscount } from "@/types/dashboard";
 import { initialTables } from "@/data/mock-data";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -48,6 +48,29 @@ interface DashboardState {
   clearTableWithTip: (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => Promise<void>;
   notifyCustomer: (orderId: string) => void;
   preorderCount: number;
+
+  // POS functions
+  discounts: Discount[];
+  itemModifiers: ItemModifier[];
+  heldOrders: HeldOrder[];
+  activeShift: Shift | null;
+  completedOrders: Order[];
+
+  voidOrderItem: (orderId: string, itemId: string, reason: string, approvedBy: string) => Promise<void>;
+  compOrderItem: (orderId: string, itemId: string, reason: string) => Promise<void>;
+  applyOrderDiscount: (orderId: string, discount: { name: string; type: "percentage" | "fixed"; value: number; discountId?: string }, approvedBy?: string) => Promise<void>;
+  removeOrderDiscount: (orderId: string, discountId: string) => Promise<void>;
+  transferOrder: (orderId: string, newTableId: string) => Promise<void>;
+  splitOrder: (orderId: string, itemIds: string[]) => Promise<Order | null>;
+  mergeOrders: (orderIds: string[]) => Promise<void>;
+  holdOrder: (orderData: Record<string, unknown>, reason?: string) => Promise<void>;
+  resumeHeldOrder: (heldOrderId: string) => Promise<HeldOrder | null>;
+
+  openShift: (startingCash: number) => Promise<Shift | null>;
+  closeShift: (endingCash: number, notes?: string) => Promise<void>;
+  addCashDrawerLog: (type: "pay_in" | "pay_out" | "tip_out", amount: number, reason: string, approvedBy?: string) => Promise<void>;
+
+  fetchCompletedOrders: (dateFrom?: Date, dateTo?: Date) => Promise<Order[]>;
 }
 
 const DashboardContext = createContext<DashboardState | null>(null);
@@ -98,6 +121,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [completedSessions, setCompletedSessions] = useState<CompletedTableSession[]>([]);
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [itemModifiers, setItemModifiers] = useState<ItemModifier[]>([]);
+  const [heldOrders, setHeldOrders] = useState<HeldOrder[]>([]);
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
 
   const TAX_RATE = 0.0825;
 
@@ -886,6 +914,422 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [orders, tables, clearTable]);
 
 
+  // ── POS: Fetch discounts ──────────────────────────────────────────────────
+
+  const fetchDiscounts = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase
+      .from("discounts")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .eq("active", true);
+    setDiscounts((data ?? []).map((d) => ({
+      id: String(d.id),
+      restaurantId: d.restaurant_id,
+      name: d.name,
+      type: d.type as "percentage" | "fixed",
+      value: Number(d.value),
+      requiresManagerPin: d.requires_manager_pin,
+      active: d.active,
+    })));
+  }, [restaurantId]);
+
+  // ── POS: Fetch item modifiers ───────────────────────────────────────────
+
+  const fetchItemModifiers = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase
+      .from("item_modifiers")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .eq("active", true);
+    setItemModifiers((data ?? []).map((m) => ({
+      id: String(m.id),
+      restaurantId: m.restaurant_id,
+      name: m.name,
+      priceAdjustment: Number(m.price_adjustment),
+      category: m.category,
+      active: m.active,
+    })));
+  }, [restaurantId]);
+
+  // ── POS: Fetch held orders ──────────────────────────────────────────────
+
+  const fetchHeldOrders = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase
+      .from("held_orders")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .is("resumed_at", null)
+      .order("created_at", { ascending: false });
+    setHeldOrders((data ?? []).map((h) => ({
+      id: String(h.id),
+      restaurantId: h.restaurant_id,
+      orderData: h.order_data as Record<string, unknown>,
+      heldBy: h.held_by,
+      reason: h.reason,
+      createdAt: new Date(h.created_at),
+      resumedAt: h.resumed_at ? new Date(h.resumed_at) : undefined,
+    })));
+  }, [restaurantId]);
+
+  // ── POS: Fetch active shift ─────────────────────────────────────────────
+
+  const fetchActiveShift = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase
+      .from("shifts")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .eq("status", "open")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setActiveShift({
+        id: String(data.id),
+        restaurantId: data.restaurant_id,
+        staffId: data.staff_id,
+        startedAt: new Date(data.started_at),
+        endedAt: data.ended_at ? new Date(data.ended_at) : undefined,
+        startingCash: Number(data.starting_cash),
+        endingCash: data.ending_cash ? Number(data.ending_cash) : undefined,
+        expectedCash: data.expected_cash ? Number(data.expected_cash) : undefined,
+        notes: data.notes,
+        status: data.status as "open" | "closed",
+      });
+    } else {
+      setActiveShift(null);
+    }
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    fetchDiscounts();
+    fetchItemModifiers();
+    fetchHeldOrders();
+    fetchActiveShift();
+  }, [restaurantId, fetchDiscounts, fetchItemModifiers, fetchHeldOrders, fetchActiveShift]);
+
+  // ── POS: Void an order item ─────────────────────────────────────────────
+
+  const voidOrderItem = useCallback(async (orderId: string, itemId: string, reason: string, approvedBy: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    const item = order?.items.find((i) => i.id === itemId);
+    if (!order || !item) return;
+
+    const originalAmount = item.unitPrice * item.quantity;
+
+    await supabase.from("order_items").update({ voided: true }).eq("id", Number(itemId));
+    await supabase.from("order_voids").insert({
+      order_id: Number(orderId),
+      order_item_id: Number(itemId),
+      reason,
+      voided_by: approvedBy,
+      approved_by: approvedBy,
+      original_amount: originalAmount,
+    });
+
+    const currentVoidTotal = Number(order.voidTotal ?? 0);
+    await supabase.from("orders").update({
+      void_total: currentVoidTotal + originalAmount,
+    }).eq("id", Number(orderId));
+
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const items = o.items.map((i) => i.id === itemId ? { ...i, voided: true } : i);
+      const activeItems = items.filter((i) => !i.voided && !i.comped);
+      const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+      const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+      return { ...o, items, voidTotal: (o.voidTotal ?? 0) + originalAmount, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
+    }));
+    toast("Item voided", { description: `${item.menuItemName} — ${reason}` });
+  }, [orders]);
+
+  // ── POS: Comp an order item ─────────────────────────────────────────────
+
+  const compOrderItem = useCallback(async (orderId: string, itemId: string, reason: string) => {
+    await supabase.from("order_items").update({ comped: true, comp_reason: reason }).eq("id", Number(itemId));
+
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const items = o.items.map((i) => i.id === itemId ? { ...i, comped: true, compReason: reason } : i);
+      const activeItems = items.filter((i) => !i.voided && !i.comped);
+      const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+      const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+      return { ...o, items, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
+    }));
+    toast("Item comped");
+  }, []);
+
+  // ── POS: Apply discount to order ────────────────────────────────────────
+
+  const applyOrderDiscount = useCallback(async (
+    orderId: string,
+    discount: { name: string; type: "percentage" | "fixed"; value: number; discountId?: string },
+    approvedBy?: string
+  ) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    const appliedAmount = discount.type === "percentage"
+      ? Math.round(order.subtotal * (discount.value / 100) * 100) / 100
+      : Math.min(discount.value, order.subtotal);
+
+    const { data } = await supabase.from("order_discounts").insert({
+      order_id: Number(orderId),
+      discount_id: discount.discountId ? Number(discount.discountId) : null,
+      name: discount.name,
+      type: discount.type,
+      value: discount.value,
+      applied_amount: appliedAmount,
+      applied_by: approvedBy,
+      approved_by: approvedBy,
+    }).select().single();
+
+    const newDiscountTotal = (order.discountTotal ?? 0) + appliedAmount;
+    await supabase.from("orders").update({ discount_total: newDiscountTotal }).eq("id", Number(orderId));
+
+    if (data) {
+      setOrders((prev) => prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const discountEntry: OrderDiscount = {
+          id: String(data.id),
+          orderId,
+          discountId: discount.discountId,
+          name: discount.name,
+          type: discount.type,
+          value: discount.value,
+          appliedAmount,
+          appliedBy: approvedBy,
+          approvedBy,
+          createdAt: new Date(),
+        };
+        const newDiscounts = [...(o.discounts ?? []), discountEntry];
+        const totalDiscount = newDiscounts.reduce((s, d) => s + d.appliedAmount, 0);
+        const taxable = o.subtotal - totalDiscount;
+        const tax = Math.round(Math.max(0, taxable) * TAX_RATE * 100) / 100;
+        return { ...o, discounts: newDiscounts, discountTotal: totalDiscount, tax, total: Math.round((Math.max(0, taxable) + tax) * 100) / 100 };
+      }));
+    }
+    toast(`Discount applied: ${discount.name}`);
+  }, [orders]);
+
+  // ── POS: Remove discount ────────────────────────────────────────────────
+
+  const removeOrderDiscount = useCallback(async (orderId: string, discountId: string) => {
+    await supabase.from("order_discounts").delete().eq("id", Number(discountId));
+
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const newDiscounts = (o.discounts ?? []).filter((d) => d.id !== discountId);
+      const totalDiscount = newDiscounts.reduce((s, d) => s + d.appliedAmount, 0);
+      const taxable = o.subtotal - totalDiscount;
+      const tax = Math.round(Math.max(0, taxable) * TAX_RATE * 100) / 100;
+      return { ...o, discounts: newDiscounts, discountTotal: totalDiscount, tax, total: Math.round((Math.max(0, taxable) + tax) * 100) / 100 };
+    }));
+
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      const remaining = (order.discounts ?? []).filter((d) => d.id !== discountId);
+      const totalDiscount = remaining.reduce((s, d) => s + d.appliedAmount, 0);
+      await supabase.from("orders").update({ discount_total: totalDiscount }).eq("id", Number(orderId));
+    }
+  }, [orders]);
+
+  // ── POS: Transfer order to another table ────────────────────────────────
+
+  const transferOrder = useCallback(async (orderId: string, newTableId: string) => {
+    const newTable = tables.find((t) => t.id === newTableId);
+    if (!newTable) return;
+
+    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
+    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+    const newMeta = JSON.stringify({ ...currentMeta, tableId: newTableId });
+    await supabase.from("orders").update({
+      table_number: String(newTable.tableNumber),
+      notes: newMeta,
+    }).eq("id", Number(orderId));
+
+    setOrders((prev) => prev.map((o) =>
+      o.id !== orderId ? o : { ...o, tableId: newTableId, tableNumber: newTable.tableNumber }
+    ));
+    toast(`Order transferred to Table ${newTable.tableNumber}`);
+  }, [tables]);
+
+  // ── POS: Split order ────────────────────────────────────────────────────
+
+  const splitOrder = useCallback(async (orderId: string, itemIds: string[]): Promise<Order | null> => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order || itemIds.length === 0) return null;
+
+    const splitItems = order.items.filter((i) => itemIds.includes(i.id));
+    if (splitItems.length === 0) return null;
+
+    const newOrder = await createOrder(order.tableId, order.orderType, order.guestName + " (Split)", order.partySize);
+
+    for (const item of splitItems) {
+      await supabase.from("order_items").update({ order_id: Number(newOrder.id) }).eq("id", Number(item.id));
+    }
+
+    await supabase.from("orders").update({ split_from_order_id: Number(orderId) }).eq("id", Number(newOrder.id));
+    await fetchOrdersRef.current();
+
+    toast("Order split successfully");
+    return newOrder;
+  }, [orders, createOrder]);
+
+  // ── POS: Merge orders ───────────────────────────────────────────────────
+
+  const mergeOrders = useCallback(async (orderIds: string[]) => {
+    if (orderIds.length < 2) return;
+    const targetId = orderIds[0];
+    const sourceIds = orderIds.slice(1);
+
+    for (const sourceId of sourceIds) {
+      await supabase.from("order_items").update({ order_id: Number(targetId) }).eq("order_id", Number(sourceId));
+      await supabase.from("orders").update({ status: "cancelled", closed_at: new Date().toISOString() }).eq("id", Number(sourceId));
+    }
+
+    await fetchOrdersRef.current();
+    toast("Orders merged");
+  }, []);
+
+  // ── POS: Hold order ─────────────────────────────────────────────────────
+
+  const holdOrder = useCallback(async (orderData: Record<string, unknown>, reason?: string) => {
+    if (!restaurantId) return;
+    await supabase.from("held_orders").insert({
+      restaurant_id: restaurantId,
+      order_data: orderData,
+      reason,
+    });
+    await fetchHeldOrders();
+    toast("Order held");
+  }, [restaurantId, fetchHeldOrders]);
+
+  // ── POS: Resume held order ──────────────────────────────────────────────
+
+  const resumeHeldOrder = useCallback(async (heldOrderId: string): Promise<HeldOrder | null> => {
+    const held = heldOrders.find((h) => h.id === heldOrderId);
+    if (!held) return null;
+
+    await supabase.from("held_orders").update({ resumed_at: new Date().toISOString() }).eq("id", Number(heldOrderId));
+    setHeldOrders((prev) => prev.filter((h) => h.id !== heldOrderId));
+    toast("Order resumed");
+    return held;
+  }, [heldOrders]);
+
+  // ── POS: Shift management ──────────────────────────────────────────────
+
+  const openShift = useCallback(async (startingCash: number): Promise<Shift | null> => {
+    if (!restaurantId) return null;
+
+    const { data: staffRow } = await supabase
+      .from("restaurant_staff")
+      .select("id")
+      .eq("restaurant_id", restaurantId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!staffRow) return null;
+
+    const { data, error } = await supabase.from("shifts").insert({
+      restaurant_id: restaurantId,
+      staff_id: staffRow.id,
+      starting_cash: startingCash,
+      status: "open",
+    }).select().single();
+
+    if (error || !data) return null;
+
+    await supabase.from("cash_drawer_logs").insert({
+      shift_id: data.id,
+      restaurant_id: restaurantId,
+      type: "starting",
+      amount: startingCash,
+      performed_by: staffRow.id,
+    });
+
+    const shift: Shift = {
+      id: String(data.id),
+      restaurantId: data.restaurant_id,
+      staffId: data.staff_id,
+      startedAt: new Date(data.started_at),
+      startingCash: Number(data.starting_cash),
+      status: "open",
+    };
+    setActiveShift(shift);
+    toast("Shift opened");
+    return shift;
+  }, [restaurantId]);
+
+  const closeShift = useCallback(async (endingCash: number, notes?: string) => {
+    if (!activeShift) return;
+
+    await supabase.from("shifts").update({
+      ended_at: new Date().toISOString(),
+      ending_cash: endingCash,
+      notes,
+      status: "closed",
+    }).eq("id", Number(activeShift.id));
+
+    await supabase.from("cash_drawer_logs").insert({
+      shift_id: Number(activeShift.id),
+      restaurant_id: restaurantId,
+      type: "ending",
+      amount: endingCash,
+    });
+
+    setActiveShift(null);
+    toast("Shift closed");
+  }, [activeShift, restaurantId]);
+
+  const addCashDrawerLog = useCallback(async (type: "pay_in" | "pay_out" | "tip_out", amount: number, reason: string, approvedBy?: string) => {
+    if (!activeShift || !restaurantId) return;
+
+    await supabase.from("cash_drawer_logs").insert({
+      shift_id: Number(activeShift.id),
+      restaurant_id: restaurantId,
+      type,
+      amount,
+      reason,
+      approved_by: approvedBy ? Number(approvedBy) : null,
+    });
+
+    toast(`${type.replace("_", " ")} recorded: $${amount.toFixed(2)}`);
+  }, [activeShift, restaurantId]);
+
+  // ── POS: Fetch completed orders for reports ─────────────────────────────
+
+  const fetchCompletedOrders = useCallback(async (dateFrom?: Date, dateTo?: Date): Promise<Order[]> => {
+    if (!restaurantId) return [];
+
+    let query = supabase
+      .from("orders")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .in("status", ["completed", "cancelled"])
+      .order("created_at", { ascending: false });
+
+    if (dateFrom) query = query.gte("created_at", dateFrom.toISOString());
+    if (dateTo) query = query.lte("created_at", dateTo.toISOString());
+
+    const { data: orderRows } = await query;
+    if (!orderRows || orderRows.length === 0) { setCompletedOrders([]); return []; }
+
+    const ids = orderRows.map((r) => r.id as number);
+    const { data: itemData } = await supabase.from("order_items").select("*").in("order_id", ids);
+    const itemRows = (itemData ?? []) as Record<string, unknown>[];
+
+    const mapped = orderRows.map((row) =>
+      mapOrder(row as Record<string, unknown>, itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id))
+    );
+    setCompletedOrders(mapped);
+    return mapped;
+  }, [restaurantId, mapOrder]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
   const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
   const preorderCount = orders.filter(
@@ -937,6 +1381,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         clearTableWithTip,
         notifyCustomer,
         preorderCount,
+
+        discounts,
+        itemModifiers,
+        heldOrders,
+        activeShift,
+        completedOrders,
+
+        voidOrderItem,
+        compOrderItem,
+        applyOrderDiscount,
+        removeOrderDiscount,
+        transferOrder,
+        splitOrder,
+        mergeOrders,
+        holdOrder,
+        resumeHeldOrder,
+
+        openShift,
+        closeShift,
+        addCashDrawerLog,
+
+        fetchCompletedOrders,
       }}
     >
       {children}

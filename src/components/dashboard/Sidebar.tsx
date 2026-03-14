@@ -11,6 +11,9 @@ import {
   LogOut,
   AlertTriangle,
   Users,
+  Monitor,
+  ChefHat,
+  BarChart3,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -31,10 +34,13 @@ import {
 /** Maps each nav view to the permission required to see it */
 const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; requiredPermission: Permission }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard", requiredPermission: "view_dashboard" },
+  { icon: Monitor, label: "POS Terminal", view: "pos", requiredPermission: "access_pos" },
   { icon: ClipboardList, label: "Waitlist", view: "waitlist", requiredPermission: "manage_waitlist" },
   { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
   { icon: ShoppingBag, label: "Orders", view: "orders", requiredPermission: "view_orders" },
+  { icon: ChefHat, label: "Kitchen Display", view: "kds", requiredPermission: "access_kds" },
   { icon: UtensilsCrossed, label: "Menu Editor", view: "menu", requiredPermission: "view_menu" },
+  { icon: BarChart3, label: "Reports", view: "reports", requiredPermission: "view_reports" },
   { icon: Users, label: "Team & Roles", view: "team", requiredPermission: "manage_team" },
   { icon: Bell, label: "Notifications", view: "notifications", requiredPermission: "view_notifications" },
   { icon: Settings, label: "Settings", view: "settings", requiredPermission: "view_settings" },

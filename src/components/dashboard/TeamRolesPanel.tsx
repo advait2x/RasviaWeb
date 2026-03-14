@@ -12,6 +12,7 @@ import {
     Dialog,
     DialogContent,
 } from "@/components/ui/dialog";
+import PinManagement from "@/components/pos/PinManagement";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -570,6 +571,11 @@ export default function TeamRolesPanel() {
                     </div>
                 )}
             </div>
+
+            {/* ── Manager PINs Section ─────────────────────────────────────────── */}
+            {staff.length > 0 && (
+                <PinManagement staff={staff} roles={roles} />
+            )}
 
             {/* ── Create / Edit Role Dialog ─────────────────────────────────────── */}
             <Dialog open={showCreateRole} onOpenChange={(o) => !o && setShowCreateRole(false)}>

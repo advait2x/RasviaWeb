@@ -6,7 +6,10 @@ export type NavView =
   | "menu"
   | "settings"
   | "notifications"
-  | "team";
+  | "team"
+  | "pos"
+  | "kds"
+  | "reports";
 
 export interface WaitlistEntry {
   id: string;
@@ -62,6 +65,13 @@ export interface MenuItem {
   dietType?: DietType;
 }
 
+export interface OrderItemModifier {
+  id: string;
+  modifierId: string;
+  name: string;
+  priceAdjustment: number;
+}
+
 export interface OrderItem {
   id: string;
   menuItemId: string;
@@ -70,6 +80,23 @@ export interface OrderItem {
   unitPrice: number;
   specialInstructions?: string;
   dietType?: DietType;
+  voided?: boolean;
+  comped?: boolean;
+  compReason?: string;
+  modifiers?: OrderItemModifier[];
+}
+
+export interface OrderDiscount {
+  id: string;
+  orderId: string;
+  discountId?: string;
+  name: string;
+  type: "percentage" | "fixed";
+  value: number;
+  appliedAmount: number;
+  appliedBy?: string;
+  approvedBy?: string;
+  createdAt: Date;
 }
 
 export interface Order {
@@ -93,6 +120,12 @@ export interface Order {
   notes?: string;
   customerPhone?: string;
   customerNotifiedAt?: Date;
+  discountTotal?: number;
+  voidTotal?: number;
+  shiftId?: string;
+  cashierId?: string;
+  splitFromOrderId?: string;
+  discounts?: OrderDiscount[];
 }
 
 export interface CompletedTableSession {
@@ -135,7 +168,15 @@ export type Permission =
   | "view_settings"
   | "manage_settings"
   | "manage_team"
-  | "view_notifications";
+  | "view_notifications"
+  | "access_pos"
+  | "void_items"
+  | "apply_discounts"
+  | "manage_shifts"
+  | "view_reports"
+  | "manage_modifiers"
+  | "transfer_tables"
+  | "access_kds";
 
 export const ALL_PERMISSIONS: { key: Permission; label: string; description: string }[] = [
   { key: "view_dashboard", label: "View Dashboard", description: "See the overview dashboard" },
@@ -151,6 +192,14 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; description: str
   { key: "manage_settings", label: "Manage Settings", description: "Edit restaurant profile and hours" },
   { key: "manage_team", label: "Manage Team", description: "Create roles, invite and remove staff" },
   { key: "view_notifications", label: "View Notifications", description: "See the notifications panel" },
+  { key: "access_pos", label: "Access POS", description: "Use the Point of Sale terminal" },
+  { key: "void_items", label: "Void Items", description: "Void order items and orders" },
+  { key: "apply_discounts", label: "Apply Discounts", description: "Apply discounts to orders" },
+  { key: "manage_shifts", label: "Manage Shifts", description: "Open and close cashier shifts" },
+  { key: "view_reports", label: "View Reports", description: "View sales and performance reports" },
+  { key: "manage_modifiers", label: "Manage Modifiers", description: "Create and edit item modifiers" },
+  { key: "transfer_tables", label: "Transfer Tables", description: "Move orders between tables" },
+  { key: "access_kds", label: "Access KDS", description: "View kitchen display system" },
 ];
 
 export interface RestaurantRole {
@@ -168,4 +217,85 @@ export interface StaffMember {
   role_id: number | null;
   role_name: string;
   restaurant_id: number;
+}
+
+// ── POS Types ──────────────────────────────────────────────────────────────
+
+export type ShiftStatus = "open" | "closed";
+
+export interface Shift {
+  id: string;
+  restaurantId: number;
+  staffId: number;
+  startedAt: Date;
+  endedAt?: Date;
+  startingCash: number;
+  endingCash?: number;
+  expectedCash?: number;
+  notes?: string;
+  status: ShiftStatus;
+}
+
+export type CashDrawerLogType = "pay_in" | "pay_out" | "tip_out" | "starting" | "ending";
+
+export interface CashDrawerLog {
+  id: string;
+  shiftId: string;
+  restaurantId: number;
+  type: CashDrawerLogType;
+  amount: number;
+  reason?: string;
+  performedBy?: string;
+  approvedBy?: string;
+  createdAt: Date;
+}
+
+export interface Discount {
+  id: string;
+  restaurantId: number;
+  name: string;
+  type: "percentage" | "fixed";
+  value: number;
+  requiresManagerPin: boolean;
+  active: boolean;
+}
+
+export interface OrderVoid {
+  id: string;
+  orderId: string;
+  orderItemId?: string;
+  reason: string;
+  voidedBy?: string;
+  approvedBy?: string;
+  originalAmount: number;
+  createdAt: Date;
+}
+
+export interface ItemModifier {
+  id: string;
+  restaurantId: number;
+  name: string;
+  priceAdjustment: number;
+  category: string;
+  active: boolean;
+}
+
+export interface HeldOrder {
+  id: string;
+  restaurantId: number;
+  orderData: Record<string, unknown>;
+  heldBy?: string;
+  reason?: string;
+  createdAt: Date;
+  resumedAt?: Date;
+}
+
+export interface POSCartItem {
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  specialInstructions: string;
+  dietType?: DietType;
+  modifiers: { id: string; name: string; priceAdjustment: number }[];
 }

@@ -1,8 +1,8 @@
-import { useMemo, useRef, useEffect, useState } from "react";
+import { useMemo, useRef, useEffect, useState, lazy, Suspense } from "react";
 import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { Permission } from "@/types/dashboard";
-import { ShieldX } from "lucide-react";
+import { ShieldX, Loader2 } from "lucide-react";
 import Sidebar from "./Sidebar";
 import StatusBar from "./StatusBar";
 import WaitlistFeed from "./WaitlistFeed";
@@ -14,6 +14,18 @@ import SettingsPanel from "./SettingsPanel";
 import NotificationsPanel from "./NotificationsPanel";
 import TeamRolesPanel from "./TeamRolesPanel";
 
+const POSTerminal = lazy(() => import("@/components/pos/POSTerminal"));
+const KitchenDisplay = lazy(() => import("@/components/pos/KitchenDisplay"));
+const SalesReports = lazy(() => import("@/components/pos/SalesReports"));
+
+function LazyFallback() {
+  return <div className="flex items-center justify-center h-full"><Loader2 size={24} className="animate-spin text-zinc-600" /></div>;
+}
+
+function LazyPOS() { return <Suspense fallback={<LazyFallback />}><POSTerminal /></Suspense>; }
+function LazyKDS() { return <Suspense fallback={<LazyFallback />}><KitchenDisplay /></Suspense>; }
+function LazyReports() { return <Suspense fallback={<LazyFallback />}><SalesReports /></Suspense>; }
+
 const VIEW_COMPONENTS: Record<string, React.FC> = {
   dashboard: DashboardOverview,
   waitlist: WaitlistFeed,
@@ -23,6 +35,9 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   settings: SettingsPanel,
   notifications: NotificationsPanel,
   team: TeamRolesPanel,
+  pos: LazyPOS,
+  kds: LazyKDS,
+  reports: LazyReports,
 };
 
 /** Maps each view to the permission needed to access it */
@@ -35,6 +50,9 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
   settings: "view_settings",
   notifications: "view_notifications",
   team: "manage_team",
+  pos: "access_pos",
+  kds: "access_kds",
+  reports: "view_reports",
 };
 
 function AccessDenied() {
@@ -101,7 +119,7 @@ export default function DashboardLayout() {
     if (requiredPerm && hasPermission(requiredPerm)) return; // current view is fine
 
     // Find the first permitted view
-    const viewOrder = ["dashboard", "waitlist", "floorplan", "orders", "menu", "notifications", "settings", "team"];
+    const viewOrder = ["dashboard", "pos", "waitlist", "floorplan", "orders", "kds", "menu", "reports", "notifications", "settings", "team"];
     const firstAllowed = viewOrder.find((v) => {
       const perm = VIEW_PERMISSIONS[v];
       return perm && hasPermission(perm);
