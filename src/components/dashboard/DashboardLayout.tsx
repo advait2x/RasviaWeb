@@ -26,6 +26,16 @@ function LazyPOS() { return <Suspense fallback={<LazyFallback />}><POSTerminal /
 function LazyKDS() { return <Suspense fallback={<LazyFallback />}><KitchenDisplay /></Suspense>; }
 function LazyReports() { return <Suspense fallback={<LazyFallback />}><SalesReports /></Suspense>; }
 
+function TeamRolesPage() {
+  return (
+    <div className="flex flex-col h-full p-5 overflow-y-auto">
+      <div className="max-w-3xl mx-auto w-full">
+        <TeamRolesPanel />
+      </div>
+    </div>
+  );
+}
+
 const VIEW_COMPONENTS: Record<string, React.FC> = {
   dashboard: DashboardOverview,
   waitlist: WaitlistFeed,
@@ -34,7 +44,7 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   menu: MenuManager,
   settings: SettingsPanel,
   notifications: NotificationsPanel,
-  team: TeamRolesPanel,
+  team: TeamRolesPage,
   pos: LazyPOS,
   kds: LazyKDS,
   reports: LazyReports,

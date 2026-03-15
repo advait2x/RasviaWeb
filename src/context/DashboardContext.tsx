@@ -12,6 +12,7 @@ interface DashboardState {
   setWaitlistOpen: (open: boolean) => void;
   currentWaitTime: number;
   setCurrentWaitTime: (time: number) => void;
+  restaurantOpen: boolean | null;
   waitlist: WaitlistEntry[];
   waitlistLoading: boolean;
   tables: TableInfo[];
@@ -126,6 +127,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [heldOrders, setHeldOrders] = useState<HeldOrder[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+  const [restaurantOpen, setRestaurantOpen] = useState<boolean | null>(null);
 
   const TAX_RATE = 0.0825;
 
@@ -137,6 +139,48 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const interval = setInterval(() => setTick((t) => t + 1), 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // ── Restaurant Hours Fetching ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!restaurantId) return;
+    const todayIndex = new Date().getDay(); // 0=Sun … 6=Sat
+    const fetch = async () => {
+      const { data } = await supabase
+        .from("restaurant_hours")
+        .select("open_time, close_time")
+        .eq("restaurant_id", restaurantId)
+        .eq("day_of_week", todayIndex)
+        .limit(1)
+        .maybeSingle();
+      if (!data) {
+        // No row for today → treat as closed
+        setRestaurantOpen(false);
+      } else {
+        const openTime = (data.open_time as string).slice(0, 5);
+        const closeTime = (data.close_time as string).slice(0, 5);
+        
+        const now = new Date();
+        const [oh, om] = openTime.split(":").map(Number);
+        const [ch, cm] = closeTime.split(":").map(Number);
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const openMins = oh * 60 + om;
+        const closeMins = ch * 60 + cm;
+        
+        let isOpen = false;
+        // Handle overnight spans (e.g. 22:00 – 02:00)
+        if (closeMins < openMins) {
+          isOpen = nowMins >= openMins || nowMins < closeMins;
+        } else {
+          isOpen = nowMins >= openMins && nowMins < closeMins;
+        }
+        setRestaurantOpen(isOpen);
+      }
+    };
+    fetch();
+    // Re-evaluate every minute
+    const interval = setInterval(fetch, 60_000);
+    return () => clearInterval(interval);
+  }, [restaurantId]);
 
   // ── Waitlist fetching ─────────────────────────────────────────────────────
 
@@ -1387,6 +1431,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         heldOrders,
         activeShift,
         completedOrders,
+        restaurantOpen,
 
         voidOrderItem,
         compOrderItem,

@@ -12,63 +12,16 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 
-
-
-/** Returns true if the current local time falls within open_time..close_time for today. */
-function checkIsOpenNow(openTime: string, closeTime: string): boolean {
-  const now = new Date();
-  const [oh, om] = openTime.split(":").map(Number);
-  const [ch, cm] = closeTime.split(":").map(Number);
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const openMins = oh * 60 + om;
-  const closeMins = ch * 60 + cm;
-  // Handle overnight spans (e.g. 22:00 – 02:00)
-  if (closeMins < openMins) {
-    return nowMins >= openMins || nowMins < closeMins;
-  }
-  return nowMins >= openMins && nowMins < closeMins;
-}
-
 export default function StatusBar() {
-  const { waitlistOpen, setWaitlistOpen, waitlist, tables } = useDashboard();
+  const { waitlistOpen, setWaitlistOpen, waitlist, tables, restaurantOpen } = useDashboard();
   const { restaurantId, isAdmin, session } = useAuth();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
   const occupiedCount = tables.filter((t) => t.status === "occupied").length;
   const totalTables = tables.length;
 
-  // Whether the restaurant is currently open per its operating hours
-  const [restaurantOpen, setRestaurantOpen] = useState<boolean | null>(null);
-
   // Pending toggle state — when set, shows confirmation dialog
   const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
-
-  // Fetch operating hours for today and determine open/closed
-  useEffect(() => {
-    if (!restaurantId) return;
-    const todayIndex = new Date().getDay(); // 0=Sun … 6=Sat
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("restaurant_hours")
-        .select("open_time, close_time")
-        .eq("restaurant_id", restaurantId)
-        .eq("day_of_week", todayIndex)
-        .limit(1)
-        .maybeSingle();
-      if (!data) {
-        // No row for today → treat as closed
-        setRestaurantOpen(false);
-      } else {
-        const openTime = (data.open_time as string).slice(0, 5);
-        const closeTime = (data.close_time as string).slice(0, 5);
-        setRestaurantOpen(checkIsOpenNow(openTime, closeTime));
-      }
-    };
-    fetch();
-    // Re-evaluate every minute
-    const interval = setInterval(fetch, 60_000);
-    return () => clearInterval(interval);
-  }, [restaurantId]);
 
   // Fetch initial waitlist_open state from Supabase
   useEffect(() => {

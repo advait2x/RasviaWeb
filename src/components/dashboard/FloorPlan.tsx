@@ -67,7 +67,7 @@ export default function FloorPlan() {
   const {
     tables, clearTable, seatParty, waitlist, setTableStatus,
     addTable, removeTable, combineTablesForParty, splitCombinedTable,
-    getOrdersForTable,
+    getOrdersForTable, restaurantOpen,
   } = useDashboard();
 
   const [showUnseat, setShowUnseat] = useState(false);
@@ -158,6 +158,15 @@ export default function FloorPlan() {
       setSelectedTable(null);
       showToast(isCombined ? `Combined table ${tableNum} cleared` : `Table ${tableNum} cleared`);
     }
+  };
+
+  const handleClearFloorPlan = () => {
+    tables.forEach((t) => {
+      if (t.status !== "available") {
+        clearTable(t.id);
+      }
+    });
+    showToast("Floor plan cleared.");
   };
 
   const handleUnseatTable = () => {
@@ -315,6 +324,17 @@ export default function FloorPlan() {
               >
                 <X size={13} strokeWidth={2} />
                 Cancel
+              </motion.button>
+            )}
+            {/* Clear Floor Plan (Only when closed) */}
+            {restaurantOpen === false && !combineMode && (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleClearFloorPlan}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
+              >
+                <Trash2 size={13} strokeWidth={2} />
+                Clear Floor Plan
               </motion.button>
             )}
             {/* Add Table */}
