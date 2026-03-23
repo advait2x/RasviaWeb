@@ -1,4 +1,4 @@
-﻿import { Suspense } from "react";
+import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
@@ -6,10 +6,15 @@ import Login from "./pages/Login";
 import Home from "./components/home";
 import JoinBridge from "./pages/JoinBridge";
 import KioskPage from "./pages/KioskPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 function AppContent() {
   if (window.location.pathname.startsWith('/join')) {
     return <JoinBridge />;
+  }
+
+  if (window.location.pathname.startsWith('/verify-email')) {
+    return <VerifyEmailPage />;
   }
 
   if (window.location.pathname.startsWith('/kiosk')) {

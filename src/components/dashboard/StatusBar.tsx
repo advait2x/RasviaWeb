@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Switch } from "@/components/ui/switch";
 import { WaitTimeWidget } from "@/components/WaitTimeWidget";
-import DebugPanel from "./DebugPanel";
+
 import {
   Dialog,
   DialogContent,
@@ -126,8 +126,6 @@ export default function StatusBar() {
             </span>
           </div>
 
-          {/* Debug Panel */}
-          {(isAdmin || session) && <DebugPanel />}
         </div>
 
         {/* Center: Current Wait Time */}
