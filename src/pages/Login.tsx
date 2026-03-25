@@ -186,7 +186,7 @@ export default function Login() {
 
                         <p style={styles.footer}>
                             Don't have an account?{" "}
-                            <a href="mailto:partners@rasvia.com" style={styles.footerLink}>
+                            <a href="mailto:support@rasvia.com" style={styles.footerLink}>
                                 Contact us
                             </a>
                         </p>

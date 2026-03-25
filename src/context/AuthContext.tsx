@@ -57,11 +57,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
             if (session) {
-                // Avoid remounting the full dashboard on token refresh/background tab resume.
-                if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+                // Avoid dashboard-wide refetch/remount on token refresh and tab resume.
+                const shouldRefetchUserData =
+                    event === "SIGNED_IN" ||
+                    event === "INITIAL_SESSION" ||
+                    event === "USER_UPDATED";
+                if (shouldRefetchUserData) {
                     setLoading(true);
+                    fetchUserData(session.user.id);
                 }
-                fetchUserData(session.user.id);
             } else {
                 resetState();
                 setLoading(false);
