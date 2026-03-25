@@ -48,11 +48,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session) fetchUserData(session.user.id);
-            else setLoading(false);
-        });
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                setSession(session);
+                if (session) fetchUserData(session.user.id);
+                else setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error reading auth session:", error);
+                resetState();
+                setLoading(false);
+            });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
@@ -265,7 +271,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             hasPermission,
             setActiveRestaurantId,
         }}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };
