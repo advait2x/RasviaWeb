@@ -7,14 +7,28 @@ import Home from "./components/home";
 import JoinBridge from "./pages/JoinBridge";
 import KioskPage from "./pages/KioskPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import RestaurantSharePreview from "./pages/RestaurantSharePreview";
 
 function AppContent() {
+  // Some Supabase email links can arrive on "/" with token params; treat them as verify flow.
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const hasVerifyToken = Boolean(searchParams.get("token_hash") || hashParams.get("token_hash"));
+  const hasVerifyType = Boolean(searchParams.get("type") || hashParams.get("type"));
+  if (hasVerifyToken && hasVerifyType) {
+    return <VerifyEmailPage />;
+  }
+
   if (window.location.pathname.startsWith('/join')) {
     return <JoinBridge />;
   }
 
   if (window.location.pathname.startsWith('/verify-email')) {
     return <VerifyEmailPage />;
+  }
+
+  if (window.location.pathname.startsWith('/share')) {
+    return <RestaurantSharePreview />;
   }
 
   if (window.location.pathname.startsWith('/kiosk')) {
@@ -75,14 +89,6 @@ function AppContent() {
           <p className="text-sm text-zinc-400 max-w-xs mx-auto">
             This dashboard is for restaurant staff and owners only. Please contact your administrator.
           </p>
-          <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
-            <p>Debug Diagnostics:</p>
-            <p>- Session: {session ? "Active" : "None"}</p>
-            <p>- Role: "{userRole}"</p>
-            <p>- isAdmin: {isAdmin ? "true" : "false"}</p>
-            <p>- isRestaurantOwner: {isRestaurantOwner ? "true" : "false"}</p>
-            <p>- restaurantId: {restaurantId || "null"}</p>
-          </div>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -109,14 +115,6 @@ function AppContent() {
           <p className="text-sm text-zinc-400 max-w-xs mx-auto">
             You're logged in, but your account isn't linked to a restaurant yet. Contact your administrator.
           </p>
-          <div className="mt-4 p-3 bg-zinc-900 rounded border border-white/5 text-xs text-zinc-500 font-mono text-left space-y-1">
-            <p>Debug Diagnostics:</p>
-            <p>- Session: {session ? "Active" : "None"}</p>
-            <p>- Role: "{userRole}"</p>
-            <p>- isAdmin: {isAdmin ? "true" : "false"}</p>
-            <p>- isRestaurantOwner: {isRestaurantOwner ? "true" : "false"}</p>
-            <p>- restaurantId: {restaurantId || "null"}</p>
-          </div>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}

@@ -202,7 +202,7 @@ export default function Sidebar({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowSignOutConfirm(true)}
-              className={`mb-3 rounded-xl flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 ${
+              className={`mt-2 mb-3 rounded-xl flex items-center justify-center text-red-400 bg-red-500/10 hover:text-red-300 hover:bg-red-500/20 transition-colors duration-200 ${
                 expanded ? "w-[150px] h-11 gap-2" : "w-10 h-10"
               }`}
             >

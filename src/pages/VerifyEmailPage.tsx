@@ -4,16 +4,29 @@ import { supabase } from "@/lib/supabase";
 import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 
 type Status = "verifying" | "success" | "error" | "missing";
+const WEB_FALLBACK_BASE_URL = "http://192.168.1.96:5173";
+const CANONICAL_VERIFY_HOST = new URL(WEB_FALLBACK_BASE_URL).host;
 
 export default function VerifyEmailPage() {
   const [status, setStatus] = useState<Status>("verifying");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (window.location.host !== CANONICAL_VERIFY_HOST) {
+      const target = `${WEB_FALLBACK_BASE_URL}/verify-email${window.location.search}${window.location.hash}`;
+      window.location.replace(target);
+      return;
+    }
+
     async function verify() {
       const params = new URLSearchParams(window.location.search);
-      const token_hash = params.get("token_hash");
-      const type = params.get("type") as "email" | "recovery" | null;
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const token_hash = params.get("token_hash") || hashParams.get("token_hash");
+      const typeRaw = params.get("type") || hashParams.get("type");
+      const normalizedType = typeRaw === "signup" ? "email" : typeRaw;
+      const type = (normalizedType === "email" || normalizedType === "recovery")
+        ? normalizedType
+        : null;
 
       if (!token_hash || !type) {
         setStatus("missing");
@@ -26,6 +39,8 @@ export default function VerifyEmailPage() {
         setErrorMsg(error.message);
         setStatus("error");
       } else {
+        // Avoid landing users on dashboard access checks after verify.
+        await supabase.auth.signOut();
         setStatus("success");
       }
     }
