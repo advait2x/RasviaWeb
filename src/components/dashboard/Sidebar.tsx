@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -14,6 +14,8 @@ import {
   Monitor,
   ChefHat,
   BarChart3,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -46,11 +48,18 @@ const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; re
   { icon: Settings, label: "Settings", view: "settings", requiredPermission: "view_settings" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  expanded,
+  onExpandedChange,
+}: {
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+}) {
   const { activeView, setActiveView, unreadCount, preorderCount } = useDashboard();
   const { hasPermission, isAdmin } = useAuth();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const touchStartXRef = useRef<number | null>(null);
 
   // Filter nav items to only those the user has permission for
   const visibleNavItems = navItems.filter((item) => hasPermission(item.requiredPermission));
@@ -62,6 +71,19 @@ export default function Sidebar() {
     setShowSignOutConfirm(false);
   };
 
+  const handleTouchStart = (e: any) => {
+    touchStartXRef.current = e.changedTouches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (e: any) => {
+    if (touchStartXRef.current == null) return;
+    const endX = e.changedTouches[0]?.clientX ?? touchStartXRef.current;
+    const deltaX = endX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (deltaX < -40 && expanded) onExpandedChange(false);
+    if (deltaX > 40 && !expanded) onExpandedChange(true);
+  };
+
   const renderNavItem = (icon: typeof LayoutDashboard, label: string, view: NavView) => {
     const Icon = icon;
     const isActive = activeView === view;
@@ -71,8 +93,9 @@ export default function Sidebar() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveView(view)}
-            className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-200 ${isActive ? "text-amber-500" : "text-zinc-500 hover:text-zinc-300"
-              }`}
+            className={`relative rounded-xl flex items-center justify-center transition-colors duration-200 ${
+              expanded ? "w-full py-2 min-h-[62px] flex-col" : "w-12 h-12"
+            } ${isActive ? "text-amber-500" : "text-zinc-500 hover:text-zinc-300"}`}
           >
             {isActive && (
               <motion.div
@@ -82,7 +105,12 @@ export default function Sidebar() {
                 transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
               />
             )}
-            <Icon size={22} strokeWidth={1.5} className="relative z-10" />
+            {expanded && (
+              <span className={`relative z-10 text-[10px] font-semibold leading-none mb-1 ${isActive ? "text-amber-400" : "text-zinc-400"}`}>
+                {label}
+              </span>
+            )}
+            <Icon size={20} strokeWidth={1.5} className="relative z-10" />
             {isActive && (
               <motion.div
                 layoutId="sidebar-indicator"
@@ -114,8 +142,12 @@ export default function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <aside className="fixed left-0 top-0 h-screen w-[72px] flex flex-col items-center py-6 z-50"
+      <aside
+        className="fixed left-0 top-0 h-screen flex flex-col items-center py-6 z-50 transition-[width] duration-200"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{
+          width: expanded ? 196 : 72,
           background: "rgba(14,14,16,0.95)",
           borderRight: "1px solid rgba(255,255,255,0.06)",
           boxShadow: "1px 0 20px rgba(0,0,0,0.4)",
@@ -127,16 +159,21 @@ export default function Sidebar() {
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => hasPermission("view_settings") && setActiveView("settings")}
-              className="mb-2 relative group"
+              className={`mb-2 relative group ${expanded ? "w-[150px]" : ""}`}
             >
               <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 ${activeView === "settings"
+                className={`rounded-xl flex items-center justify-center transition-all duration-200 ${expanded ? "w-full h-12 gap-2" : "w-11 h-11"} ${activeView === "settings"
                   ? "bg-amber-500/20 border border-amber-500/50"
                   : "bg-amber-500/10 border border-amber-500/25 group-hover:bg-amber-500/15 group-hover:border-amber-500/40"
                   }`}
                 style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
               >
                 <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
+                {expanded && (
+                  <span className="text-[11px] text-amber-300 font-semibold">
+                    {isAdmin ? "Admin Profile" : "Profile"}
+                  </span>
+                )}
               </div>
             </motion.button>
           </TooltipTrigger>
@@ -148,9 +185,15 @@ export default function Sidebar() {
         {/* Restaurant Switcher — admins only */}
         {isAdmin && <RestaurantSwitcher />}
 
-        {/* Nav — only show items the user has permission for */}
-        <nav className="flex-1 flex flex-col items-center justify-evenly w-full">
-          {visibleNavItems.map(({ icon, label, view }) => renderNavItem(icon, label, view))}
+        {/* Nav — only show items the user has permission for (scrollable) */}
+        <nav className="flex-1 w-full overflow-y-auto">
+          <div
+            className={`flex flex-col items-center w-full ${
+              expanded ? "gap-1.5 px-3 py-2" : "gap-2 py-2"
+            }`}
+          >
+            {visibleNavItems.map(({ icon, label, view }) => renderNavItem(icon, label, view))}
+          </div>
         </nav>
 
         {/* Logout */}
@@ -159,9 +202,12 @@ export default function Sidebar() {
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowSignOutConfirm(true)}
-              className="mb-3 w-10 h-10 rounded-xl flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200"
+              className={`mb-3 rounded-xl flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 ${
+                expanded ? "w-[150px] h-11 gap-2" : "w-10 h-10"
+              }`}
             >
               <LogOut size={18} strokeWidth={1.5} />
+              {expanded && <span className="text-xs font-semibold">Sign Out</span>}
             </motion.button>
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
@@ -170,10 +216,22 @@ export default function Sidebar() {
         </Tooltip>
 
         {/* Status dot */}
-        <div className="relative">
+        <div className={`relative ${expanded ? "mb-1" : ""}`}>
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-50" />
         </div>
+
+        {/* Collapse / Expand toggle */}
+        <button
+          onClick={() => onExpandedChange(!expanded)}
+          className={`mt-3 rounded-lg border border-white/10 bg-zinc-800/60 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors ${
+            expanded ? "w-[150px] h-8 flex items-center justify-center" : "w-9 h-8 flex items-center justify-center"
+          }`}
+          aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {expanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
+        </button>
       </aside>
 
       {/* Sign Out Confirmation Dialog */}

@@ -193,7 +193,7 @@ function ItemFormDialog({
         setShowDuplicateConfirm(true);
         return;
       }
-      setSaveError("Something went wrong. Check the console for more details.");
+      setSaveError(err instanceof Error ? err.message : "Something went wrong. Check the console for more details.");
     } finally {
       setSaving(false);
     }

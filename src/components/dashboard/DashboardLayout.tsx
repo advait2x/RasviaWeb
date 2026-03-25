@@ -116,6 +116,7 @@ function FullScreenAccessDenied() {
 export default function DashboardLayout() {
   const { activeView, setActiveView } = useDashboard();
   const { hasPermission, permissions, loading } = useAuth();
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
   const prevView = useRef(activeView);
   const hasSetInitialView = useRef(false);
@@ -175,10 +176,13 @@ export default function DashboardLayout() {
       </div>
 
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar expanded={sidebarExpanded} onExpandedChange={setSidebarExpanded} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col ml-[72px] h-full relative z-10">
+      <div
+        className="flex-1 flex flex-col h-full relative z-10 transition-[margin] duration-200"
+        style={{ marginLeft: sidebarExpanded ? 196 : 72 }}
+      >
         {/* Status Bar */}
         <StatusBar />
 
