@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 
 type Status = "verifying" | "success" | "error" | "missing";
-const WEB_FALLBACK_BASE_URL = "http://192.168.1.96:5173";
+const WEB_FALLBACK_BASE_URL = "https://rasvia.com";
 const CANONICAL_VERIFY_HOST = new URL(WEB_FALLBACK_BASE_URL).host;
 
 export default function VerifyEmailPage() {
