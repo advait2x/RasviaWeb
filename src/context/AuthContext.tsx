@@ -49,13 +49,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const lastSessionUserIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-<<<<<<< Updated upstream
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session) fetchUserData(session.user.id);
-            else setLoading(false);
-        });
-=======
         supabase.auth.getSession()
             .then(({ data: { session } }) => {
                 setSession(session);
@@ -68,7 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 resetState();
                 setLoading(false);
             });
->>>>>>> Stashed changes
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
