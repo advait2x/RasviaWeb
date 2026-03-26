@@ -190,6 +190,9 @@ export default function Login() {
                                 Contact us
                             </a>
                         </p>
+                        <a href="/" style={styles.backLink}>
+                            ← Back to main site
+                        </a>
                     </div>
                 </div>
 
@@ -500,5 +503,13 @@ const styles: Record<string, React.CSSProperties> = {
         letterSpacing: "0.04em",
         margin: 0,
         fontStyle: "italic",
+    },
+    backLink: {
+        display: "inline-block",
+        marginTop: 2,
+        textAlign: "center",
+        color: "rgba(255,255,255,0.5)",
+        fontSize: 12,
+        textDecoration: "none",
     },
 };

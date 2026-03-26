@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import { Permission, ALL_PERMISSIONS } from "@/types/dashboard";
@@ -46,22 +46,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [permissions, setPermissions] = useState<Permission[]>([]);
     const [loading, setLoading] = useState(true);
+    const lastSessionUserIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+<<<<<<< Updated upstream
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             if (session) fetchUserData(session.user.id);
             else setLoading(false);
         });
+=======
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                setSession(session);
+                lastSessionUserIdRef.current = session?.user?.id ?? null;
+                if (session) fetchUserData(session.user.id);
+                else setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error reading auth session:", error);
+                resetState();
+                setLoading(false);
+            });
+>>>>>>> Stashed changes
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
+            const incomingUserId = session?.user?.id ?? null;
+            const previousUserId = lastSessionUserIdRef.current;
             if (session) {
-                // Avoid dashboard-wide refetch/remount on token refresh and tab resume.
+                // Avoid dashboard-wide refetch/remount on tab refocus and token lifecycle.
                 const shouldRefetchUserData =
-                    event === "SIGNED_IN" ||
                     event === "INITIAL_SESSION" ||
-                    event === "USER_UPDATED";
+                    event === "USER_UPDATED" ||
+                    // Fresh login / account switch should still refetch.
+                    (event === "SIGNED_IN" && previousUserId !== incomingUserId);
                 if (shouldRefetchUserData) {
                     setLoading(true);
                     fetchUserData(session.user.id);
@@ -70,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 resetState();
                 setLoading(false);
             }
+            lastSessionUserIdRef.current = incomingUserId;
         });
 
         return () => subscription.unsubscribe();
