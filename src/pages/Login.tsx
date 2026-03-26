@@ -239,13 +239,13 @@ const styles: Record<string, React.CSSProperties> = {
     bgBase: {
         position: "absolute",
         inset: 0,
-        background: "#09090b",
+        background: "#0A0A0A",
         zIndex: 0,
     },
     bgGradient1: {
         position: "absolute",
         inset: 0,
-        background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(120,53,15,0.35) 0%, transparent 60%)",
+        background: "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(245,158,11,0.08) 0%, rgba(120,53,15,0.20) 30%, transparent 65%)",
         zIndex: 1,
     },
     bgGradient2: {
@@ -373,13 +373,14 @@ const styles: Record<string, React.CSSProperties> = {
     heading: {
         fontSize: 26,
         fontWeight: 700,
-        color: "#fff",
-        letterSpacing: "-0.02em",
+        color: "#ffffff",
+        letterSpacing: "-0.04em",
+        lineHeight: 1.1,
         margin: 0,
     },
     subheading: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.45)",
+        color: "#a3a3a3",
         margin: 0,
         fontWeight: 400,
     },
