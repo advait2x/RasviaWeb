@@ -19,8 +19,12 @@ const FEATURE_SLIDES = [
     description: "Toggle sold-out items instantly and sync across all active guest sessions.",
   },
   {
+    name: "Location Adjustment",
+    description: "Pinpoint accuracy for hungry guests. Adjust drop-offs and routing instantly.",
+  },
+  {
     name: "Mobile Group Ordering",
-    description: "Live cart sync for groups with a smooth phone-first ordering experience.",
+    description: "Live cart sync with per-member splits, modifiers, and one-tap group checkout.",
   },
 ];
 
@@ -214,6 +218,165 @@ function InventoryMockup() {
   );
 }
 
+function LocationAdjustmentMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-4 backdrop-blur-sm">
+
+        <div className="mb-3 flex items-center justify-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-4 py-2">
+          <span className="text-sm">📍</span>
+          <span className="text-xs font-semibold text-amber-400">Moving: Chennai Cafe</span>
+        </div>
+
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-xl border border-white/[0.06]"
+          style={{ background: "#1c2233" }}
+        >
+          <div className="absolute inset-0"
+            style={{
+              backgroundImage: "linear-gradient(rgba(99,180,150,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(99,180,150,0.06) 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }}
+          />
+          <div className="absolute inset-0 opacity-60"
+            style={{
+              backgroundImage: "linear-gradient(rgba(50,70,55,0.4) 2px, transparent 2px), linear-gradient(90deg, rgba(50,70,55,0.4) 2px, transparent 2px)",
+              backgroundSize: "60px 60px",
+            }}
+          />
+          <div className="absolute left-[15%] top-[20%] h-8 w-14 rounded-sm bg-emerald-800/40" />
+          <div className="absolute right-[10%] bottom-[25%] h-12 w-10 rounded-sm bg-emerald-800/35" />
+          <div className="absolute left-[30%] bottom-[15%] h-6 w-20 rounded-sm bg-emerald-800/30" />
+          <div className="absolute left-0 right-0 top-[48%] h-px bg-zinc-500/25" />
+          <div className="absolute left-0 right-0 top-[62%] h-px bg-zinc-500/15" />
+          <div className="absolute bottom-0 left-[35%] top-0 w-px bg-zinc-500/20" />
+          <div className="absolute bottom-0 left-[60%] top-0 w-px bg-zinc-500/15" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="relative flex items-center justify-center">
+              <div className="h-6 w-6 rounded-full border-2 border-white bg-violet-600 shadow-[0_0_14px_rgba(124,58,237,0.8)]" />
+              <div className="absolute h-6 w-6 rounded-full border-2 border-violet-400/40 animate-ping" />
+              <div className="absolute h-12 w-12 rounded-full border border-violet-400/20" />
+            </div>
+          </div>
+          <div className="absolute left-2 top-2 rounded-md border border-white/10 bg-black/50 px-1.5 py-0.5 backdrop-blur-sm">
+            <span className="text-[9px] font-mono text-zinc-400">13.08N 80.27E</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button className="flex-1 rounded-xl border border-white/10 bg-zinc-800/60 py-2.5 text-xs font-semibold text-zinc-300">
+            Cancel
+          </button>
+          <button
+            className="flex-[2] rounded-xl py-2.5 text-sm font-bold text-white"
+            style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)", boxShadow: "0 4px 18px rgba(124,58,237,0.45)" }}
+          >
+            Set Location
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GroupSplitMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-5">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] p-4 backdrop-blur-sm">
+
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <p className="text-sm font-black tracking-tight text-white">Group Order</p>
+            <p className="text-[10px] text-neutral-500">5 items &middot; 2 members</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-transparent px-2.5 py-1">
+            <span className="text-[10px] font-bold text-amber-400">Party</span>
+            <span className="text-[10px] text-zinc-500">— 2 +</span>
+          </div>
+        </div>
+
+        <div className="mb-2.5 flex gap-1.5">
+          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1.5 text-[10px] font-semibold text-amber-400">
+            Dine In
+          </button>
+          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[10px] font-semibold text-zinc-500">
+            Takeout
+          </button>
+        </div>
+
+        <div className="mb-3 flex gap-1.5">
+          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1.5 text-[10px] font-semibold text-amber-400">
+            By Member
+          </button>
+          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[10px] font-semibold text-zinc-500">
+            All Items
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2 mb-3">
+          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">A</div>
+                <span className="text-xs font-bold text-white">Jordan K.</span>
+              </div>
+              <span className="text-xs font-black text-amber-400">$26.79</span>
+            </div>
+            <div className="rounded-lg border border-white/[0.04] bg-zinc-800/40 px-2.5 py-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400">Butter Chicken</span>
+                <span className="rounded-full bg-zinc-700/60 px-1.5 text-[9px] text-zinc-500">x3</span>
+              </div>
+              <span className="text-[10px] text-zinc-400">$26.79</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">A</div>
+                <span className="text-xs font-bold text-white">Priya M.</span>
+              </div>
+              <span className="text-xs font-black text-amber-400">$9.34</span>
+            </div>
+            <div className="rounded-lg border border-white/[0.04] bg-zinc-800/40 px-2.5 py-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-neutral-400">Garlic Naan</span>
+                <span className="rounded-full bg-zinc-700/60 px-1.5 text-[9px] text-zinc-500">x2</span>
+              </div>
+              <span className="text-[10px] text-zinc-400">$9.34</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-2 px-0.5">
+          <span className="text-[10px] text-neutral-500">Group Total</span>
+          <span className="text-sm font-black text-white">$36.13</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
+          <button className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-2 text-[10px] font-bold text-emerald-400">
+            I&apos;ll Pay
+          </button>
+          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-2 text-[10px] font-semibold text-zinc-400">
+            Split
+          </button>
+          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-2 text-[10px] font-semibold text-zinc-400">
+            Assign
+          </button>
+        </div>
+
+        <button
+          className="w-full rounded-xl py-2.5 text-xs font-bold text-white"
+          style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 3px 14px rgba(34,197,94,0.3)" }}
+        >
+          Pay &amp; Submit &middot; $36.13
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
   if (slide.name === "1-Tap 86 Switch") {
     return (
@@ -279,6 +442,14 @@ function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
     return <InventoryMockup />;
   }
 
+  if (slide.name === "Location Adjustment") {
+    return <LocationAdjustmentMockup />;
+  }
+
+  if (slide.name === "Mobile Group Ordering") {
+    return <GroupSplitMockup />;
+  }
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-1.5">
@@ -322,9 +493,9 @@ export default function LandingPage() {
       </header>
 
       <main className="w-full py-12">
-        <div className="mx-auto max-w-7xl px-6 relative">
+        <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <div
-            className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full opacity-[0.07]"
+            className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07]"
             style={{
               background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
               filter: "blur(60px)",
@@ -468,7 +639,7 @@ export default function LandingPage() {
               <p className="text-sm font-medium text-white">Company</p>
               <ul className="mt-4 flex flex-col gap-3">
                 {[
-                  { label: "Contact Sales", href: "mailto:support@rasvia.com" },
+                  { label: "Contact Sales", href: "/contact" },
                   { label: "Partner Login", href: "/partner-portal" },
                 ].map((link) => (
                   <li key={link.label}>
@@ -484,13 +655,8 @@ export default function LandingPage() {
             <div>
               <p className="text-sm font-medium text-white">Legal</p>
               <ul className="mt-4 flex flex-col gap-3">
-                {["Privacy Policy", "Terms of Service"].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-neutral-500 transition-colors hover:text-white">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                <li><a href="/privacy" className="text-sm text-neutral-500 transition-colors hover:text-white">Privacy Policy</a></li>
+                <li><a href="/terms" className="text-sm text-neutral-500 transition-colors hover:text-white">Terms of Service</a></li>
               </ul>
             </div>
           </div>

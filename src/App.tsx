@@ -8,6 +8,9 @@ import KioskPage from "./pages/KioskPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import RestaurantSharePreview from "./pages/RestaurantSharePreview";
 import LandingPage from "./pages/LandingPage";
+import ContactPage from "./pages/ContactPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
 
 function PartnerPortalApp() {
   const { session, restaurantId, loading, userRole, isAdmin } = useAuth();
@@ -145,6 +148,18 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/partner-portal')) {
     return <PartnerPortalApp />;
+  }
+
+  if (window.location.pathname.startsWith('/contact')) {
+    return <ContactPage />;
+  }
+
+  if (window.location.pathname.startsWith('/privacy')) {
+    return <PrivacyPage />;
+  }
+
+  if (window.location.pathname.startsWith('/terms')) {
+    return <TermsPage />;
   }
 
   return <LandingPage />;
