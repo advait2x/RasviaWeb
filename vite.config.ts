@@ -4,8 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 
 const previewAllowedHosts = [
   "rasvia-qjbpb.ondigitalocean.app",
-  "rasvia.com",
-  ...(process.env.VITE_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean) ?? []),
+  "rasvia.com"
 ];
 
 // https://vitejs.dev/config/
