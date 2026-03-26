@@ -13,6 +13,7 @@ if (!supabaseUrl || !supabaseKey) {
 // Keep app booting even when env vars are missing; requests will fail with clear console errors
 // until deployment variables are configured.
 export const supabase = createClient(
-  supabaseUrl || "https://invalid.supabase.local",
-  supabaseKey || "invalid-anon-key",
+  supabaseUrl || "https://example.com",
+  supabaseKey ||
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MCwiZXhwIjo0MTAyNDQ0NDgwMH0.placeholder",
 );
