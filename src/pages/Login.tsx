@@ -149,15 +149,17 @@ export default function Login() {
                                 }}
                                 onMouseEnter={(e) => {
                                     if (!loading) {
-                                        (e.currentTarget as HTMLButtonElement).style.background = "linear-gradient(135deg, #FBBF24 0%, #F59E0B 60%, #D97706 100%)";
+                                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,158,11,0.10)";
+                                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(245,158,11,0.8)";
+                                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(245,158,11,0.25), 0 0 40px rgba(245,158,11,0.10)";
                                         (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-                                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 25px rgba(245,158,11,0.45), 0 0 0 1px rgba(245,158,11,0.3)";
                                     }
                                 }}
                                 onMouseLeave={(e) => {
-                                    (e.currentTarget as HTMLButtonElement).style.background = "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)";
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,158,11,0.04)";
                                     (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 15px rgba(245,158,11,0.3), 0 0 0 1px rgba(245,158,11,0.2)";
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(245,158,11,0.5)";
+                                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
                                 }}
                             >
                                 {loading ? (
@@ -190,6 +192,9 @@ export default function Login() {
                                 Contact us
                             </a>
                         </p>
+                        <a href="/" style={styles.backLink}>
+                            ← Back to main site
+                        </a>
                     </div>
                 </div>
 
@@ -236,13 +241,13 @@ const styles: Record<string, React.CSSProperties> = {
     bgBase: {
         position: "absolute",
         inset: 0,
-        background: "#09090b",
+        background: "#0A0A0A",
         zIndex: 0,
     },
     bgGradient1: {
         position: "absolute",
         inset: 0,
-        background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(120,53,15,0.35) 0%, transparent 60%)",
+        background: "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(245,158,11,0.08) 0%, rgba(120,53,15,0.20) 30%, transparent 65%)",
         zIndex: 1,
     },
     bgGradient2: {
@@ -370,13 +375,14 @@ const styles: Record<string, React.CSSProperties> = {
     heading: {
         fontSize: 26,
         fontWeight: 700,
-        color: "#fff",
-        letterSpacing: "-0.02em",
+        color: "#ffffff",
+        letterSpacing: "-0.04em",
+        lineHeight: 1.1,
         margin: 0,
     },
     subheading: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.45)",
+        color: "#a3a3a3",
         margin: 0,
         fontWeight: 400,
     },
@@ -442,15 +448,15 @@ const styles: Record<string, React.CSSProperties> = {
         width: "100%",
         padding: "14px 20px",
         borderRadius: 10,
-        border: "none",
-        background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-        color: "#1a0d00",
+        border: "1px solid rgba(245,158,11,0.5)",
+        background: "rgba(245,158,11,0.04)",
+        color: "#F59E0B",
         fontSize: 15,
         fontWeight: 700,
         letterSpacing: "0.01em",
         cursor: "pointer",
-        transition: "all 0.2s ease",
-        boxShadow: "0 4px 15px rgba(245,158,11,0.3), 0 0 0 1px rgba(245,158,11,0.2)",
+        transition: "all 0.3s ease",
+        boxShadow: "none",
         marginTop: 4,
     },
     btnContent: {
@@ -500,5 +506,13 @@ const styles: Record<string, React.CSSProperties> = {
         letterSpacing: "0.04em",
         margin: 0,
         fontStyle: "italic",
+    },
+    backLink: {
+        display: "inline-block",
+        marginTop: 2,
+        textAlign: "center",
+        color: "rgba(255,255,255,0.5)",
+        fontSize: 12,
+        textDecoration: "none",
     },
 };
