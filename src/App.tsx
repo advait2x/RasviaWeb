@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
@@ -103,6 +103,22 @@ function PartnerPortalApp() {
 }
 
 function AppContent() {
+  // Re-render on browser back/forward (Safari popstate fix)
+  const [, setPath] = useState(window.location.pathname);
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    // Handle Safari bfcache restore (persisted pageshow)
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPath(window.location.pathname);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
+
   // Some Supabase email links can arrive on "/" with token params; treat them as verify flow.
   const searchParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
