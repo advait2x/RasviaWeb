@@ -6,9 +6,21 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
 const basename = import.meta.env.BASE_URL;
-const missingEnvVars = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"].filter(
-  (key) => !import.meta.env[key as "VITE_SUPABASE_URL" | "VITE_SUPABASE_ANON_KEY"],
-);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
+const missingEnvVars = [
+  ...(supabaseUrl ? [] : ["VITE_SUPABASE_URL"]),
+  ...(supabaseAnonKey ? [] : ["VITE_SUPABASE_ANON_KEY"]),
+];
+const hasInvalidSupabaseUrl = (() => {
+  if (!supabaseUrl) return false;
+  try {
+    const url = new URL(supabaseUrl);
+    return url.protocol !== "http:" && url.protocol !== "https:";
+  } catch {
+    return true;
+  }
+})();
 
 type AppErrorBoundaryState = {
   hasError: boolean;
@@ -86,6 +98,22 @@ function BootDiagnostics({ children }: { children: React.ReactNode }) {
               </li>
             ))}
           </ul>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasInvalidSupabaseUrl) {
+    return (
+      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 space-y-3">
+          <h1 className="text-lg font-semibold text-amber-300">Invalid `VITE_SUPABASE_URL`</h1>
+          <p className="text-sm text-zinc-300 break-words">
+            The current value is not a valid HTTP/HTTPS URL after trimming:
+          </p>
+          <p className="text-sm text-zinc-200 break-words">
+            <code>{supabaseUrl}</code>
+          </p>
         </div>
       </div>
     );
