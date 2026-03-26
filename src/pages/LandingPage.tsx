@@ -15,6 +15,10 @@ const FEATURE_SLIDES = [
     description: "Let guests split freely while restaurants receive one clean payout summary.",
   },
   {
+    name: "Real-Time Item Controls",
+    description: "Toggle sold-out items instantly and sync across all active guest sessions.",
+  },
+  {
     name: "Mobile Group Ordering",
     description: "Live cart sync for groups with a smooth phone-first ordering experience.",
   },
@@ -24,6 +28,17 @@ const WAITLIST_ROWS = [
   { name: "Anderson Family", seats: 4, wait: "12m", status: "Waiting" },
   { name: "Chen, Margaret", seats: 2, wait: "28m", status: "Notified" },
   { name: "Rodriguez Party", seats: 6, wait: "4m", status: "Waiting" },
+];
+
+const PAYOUT_ROWS = [
+  { name: "Rahul", amount: "$22.00" },
+  { name: "Aisha", amount: "$31.50" },
+  { name: "Vikram", amount: "$31.00" },
+];
+
+const INVENTORY_ROWS = [
+  { name: "Mutton Biryani", category: "Main course", available: false },
+  { name: "Garlic Naan", category: "Bread", available: true },
 ];
 
 function HostDashboardMockup() {
@@ -83,10 +98,124 @@ function HostDashboardMockup() {
   );
 }
 
-function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
-  const isEightySix = slide.name === "1-Tap 86 Switch";
+function SplitReceiptMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-5 backdrop-blur-sm">
+        <div className="mb-4 flex items-center justify-between border-b border-white/[0.06] pb-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Split Receipt</p>
+            <p className="mt-0.5 text-sm font-bold text-zinc-200">Table 44</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-neutral-500">Total</p>
+            <p className="text-base font-black tracking-tight text-white">$84.50</p>
+          </div>
+        </div>
 
-  if (isEightySix) {
+        <div className="flex flex-col gap-2">
+          {PAYOUT_ROWS.map((row) => (
+            <div
+              key={row.name}
+              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-zinc-800/30 px-3.5 py-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700/60 text-[11px] font-bold text-zinc-300">
+                  {row.name[0]}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">{row.name}</p>
+                  <p className="text-[10px] text-neutral-400">paid {row.amount}</p>
+                </div>
+              </div>
+              <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                Settled
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/15 bg-amber-500/[0.04] px-3.5 py-2.5">
+          <p className="text-[10px] font-semibold text-neutral-500">Restaurant payout</p>
+          <p className="text-sm font-black text-amber-400">$84.50</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-5 backdrop-blur-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Item Controls</p>
+            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live Inventory</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-semibold text-emerald-400">Live</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {INVENTORY_ROWS.map((item) => (
+            <div
+              key={item.name}
+              className={`rounded-xl border px-4 py-3 ${
+                item.available
+                  ? "border-white/[0.06] bg-zinc-800/30"
+                  : "border-red-500/20 bg-red-500/[0.04]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">{item.name}</p>
+                  <p className="text-[10px] text-neutral-400">{item.category}</p>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div
+                    className={`relative h-6 w-11 rounded-full border ${
+                      item.available
+                        ? "border-emerald-500/30 bg-emerald-500/20"
+                        : "border-red-500/30 bg-red-500/20"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 h-5 w-5 rounded-full shadow-md transition-all duration-300 ${
+                        item.available
+                          ? "right-0.5 bg-emerald-400"
+                          : "left-0.5 bg-red-400"
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                      item.available
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                        : "border-red-500/20 bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {item.available ? "Available" : "Sold Out"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center gap-1.5">
+          <div className="h-1 w-1 rounded-full bg-zinc-500 animate-pulse" />
+          <p className="text-[10px] text-zinc-600">Changes sync to all active guest sessions instantly</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
+  if (slide.name === "1-Tap 86 Switch") {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6">
         <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
@@ -113,7 +242,6 @@ function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
                   <p className="text-[10px] text-zinc-500">Main course</p>
                 </div>
               </div>
-
               <div className="flex flex-col items-center gap-1">
                 <div className="relative h-6 w-11 cursor-pointer rounded-full border border-red-500/30 bg-red-500/20">
                   <div className="absolute left-1 top-0.5 h-5 w-5 rounded-full bg-red-400 shadow-md" />
@@ -121,7 +249,6 @@ function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
                 <span className="text-[9px] font-bold uppercase tracking-wide text-red-400">Sold Out</span>
               </div>
             </div>
-
             <div className="mt-3 flex items-center gap-1.5">
               <div className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
               <p className="text-[10px] text-zinc-500">Syncing to 3 active guest sessions...</p>
@@ -142,6 +269,14 @@ function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
         </div>
       </div>
     );
+  }
+
+  if (slide.name === "Zero-Math Payouts") {
+    return <SplitReceiptMockup />;
+  }
+
+  if (slide.name === "Real-Time Item Controls") {
+    return <InventoryMockup />;
   }
 
   return (
@@ -170,9 +305,9 @@ export default function LandingPage() {
   const goNext = () => setCurrentIndex((p) => (p + 1) % FEATURE_SLIDES.length);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-zinc-100">
+    <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div>
             <p className="text-3xl font-black tracking-tighter text-amber-400">rasvia</p>
             <p className="mt-1 text-sm text-neutral-500">Built for restaurants. Loved by guests.</p>
@@ -186,8 +321,8 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-12">
-        <div className="relative">
+      <main className="w-full py-12">
+        <div className="mx-auto max-w-7xl px-6 relative">
           <div
             className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full opacity-[0.07]"
             style={{
@@ -233,7 +368,7 @@ export default function LandingPage() {
           </section>
         </div>
 
-        <section className="mt-14">
+        <section className="mt-14 mx-auto max-w-7xl px-6">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Gallery</p>
           <div
             className="group mt-3 rounded-2xl border border-white/10 bg-neutral-900/50 p-3 backdrop-blur-md transition-all duration-300 hover:border-amber-500/20"
@@ -303,12 +438,67 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer id="contact" className="mt-10 border-t border-white/[0.08]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-zinc-600">
-          <p>&copy; {new Date().getFullYear()} Rasvia</p>
-          <a href="mailto:support@rasvia.com" className="transition-colors hover:text-zinc-300">
-            Contact sales: support@rasvia.com
-          </a>
+      <footer className="mt-10 border-t border-white/10">
+        <div className="mx-auto max-w-7xl px-6 pt-16 pb-8">
+          <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
+            {/* Brand column */}
+            <div className="col-span-2 md:col-span-1">
+              <p className="text-2xl font-black tracking-tighter text-amber-400">rasvia</p>
+              <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-neutral-500">
+                Built for restaurants. Loved by guests.
+              </p>
+            </div>
+
+            {/* Product */}
+            <div>
+              <p className="text-sm font-medium text-white">Product</p>
+              <ul className="mt-4 flex flex-col gap-3">
+                {["Waitlists", "Group Carts", "Fast Payouts"].map((link) => (
+                  <li key={link}>
+                    <a href="#" className="text-sm text-neutral-500 transition-colors hover:text-white">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <p className="text-sm font-medium text-white">Company</p>
+              <ul className="mt-4 flex flex-col gap-3">
+                {[
+                  { label: "Contact Sales", href: "mailto:support@rasvia.com" },
+                  { label: "Partner Login", href: "/partner-portal" },
+                ].map((link) => (
+                  <li key={link.label}>
+                    <a href={link.href} className="text-sm text-neutral-500 transition-colors hover:text-white">
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <p className="text-sm font-medium text-white">Legal</p>
+              <ul className="mt-4 flex flex-col gap-3">
+                {["Privacy Policy", "Terms of Service"].map((link) => (
+                  <li key={link}>
+                    <a href="#" className="text-sm text-neutral-500 transition-colors hover:text-white">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-8">
+            <p className="text-sm text-neutral-600">&copy; {new Date().getFullYear()} Rasvia, Inc. All rights reserved.</p>
+            <p className="text-xs text-neutral-700">Built with care for the restaurant industry.</p>
+          </div>
         </div>
       </footer>
     </div>
