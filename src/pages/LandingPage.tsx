@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 const FEATURE_SLIDES = [
@@ -27,6 +27,15 @@ const FEATURE_SLIDES = [
     description: "Live cart sync with per-member splits, modifiers, and one-tap group checkout.",
   },
 ];
+type FeatureSlide = (typeof FEATURE_SLIDES)[number];
+
+const BUSINESS_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
+  ["Fire When Seated", "1-Tap 86 Switch", "Real-Time Item Controls", "Location Adjustment"].includes(slide.name)
+);
+
+const CONSUMER_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
+  ["Zero-Math Payouts", "Mobile Group Ordering"].includes(slide.name)
+);
 
 const WAITLIST_ROWS = [
   { name: "Anderson Family", seats: 4, wait: "12m", status: "Waiting" },
@@ -377,7 +386,7 @@ function GroupSplitMockup() {
   );
 }
 
-function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
+function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
   if (slide.name === "1-Tap 86 Switch") {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6">
@@ -461,23 +470,38 @@ function GallerySlideContent({ slide }: { slide: (typeof FEATURE_SLIDES)[0] }) {
 }
 
 export default function LandingPage() {
+  const [audience, setAudience] = useState<"business" | "consumer">("business");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const activeSlides = useMemo(
+    () => (audience === "business" ? BUSINESS_FEATURES : CONSUMER_FEATURES),
+    [audience]
+  );
 
   useEffect(() => {
-    if (paused) return;
+    setCurrentIndex(0);
+  }, [audience]);
+
+  useEffect(() => {
+    if (paused || activeSlides.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % FEATURE_SLIDES.length);
+      setCurrentIndex((prev) => (prev + 1) % activeSlides.length);
     }, 3500);
     return () => clearInterval(timer);
-  }, [paused]);
+  }, [paused, activeSlides.length]);
 
-  const goPrev = () => setCurrentIndex((p) => (p - 1 + FEATURE_SLIDES.length) % FEATURE_SLIDES.length);
-  const goNext = () => setCurrentIndex((p) => (p + 1) % FEATURE_SLIDES.length);
+  const goPrev = () => {
+    if (activeSlides.length <= 1) return;
+    setCurrentIndex((p) => (p - 1 + activeSlides.length) % activeSlides.length);
+  };
+  const goNext = () => {
+    if (activeSlides.length <= 1) return;
+    setCurrentIndex((p) => (p + 1) % activeSlides.length);
+  };
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div>
             <p className="text-3xl font-black tracking-tighter text-amber-400">rasvia</p>
@@ -492,7 +516,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="w-full py-12">
+      <main className="w-full py-12 pt-28">
         <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <div
             className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07]"
@@ -540,7 +564,33 @@ export default function LandingPage() {
         </div>
 
         <section className="mt-14 mx-auto max-w-7xl px-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Gallery</p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Gallery</p>
+            <div className="flex items-center rounded-xl border border-white/10 bg-zinc-900/60 p-1">
+              <button
+                type="button"
+                onClick={() => setAudience("business")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  audience === "business"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                For Businesses
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudience("consumer")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  audience === "consumer"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                For Consumers
+              </button>
+            </div>
+          </div>
           <div
             className="group mt-3 rounded-2xl border border-white/10 bg-neutral-900/50 p-3 backdrop-blur-md transition-all duration-300 hover:border-amber-500/20"
             style={{
@@ -556,7 +606,7 @@ export default function LandingPage() {
                 className="flex h-full transition-transform duration-700 ease-in-out"
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
-                {FEATURE_SLIDES.map((slide, idx) => (
+                {activeSlides.map((slide, idx) => (
                   <div key={slide.name + idx} className="relative h-full min-w-full">
                     <GallerySlideContent slide={slide} />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pb-5 pl-5 pt-16">
@@ -593,12 +643,17 @@ export default function LandingPage() {
               </button>
 
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {FEATURE_SLIDES.map((_, i) => (
+                {activeSlides.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => setCurrentIndex(i)}
+                    onClick={() => {
+                      if (activeSlides.length === 0) return;
+                      setCurrentIndex(i);
+                    }}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === currentIndex ? "w-4 bg-amber-400" : "w-1.5 bg-white/25 hover:bg-white/40"
+                      i === currentIndex
+                        ? "w-4 bg-amber-400"
+                        : "w-1.5 bg-white/25 hover:bg-white/40"
                     }`}
                     aria-label={`Go to slide ${i + 1}`}
                   />
