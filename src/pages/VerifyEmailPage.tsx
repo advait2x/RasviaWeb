@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 
-type Status = "verifying" | "success" | "error" | "missing";
+type Status = "verifying" | "success" | "alreadyVerified" | "error" | "missing";
 const WEB_FALLBACK_BASE_URL = "https://rasvia.com";
 const CANONICAL_VERIFY_HOST = new URL(WEB_FALLBACK_BASE_URL).host;
 
@@ -19,30 +19,97 @@ export default function VerifyEmailPage() {
     }
 
     async function verify() {
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const waitForConfirmedSessionOrEvent = async (timeoutMs = 12000, intervalMs = 300) => {
+        let confirmedFromEvent = false;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.user?.email_confirmed_at) {
+            confirmedFromEvent = true;
+          }
+        });
+
+        const startedAt = Date.now();
+        try {
+          while (Date.now() - startedAt < timeoutMs) {
+            if (confirmedFromEvent) {
+              await supabase.auth.signOut();
+              return true;
+            }
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.email_confirmed_at) {
+              await supabase.auth.signOut();
+              return true;
+            }
+            await sleep(intervalMs);
+          }
+          return false;
+        } finally {
+          subscription.unsubscribe();
+        }
+      };
+
       const params = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const token_hash = params.get("token_hash") || hashParams.get("token_hash");
+      const token_hash =
+        params.get("token_hash") ||
+        hashParams.get("token_hash") ||
+        params.get("token") ||
+        hashParams.get("token");
+      const code = params.get("code") || hashParams.get("code");
       const typeRaw = params.get("type") || hashParams.get("type");
       const normalizedType = typeRaw === "signup" ? "email" : typeRaw;
       const type = (normalizedType === "email" || normalizedType === "recovery")
         ? normalizedType
         : null;
+      const hasVerifyCallbackSignals = Boolean(
+        token_hash || code || typeRaw || window.location.hash === "#"
+      );
 
-      if (!token_hash || !type) {
-        setStatus("missing");
-        return;
+      // Newer Supabase links can include a one-time auth code instead of token_hash.
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (!exchangeError) {
+          await supabase.auth.signOut();
+          setStatus("success");
+          return;
+        }
+        // If the one-time code was already consumed, Supabase can still leave a confirmed session.
+        if (await waitForConfirmedSessionOrEvent()) {
+          setStatus("alreadyVerified");
+          return;
+        }
       }
 
-      const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+      if (token_hash && type) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type });
 
-      if (error) {
-        setErrorMsg(error.message);
-        setStatus("error");
-      } else {
+        if (error) {
+          // Token may already be used, but verification could still have completed successfully.
+          if (await waitForConfirmedSessionOrEvent()) {
+            setStatus("alreadyVerified");
+            return;
+          }
+          setErrorMsg(error.message);
+          setStatus("error");
+          return;
+        }
+
         // Avoid landing users on dashboard access checks after verify.
         await supabase.auth.signOut();
         setStatus("success");
+        return;
       }
+
+      // Fallback: detect post-redirect links like /verify-email# where tokens were consumed.
+      // Supabase may clean callback params before this page can parse them.
+      if (hasVerifyCallbackSignals) {
+        if (await waitForConfirmedSessionOrEvent()) {
+          setStatus("alreadyVerified");
+          return;
+        }
+      }
+
+      setStatus("missing");
     }
 
     verify();
@@ -98,6 +165,28 @@ export default function VerifyEmailPage() {
             </div>
             <div className="w-full mt-2 px-5 py-4 rounded-2xl bg-amber-500/8 border border-amber-500/20">
               <p className="text-amber-400 text-sm font-semibold">Open the Rasvia app to get started →</p>
+            </div>
+          </>
+        )}
+
+        {status === "alreadyVerified" && (
+          <>
+            <motion.div
+              initial={{ scale: 0, rotate: -15 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center"
+            >
+              <CheckCircle2 size={40} className="text-emerald-400" />
+            </motion.div>
+            <div>
+              <h1 className="text-2xl font-bold text-zinc-100">Already Verified</h1>
+              <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+                This email was already confirmed. You can close this tab and open the app.
+              </p>
+            </div>
+            <div className="w-full mt-2 px-5 py-4 rounded-2xl bg-amber-500/8 border border-amber-500/20">
+              <p className="text-amber-400 text-sm font-semibold">Open the Rasvia app to continue →</p>
             </div>
           </>
         )}

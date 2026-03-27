@@ -114,7 +114,7 @@ function FullScreenAccessDenied() {
 }
 
 export default function DashboardLayout() {
-  const { activeView, setActiveView } = useDashboard();
+  const { activeView, setActiveView, replaceActiveView } = useDashboard();
   const { hasPermission, permissions, loading } = useAuth();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
@@ -135,8 +135,8 @@ export default function DashboardLayout() {
       const perm = VIEW_PERMISSIONS[v];
       return perm && hasPermission(perm);
     });
-    if (firstAllowed) setActiveView(firstAllowed as typeof activeView);
-  }, [permissions, activeView, setActiveView, hasPermission]);
+    if (firstAllowed) replaceActiveView(firstAllowed as typeof activeView);
+  }, [permissions, activeView, replaceActiveView, hasPermission]);
 
   useEffect(() => {
     if (prevView.current !== activeView) {

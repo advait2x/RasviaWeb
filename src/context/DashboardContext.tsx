@@ -5,9 +5,21 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
+const VALID_NAV_VIEWS: NavView[] = [
+  "dashboard", "waitlist", "floorplan", "orders", "menu",
+  "settings", "notifications", "team", "pos", "kds", "reports",
+];
+
+function getTabFromUrl(): NavView | null {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab") as NavView;
+  return VALID_NAV_VIEWS.includes(tab) ? tab : null;
+}
+
 interface DashboardState {
   activeView: NavView;
   setActiveView: (view: NavView) => void;
+  replaceActiveView: (view: NavView) => void;
   waitlistOpen: boolean;
   setWaitlistOpen: (open: boolean) => void;
   currentWaitTime: number;
@@ -111,7 +123,44 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { restaurantId } = useAuth();
 
-  const [activeView, setActiveView] = useState<NavView>("dashboard");
+  const [activeView, setActiveViewState] = useState<NavView>(() => getTabFromUrl() ?? "dashboard");
+
+  // Seed the URL with the initial tab on first mount (replaceState so it doesn't add a history entry)
+  useEffect(() => {
+    if (!getTabFromUrl()) {
+      window.history.replaceState(
+        { tab: activeView },
+        "",
+        `/partner-portal?tab=${activeView}`
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // User-initiated tab navigation — pushes a new browser history entry
+  const setActiveView = useCallback((view: NavView) => {
+    setActiveViewState(view);
+    window.history.pushState({ tab: view }, "", `/partner-portal?tab=${view}`);
+  }, []);
+
+  // Programmatic/permission-based view change — replaces instead of pushing
+  const replaceActiveView = useCallback((view: NavView) => {
+    setActiveViewState(view);
+    window.history.replaceState({ tab: view }, "", `/partner-portal?tab=${view}`);
+  }, []);
+
+  // Sync state when the user presses browser back/forward
+  useEffect(() => {
+    const handlePop = () => {
+      if (window.location.pathname.startsWith("/partner-portal")) {
+        const tab = getTabFromUrl();
+        if (tab) setActiveViewState(tab);
+      }
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, []);
+
   const [waitlistOpen, setWaitlistOpen] = useState(true);
   const [currentWaitTime, setCurrentWaitTime] = useState(25);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
@@ -1387,6 +1436,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       value={{
         activeView,
         setActiveView,
+        replaceActiveView,
         waitlistOpen,
         setWaitlistOpen,
         currentWaitTime,
