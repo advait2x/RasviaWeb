@@ -119,7 +119,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="mt-3 text-sm">
               To exercise any of these rights, contact us at{" "}
-              <a href="mailto:privacy@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">privacy@rasvia.com</a>.
+              <a href="mailto:support@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">support@rasvia.com</a>.
               We will respond within 30 days, or as required by applicable law.
             </p>
           </section>
@@ -143,7 +143,7 @@ export default function PrivacyPage() {
               The Platform is not directed to children under the age of 13, and we do not knowingly collect personal information
               from children under 13. If we learn that we have collected personal data from a child under 13, we will take steps
               to delete such information promptly. If you believe a child has provided us with personal data, please contact us
-              at <a href="mailto:privacy@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">privacy@rasvia.com</a>.
+              at <a href="mailto:support@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">support@rasvia.com</a>.
             </p>
           </section>
 
@@ -182,7 +182,6 @@ export default function PrivacyPage() {
             </p>
             <div className="mt-3 rounded-xl border border-white/10 bg-neutral-900/50 px-5 py-4 text-sm">
               <p className="font-semibold text-zinc-200">Rasvia, Inc.</p>
-              <p className="mt-1 text-neutral-400">Email: <a href="mailto:privacy@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">privacy@rasvia.com</a></p>
               <p className="text-neutral-400">Phone: <a href="tel:4698917169" className="hover:text-white transition-colors">469-891-7169</a></p>
               <p className="text-neutral-400">General Support: <a href="mailto:support@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">support@rasvia.com</a></p>
             </div>
