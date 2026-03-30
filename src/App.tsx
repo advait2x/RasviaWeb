@@ -11,6 +11,67 @@ import LandingPage from "./pages/LandingPage";
 import ContactPage from "./pages/ContactPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
+import AdminPortalPage from "./pages/AdminPortalPage";
+import { Toaster } from "sonner";
+
+function AdminPortalApp() {
+  const { session, loading, isAdmin } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+          </div>
+          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white px-6">
+        <div className="text-center space-y-3 max-w-md">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Admin only</h1>
+          <p className="text-sm text-zinc-400">
+            This page is for Rasvia platform administrators. Sign in with an account that has the{" "}
+            <code className="text-amber-400/90">admin</code> role in Supabase.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10"
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <AdminPortalPage />
+      <Toaster
+        theme="dark"
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "rgba(24, 24, 27, 0.95)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#e4e4e7",
+          },
+        }}
+      />
+    </>
+  );
+}
 
 function PartnerPortalApp() {
   const { session, restaurantId, loading, userRole, isAdmin } = useAuth();
@@ -36,7 +97,8 @@ function PartnerPortalApp() {
     return <Login />;
   }
 
-  if (userRole === "user") {
+  // Platform admins always have access (even if userRole was mis-read as "user" during a race).
+  if (userRole === "user" && !isAdmin) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
         <div className="text-center space-y-3">
@@ -160,6 +222,10 @@ function AppContent() {
         </div>
       </div>
     );
+  }
+
+  if (window.location.pathname.startsWith("/admin")) {
+    return <AdminPortalApp />;
   }
 
   if (window.location.pathname.startsWith('/partner-portal')) {

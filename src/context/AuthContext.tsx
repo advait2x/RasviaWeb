@@ -47,6 +47,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [permissions, setPermissions] = useState<Permission[]>([]);
     const [loading, setLoading] = useState(true);
     const lastSessionUserIdRef = useRef<string | null>(null);
+    /** Prevents overlapping fetchUserData runs from overwriting admin/owner state with a stale staff-only result. */
+    const fetchSeqRef = useRef(0);
 
     useEffect(() => {
         supabase.auth.getSession()
@@ -67,12 +69,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const incomingUserId = session?.user?.id ?? null;
             const previousUserId = lastSessionUserIdRef.current;
             if (session) {
-                // Avoid dashboard-wide refetch/remount on tab refocus and token lifecycle.
+                // Refetch on sign-in and initial session so `profiles.role` (e.g. admin) is always current.
+                // Skip TOKEN_REFRESHED to avoid flashing reload on silent refresh.
                 const shouldRefetchUserData =
                     event === "INITIAL_SESSION" ||
                     event === "USER_UPDATED" ||
-                    // Fresh login / account switch should still refetch.
-                    (event === "SIGNED_IN" && previousUserId !== incomingUserId);
+                    event === "SIGNED_IN";
                 if (shouldRefetchUserData) {
                     setLoading(true);
                     fetchUserData(session.user.id);
@@ -99,7 +101,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const allPermissionKeys: Permission[] = ALL_PERMISSIONS.map((p) => p.key);
 
+    /** Match Supabase `profiles.role` even if edited with different casing or stray spaces. */
+    function normalizePlatformRole(role: string | null | undefined): string {
+        return typeof role === "string" ? role.trim().toLowerCase() : "";
+    }
+
     const fetchUserData = async (userId: string) => {
+        const seq = ++fetchSeqRef.current;
         try {
             // Step 1: Check the profiles table for platform-level role
             const { data: profile, error: profileError } = await supabase
@@ -108,11 +116,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 .eq("id", userId)
                 .maybeSingle();
 
+            if (seq !== fetchSeqRef.current) return;
+
             if (profileError) {
                 console.error("Error fetching profile:", profileError.message);
             }
 
-            const platformRole = profile?.role ?? null;
+            const platformRole = normalizePlatformRole(profile?.role ?? null);
 
             if (platformRole === "admin") {
                 // Full admin: all permissions, uses restaurant switcher
@@ -134,12 +144,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         .order("id", { ascending: true })
                         .limit(1)
                         .maybeSingle();
+                    if (seq !== fetchSeqRef.current) return;
                     if (firstRestaurant) {
                         setRestaurantId(firstRestaurant.id);
                         localStorage.setItem(ADMIN_RESTAURANT_KEY, String(firstRestaurant.id));
                     }
                 }
-                setLoading(false);
                 return;
             }
 
@@ -157,6 +167,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     .limit(1)
                     .maybeSingle();
 
+                if (seq !== fetchSeqRef.current) return;
+
                 if (restError) console.error("Error fetching owned restaurant:", restError.message);
 
                 const ownedId = restaurant?.id ?? null;
@@ -164,21 +176,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setRestaurantId(ownedId);
 
                 // Fetch their staff permissions if they have a staff row
-                await fetchStaffPermissions(userId, ownedId);
-                setLoading(false);
+                await fetchStaffPermissions(userId, ownedId, seq);
                 return;
             }
 
             // Fall through: no platform role / plain user — check restaurant_staff table
-            await fetchStaffData(userId);
+            await fetchStaffData(userId, seq);
         } catch (error) {
             console.error("Unexpected error in fetchUserData:", error);
         } finally {
-            setLoading(false);
+            if (seq === fetchSeqRef.current) {
+                setLoading(false);
+            }
         }
     };
 
-    const fetchStaffPermissions = async (userId: string, restaurantId: number | null) => {
+    const fetchStaffPermissions = async (userId: string, restaurantId: number | null, seq: number) => {
+        if (seq !== fetchSeqRef.current) return;
         if (!restaurantId) {
             // Owner with no restaurant yet — give them all permissions
             setPermissions(allPermissionKeys);
@@ -191,11 +205,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq("restaurant_id", restaurantId)
             .maybeSingle();
 
+        if (seq !== fetchSeqRef.current) return;
+
         if (staffRow?.role_id) {
             const { data: permRows } = await supabase
                 .from("role_permissions")
                 .select("permission")
                 .eq("role_id", staffRow.role_id);
+            if (seq !== fetchSeqRef.current) return;
             if (permRows) {
                 setPermissions(permRows.map((r) => r.permission as Permission));
                 return;
@@ -205,7 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setPermissions(allPermissionKeys);
     };
 
-    const fetchStaffData = async (userId: string) => {
+    const fetchStaffData = async (userId: string, seq: number) => {
         const { data: staffRow, error: staffError } = await supabase
             .from("restaurant_staff")
             .select("restaurant_id, role, role_id")
@@ -213,10 +230,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .limit(1)
             .maybeSingle();
 
+        if (seq !== fetchSeqRef.current) return;
+
         if (staffError) {
             console.error("Error fetching staff data:", staffError.message);
             // Not a staff member — treat as unprivileged user
             setUserRole("user");
+            setPermissions([]);
+            setRestaurantId(null);
+            setIsAdmin(false);
+            setIsRestaurantOwner(false);
             return;
         }
 
@@ -231,6 +254,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     .limit(1)
                     .maybeSingle();
 
+                if (seq !== fetchSeqRef.current) return;
+
                 if (!roleError && roleRow) {
                     setUserRole(roleRow.name);
                     setIsAdmin(roleRow.is_owner);
@@ -239,6 +264,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         .from("role_permissions")
                         .select("permission")
                         .eq("role_id", staffRow.role_id);
+
+                    if (seq !== fetchSeqRef.current) return;
 
                     if (!permError && permRows) {
                         setPermissions(permRows.map((r) => r.permission as Permission));
@@ -252,6 +279,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setPermissions(allPermissionKeys);
                 }
             }
+        } else {
+            // No staff row: plain customer (profile role user / null or not owner/admin)
+            setUserRole("user");
+            setPermissions([]);
+            setRestaurantId(null);
+            setIsAdmin(false);
+            setIsRestaurantOwner(false);
         }
     };
 

@@ -16,6 +16,7 @@ import {
   BarChart3,
   ChevronsLeft,
   ChevronsRight,
+  Shield,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -143,7 +144,7 @@ export default function Sidebar({
   return (
     <TooltipProvider delayDuration={200}>
       <aside
-        className="fixed left-0 top-0 h-screen flex flex-col items-center py-6 z-50 transition-[width] duration-200"
+        className="fixed inset-y-0 left-0 z-50 flex min-h-0 flex-col items-center pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:pt-6 sm:pb-6 transition-[width] duration-200"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
@@ -153,85 +154,112 @@ export default function Sidebar({
           boxShadow: "1px 0 20px rgba(0,0,0,0.4)",
         }}
       >
-        {/* Logo */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={() => hasPermission("view_settings") && setActiveView("settings")}
-              className={`mb-2 relative group ${expanded ? "w-[150px]" : ""}`}
-            >
-              <div
-                className={`rounded-xl flex items-center justify-center transition-all duration-200 ${expanded ? "w-full h-12 gap-2" : "w-11 h-11"} ${activeView === "settings"
-                  ? "bg-amber-500/20 border border-amber-500/50"
-                  : "bg-amber-500/10 border border-amber-500/25 group-hover:bg-amber-500/15 group-hover:border-amber-500/40"
+        {/* Top: fixed height — does not steal flex space from nav incorrectly */}
+        <div className="flex w-full shrink-0 flex-col items-center">
+          {/* Platform admin — full DB / restaurant management (separate route) */}
+          {isAdmin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/admin"
+                  className={`mb-2 flex items-center justify-center rounded-xl border border-amber-500/35 bg-amber-500/[0.07] text-amber-400 transition-colors hover:border-amber-500/55 hover:bg-amber-500/12 ${
+                    expanded ? "w-[150px] h-11 gap-2 px-2" : "w-11 h-11"
                   }`}
-                style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
+                >
+                  <Shield size={18} strokeWidth={1.75} className="shrink-0" />
+                  {expanded && (
+                    <span className="text-[11px] font-semibold leading-tight text-amber-300">Admin panel</span>
+                  )}
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+                Open platform admin (restaurants & owners)
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Logo / profile shortcut */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.button
+                whileTap={{ scale: 0.93 }}
+                onClick={() => hasPermission("view_settings") && setActiveView("settings")}
+                className={`mb-2 relative group ${expanded ? "w-[150px]" : ""}`}
               >
-                <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
-                {expanded && (
-                  <span className="text-[11px] text-amber-300 font-semibold">
-                    {isAdmin ? "Admin Profile" : "Profile"}
-                  </span>
-                )}
-              </div>
-            </motion.button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-            {isAdmin ? "Admin — Restaurant Profile" : "Restaurant Profile"}
-          </TooltipContent>
-        </Tooltip>
+                <div
+                  className={`rounded-xl flex items-center justify-center transition-all duration-200 ${expanded ? "w-full h-12 gap-2" : "w-11 h-11"} ${activeView === "settings"
+                    ? "bg-amber-500/20 border border-amber-500/50"
+                    : "bg-amber-500/10 border border-amber-500/25 group-hover:bg-amber-500/15 group-hover:border-amber-500/40"
+                    }`}
+                  style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
+                >
+                  <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
+                  {expanded && (
+                    <span className="text-[11px] text-amber-300 font-semibold">
+                      {isAdmin ? "Admin Profile" : "Profile"}
+                    </span>
+                  )}
+                </div>
+              </motion.button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+              {isAdmin ? "Admin — Restaurant Profile" : "Restaurant Profile"}
+            </TooltipContent>
+          </Tooltip>
 
-        {/* Restaurant Switcher — admins only */}
-        {isAdmin && <RestaurantSwitcher />}
+          {/* Restaurant Switcher — admins only */}
+          {isAdmin && <RestaurantSwitcher />}
+        </div>
 
-        {/* Nav — only show items the user has permission for (scrollable) */}
-        <nav className="flex-1 w-full overflow-y-auto">
+        {/* Nav — grows to fill space between header and footer; min-h-0 lets flex shrink for overflow */}
+        <nav className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
           <div
             className={`flex flex-col items-center w-full ${
-              expanded ? "gap-1.5 px-3 py-2" : "gap-2 py-2"
+              expanded ? "gap-1.5 px-3 py-2 pb-4" : "gap-2 py-2 pb-4"
             }`}
           >
             {visibleNavItems.map(({ icon, label, view }) => renderNavItem(icon, label, view))}
           </div>
         </nav>
 
-        {/* Logout */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowSignOutConfirm(true)}
-              className={`mt-2 mb-3 rounded-xl flex items-center justify-center text-red-400 bg-red-500/10 hover:text-red-300 hover:bg-red-500/20 transition-colors duration-200 ${
-                expanded ? "w-[150px] h-11 gap-2" : "w-10 h-10"
-              }`}
-            >
-              <LogOut size={18} strokeWidth={1.5} />
-              {expanded && <span className="text-xs font-semibold">Sign Out</span>}
-            </motion.button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-            Sign Out
-          </TooltipContent>
-        </Tooltip>
+        {/* Bottom: sign out + status + collapse */}
+        <div className="flex w-full shrink-0 flex-col items-center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowSignOutConfirm(true)}
+                className={`mt-1 mb-3 rounded-xl flex items-center justify-center text-red-400 bg-red-500/10 hover:text-red-300 hover:bg-red-500/20 transition-colors duration-200 ${
+                  expanded ? "w-[150px] h-11 gap-2" : "w-10 h-10"
+                }`}
+              >
+                <LogOut size={18} strokeWidth={1.5} />
+                {expanded && <span className="text-xs font-semibold">Sign Out</span>}
+              </motion.button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+              Sign Out
+            </TooltipContent>
+          </Tooltip>
 
-        {/* Status dot */}
-        <div className={`relative ${expanded ? "mb-1" : ""}`}>
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-50" />
+          {/* Status dot */}
+          <div className={`relative ${expanded ? "mb-1" : ""}`}>
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-50" />
+          </div>
+
+          {/* Collapse / Expand toggle */}
+          <button
+            onClick={() => onExpandedChange(!expanded)}
+            className={`mt-3 rounded-lg border border-white/10 bg-zinc-800/60 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors ${
+              expanded ? "w-[150px] h-8 flex items-center justify-center" : "w-9 h-8 flex items-center justify-center"
+            }`}
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {expanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
+          </button>
         </div>
-
-        {/* Collapse / Expand toggle */}
-        <button
-          onClick={() => onExpandedChange(!expanded)}
-          className={`mt-3 rounded-lg border border-white/10 bg-zinc-800/60 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors ${
-            expanded ? "w-[150px] h-8 flex items-center justify-center" : "w-9 h-8 flex items-center justify-center"
-          }`}
-          aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-          title={expanded ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {expanded ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
-        </button>
       </aside>
 
       {/* Sign Out Confirmation Dialog */}
