@@ -235,20 +235,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchEntries = useCallback(async () => {
     if (!restaurantId) return;
-    const { data, error } = await supabase
-      .from("waitlist_entries")
-      .select("*")
-      .eq("restaurant_id", restaurantId)
-      .in("status", ["waiting"])
-      .order("created_at", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("waitlist_entries")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .in("status", ["waiting"])
+        .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error("Failed to fetch waitlist:", error.message);
-      return;
+      if (error) {
+        console.error("Failed to fetch waitlist:", error.message);
+        setWaitlist([]);
+        return;
+      }
+      setWaitlist((data ?? []).map(mapRow));
+    } finally {
+      setWaitlistLoading(false);
+      waitlistInitialized.current = true;
     }
-    setWaitlist((data ?? []).map(mapRow));
-    setWaitlistLoading(false);
-    waitlistInitialized.current = true;
   }, [restaurantId]);
 
   const fetchRef = useRef(fetchEntries);
@@ -271,13 +275,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "waitlist_entries", filter: `restaurant_id=eq.${restaurantId}` },
         (payload) => {
-          fetchRef.current();
+          void fetchRef.current();
 
-          if (!waitlistInitialized.current) return;
           const row = payload.new as Record<string, unknown>;
           const eventType = payload.eventType;
 
-          if (eventType === "INSERT" && row.status === "waiting") {
+          if (
+            eventType === "INSERT" &&
+            String((row as { status?: string }).status ?? "waiting") === "waiting"
+          ) {
             const entry = mapRow(row);
             const notif: AppNotification = {
               id: `n-${Date.now()}-${Math.random()}`,

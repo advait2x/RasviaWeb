@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { getRestaurantFallback } from "@/lib/fallbackImages";
 import RestaurantSwitcher from "./RestaurantSwitcher";
 import {
   Tooltip,
@@ -56,8 +57,37 @@ export default function Sidebar({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
 }) {
-  const { activeView, setActiveView, unreadCount, preorderCount } = useDashboard();
-  const { hasPermission, isAdmin } = useAuth();
+  const { activeView, setActiveView, unreadCount, preorderCount, waitlist } = useDashboard();
+  const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
+  const { hasPermission, isAdmin, restaurantId } = useAuth();
+  const [restaurantBranding, setRestaurantBranding] = useState<{
+    name: string;
+    image_url: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!restaurantId) {
+      setRestaurantBranding(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("restaurants")
+        .select("name, image_url")
+        .eq("id", restaurantId)
+        .maybeSingle();
+      if (!cancelled && data) {
+        setRestaurantBranding({
+          name: (data as { name: string }).name,
+          image_url: (data as { image_url: string | null }).image_url,
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId]);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
@@ -132,6 +162,12 @@ export default function Sidebar({
                 {preorderCount > 99 ? "99+" : preorderCount}
               </span>
             )}
+            {/* Waiting parties — waitlist nav */}
+            {view === "waitlist" && waitingCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
+                {waitingCount > 99 ? "99+" : waitingCount}
+              </span>
+            )}
           </motion.button>
         </TooltipTrigger>
         <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
@@ -178,32 +214,49 @@ export default function Sidebar({
             </Tooltip>
           )}
 
-          {/* Logo / profile shortcut */}
+          {/* Active restaurant image — display only (settings via sidebar nav) */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.button
-                whileTap={{ scale: 0.93 }}
-                onClick={() => hasPermission("view_settings") && setActiveView("settings")}
-                className={`mb-2 relative group ${expanded ? "w-[150px]" : ""}`}
+              <div
+                className={`mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/10 ${
+                  expanded ? "h-12 w-[150px] gap-2 px-2" : "h-11 w-11"
+                }`}
+                style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
+                aria-label={
+                  restaurantBranding?.name
+                    ? `Current restaurant: ${restaurantBranding.name}`
+                    : "Current restaurant"
+                }
               >
-                <div
-                  className={`rounded-xl flex items-center justify-center transition-all duration-200 ${expanded ? "w-full h-12 gap-2" : "w-11 h-11"} ${activeView === "settings"
-                    ? "bg-amber-500/20 border border-amber-500/50"
-                    : "bg-amber-500/10 border border-amber-500/25 group-hover:bg-amber-500/15 group-hover:border-amber-500/40"
-                    }`}
-                  style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
-                >
-                  <span className="text-amber-500 font-bold text-lg tracking-tight">R</span>
-                  {expanded && (
-                    <span className="text-[11px] text-amber-300 font-semibold">
-                      {isAdmin ? "Admin Profile" : "Profile"}
-                    </span>
-                  )}
-                </div>
-              </motion.button>
+                {restaurantId && restaurantBranding ? (
+                  <>
+                    <div
+                      className={`relative shrink-0 overflow-hidden border border-white/10 bg-zinc-900 ${
+                        expanded ? "h-9 w-9 rounded-lg" : "h-full w-full rounded-[10px] border-0"
+                      }`}
+                    >
+                      <img
+                        src={restaurantBranding.image_url || getRestaurantFallback(restaurantId)}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = getRestaurantFallback(restaurantId);
+                        }}
+                      />
+                    </div>
+                    {expanded && (
+                      <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-amber-200/95">
+                        {restaurantBranding.name}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-lg font-bold tracking-tight text-amber-500/90">R</span>
+                )}
+              </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-              {isAdmin ? "Admin — Restaurant Profile" : "Restaurant Profile"}
+              {restaurantBranding?.name ?? "Restaurant"}
             </TooltipContent>
           </Tooltip>
 
