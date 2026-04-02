@@ -97,16 +97,37 @@ export default function TeamRolesPanel() {
             return;
         }
 
-        // For each staff member, look up their email from auth metadata via the user_id
-        // Since we can't access auth.users from the client, we'll show user_id as fallback
-        const mapped: StaffMember[] = (data ?? []).map((s) => ({
-            id: s.id,
-            user_id: s.user_id,
-            email: s.user_id, // will try to resolve below
-            role_id: s.role_id,
-            role_name: "",
-            restaurant_id: s.restaurant_id,
-        }));
+        const rows = (data ?? []) as { id: number; user_id: string | null; role_id: number | null; restaurant_id: number }[];
+        const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))] as string[];
+        const profileMap = new Map<string, { full_name: string | null; email: string | null }>();
+        if (userIds.length > 0) {
+            const { data: profRows, error: profErr } = await supabase
+                .from("profiles")
+                .select("id, full_name, email")
+                .in("id", userIds);
+            if (profErr) console.error("fetchStaff profiles:", profErr.message);
+            for (const p of profRows ?? []) {
+                const row = p as { id: string; full_name?: string | null; email?: string | null };
+                profileMap.set(row.id, {
+                    full_name: row.full_name ?? null,
+                    email: row.email ?? null,
+                });
+            }
+        }
+
+        const mapped: StaffMember[] = rows.map((s) => {
+            const prof = s.user_id ? profileMap.get(s.user_id) : undefined;
+            const label = prof?.full_name?.trim() || prof?.email?.trim() || "";
+            return {
+                id: s.id,
+                user_id: s.user_id ?? "",
+                email: label || s.user_id || "Unknown",
+                full_name: prof?.full_name ?? null,
+                role_id: s.role_id,
+                role_name: "",
+                restaurant_id: s.restaurant_id,
+            };
+        });
 
         setStaff(mapped);
     }, [restaurantId]);
@@ -528,13 +549,13 @@ export default function TeamRolesPanel() {
                                     {/* Avatar */}
                                     <div className="w-8 h-8 rounded-lg bg-zinc-700/60 border border-white/8 flex items-center justify-center flex-shrink-0">
                                         <span className="text-xs font-bold text-zinc-400 uppercase">
-                                            {s.user_id.charAt(0)}
+                                            {(s.full_name || s.email || s.user_id).charAt(0)}
                                         </span>
                                     </div>
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-zinc-200 truncate font-medium">{s.user_id}</p>
+                                        <p className="text-sm text-zinc-200 truncate font-medium">{s.full_name?.trim() || s.email}</p>
                                         <p className="text-[11px] text-zinc-500">{getRoleName(s.role_id)}</p>
                                     </div>
 

@@ -213,7 +213,9 @@ export interface RestaurantRole {
 export interface StaffMember {
   id: number;
   user_id: string;
+  /** Display: prefer full name from profiles, then email */
   email: string;
+  full_name?: string | null;
   role_id: number | null;
   role_name: string;
   restaurant_id: number;

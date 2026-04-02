@@ -137,6 +137,11 @@ export default function SettingsPanel() {
   const [hoursSuccess, setHoursSuccess] = useState(false);
   const [hoursError, setHoursError] = useState<string | null>(null);
 
+  const [waitlistEarlyEnabled, setWaitlistEarlyEnabled] = useState(false);
+  const [waitlistEarlyMinutes, setWaitlistEarlyMinutes] = useState(30);
+  const [savedWaitlistEarlyEnabled, setSavedWaitlistEarlyEnabled] = useState(false);
+  const [savedWaitlistEarlyMinutes, setSavedWaitlistEarlyMinutes] = useState(30);
+
   const fetchProfile = useCallback(async () => {
     if (!restaurantId) return;
 
@@ -162,6 +167,13 @@ export default function SettingsPanel() {
     };
     setProfile(p);
     setDraft(p);
+
+    const earlyEn = row?.waitlist_early_open_enabled === true;
+    const earlyM = Math.max(0, Math.min(24 * 60, Number(row?.waitlist_early_open_minutes) || 30));
+    setWaitlistEarlyEnabled(earlyEn);
+    setWaitlistEarlyMinutes(earlyM);
+    setSavedWaitlistEarlyEnabled(earlyEn);
+    setSavedWaitlistEarlyMinutes(earlyM);
 
     const dbTags: string[] = [];
     if (!cuisinesRes.error && cuisinesRes.data) {
@@ -357,6 +369,22 @@ export default function SettingsPanel() {
       }
     }
 
+    const earlyM = Math.max(0, Math.min(24 * 60, Number(waitlistEarlyMinutes) || 0));
+    const { error: earlyErr } = await supabase
+      .from("restaurants")
+      .update({
+        waitlist_early_open_enabled: waitlistEarlyEnabled,
+        waitlist_early_open_minutes: earlyM,
+      })
+      .eq("id", restaurantId);
+    if (earlyErr) {
+      setHoursError(earlyErr.message);
+      setHoursSaving(false);
+      return;
+    }
+    setSavedWaitlistEarlyEnabled(waitlistEarlyEnabled);
+    setSavedWaitlistEarlyMinutes(earlyM);
+
     setHours({ ...hoursDraft });
     setEditingHours(false);
     setHoursSaving(false);
@@ -367,6 +395,8 @@ export default function SettingsPanel() {
 
   const handleDiscardHours = () => {
     setHoursDraft(hours ?? defaultHours());
+    setWaitlistEarlyEnabled(savedWaitlistEarlyEnabled);
+    setWaitlistEarlyMinutes(savedWaitlistEarlyMinutes);
     setEditingHours(false);
     setHoursError(null);
   };
@@ -692,6 +722,40 @@ export default function SettingsPanel() {
             </div>
           ) : (
             <div className="space-y-2">
+              {editingHours && (
+                <div className="mb-4 p-4 rounded-xl border border-white/10 bg-zinc-800/40 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">Early waitlist window</p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Allow opening the waitlist this many minutes before the first scheduled open (same day).
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={waitlistEarlyEnabled}
+                        onChange={(e) => setWaitlistEarlyEnabled(e.target.checked)}
+                        className="w-4 h-4 rounded accent-amber-500"
+                      />
+                      <span className="text-xs text-zinc-400">Enable</span>
+                    </label>
+                  </div>
+                  {waitlistEarlyEnabled && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Minutes before open</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1440}
+                        value={waitlistEarlyMinutes}
+                        onChange={(e) => setWaitlistEarlyMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))}
+                        className="h-9 bg-zinc-900 border-white/10 text-zinc-100 text-sm max-w-[120px]"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               {DAYS.map((day) => {
                 const dayData = hoursDraft[day];
                 const isEditing = editingHours;

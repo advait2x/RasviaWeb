@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Building2, ChevronLeft, Loader2, Plus, Save, Store } from "lucide-react";
+import { Building2, ChevronLeft, Loader2, Plus, Save, Store, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,7 @@ type ProfileOption = {
   email: string | null;
   full_name: string | null;
   role: string | null;
+  phone_number: string | null;
 };
 
 function emptyForm(): Partial<RestaurantRow> {
@@ -77,12 +78,18 @@ export default function AdminPortalPage() {
   const [latText, setLatText] = useState("");
   const [lngText, setLngText] = useState("");
 
+  const [adminMode, setAdminMode] = useState<"restaurants" | "users">("restaurants");
+  const [userSearch, setUserSearch] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userDraft, setUserDraft] = useState({ full_name: "", phone_number: "", role: "user" });
+  const [userSaving, setUserSaving] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [rRes, pRes] = await Promise.all([
         supabase.from("restaurants").select("*").order("name", { ascending: true }),
-        supabase.from("profiles").select("id, email, full_name, role").order("email", { ascending: true }),
+        supabase.from("profiles").select("id, email, full_name, role, phone_number").order("email", { ascending: true }),
       ]);
       if (rRes.error) throw rRes.error;
       if (pRes.error) throw pRes.error;
@@ -99,6 +106,53 @@ export default function AdminPortalPage() {
   useEffect(() => {
     if (session && isAdmin) void load();
   }, [session, isAdmin, load]);
+
+  const filteredProfiles = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return profiles;
+    return profiles.filter(
+      (p) =>
+        (p.email?.toLowerCase().includes(q)) ||
+        (p.full_name?.toLowerCase().includes(q)) ||
+        p.id.toLowerCase().includes(q),
+    );
+  }, [profiles, userSearch]);
+
+  useEffect(() => {
+    if (!selectedUserId) return;
+    const p = profiles.find((x) => x.id === selectedUserId);
+    if (p) {
+      setUserDraft({
+        full_name: p.full_name ?? "",
+        phone_number: p.phone_number ?? "",
+        role: p.role ?? "user",
+      });
+    }
+  }, [selectedUserId, profiles]);
+
+  async function handleSaveUser() {
+    if (!selectedUserId) return;
+    setUserSaving(true);
+    try {
+      const digits = userDraft.phone_number.replace(/\D/g, "").trim();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: userDraft.full_name.trim() || null,
+          phone_number: digits || null,
+          role: userDraft.role,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedUserId);
+      if (error) throw error;
+      toast.success("Profile saved.");
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setUserSaving(false);
+    }
+  }
 
   const selectedRestaurant = useMemo(
     () => (selectedId !== null && selectedId !== "new" ? restaurants.find((r) => r.id === selectedId) : null),
@@ -236,7 +290,7 @@ export default function AdminPortalPage() {
           </div>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-amber-500/90" />
-            <h1 className="text-lg font-bold tracking-tight text-white">Admin — Restaurants</h1>
+            <h1 className="text-lg font-bold tracking-tight text-white">Rasvia admin</h1>
           </div>
           <Button
             type="button"
@@ -250,6 +304,134 @@ export default function AdminPortalPage() {
         </div>
       </header>
 
+      <div className="mx-auto flex max-w-[1600px] flex-wrap gap-2 border-b border-white/10 px-4 py-2 sm:px-6">
+        <button
+          type="button"
+          onClick={() => {
+            setAdminMode("restaurants");
+            setSelectedUserId(null);
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            adminMode === "restaurants"
+              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          Restaurants
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAdminMode("users");
+            setSelectedId(null);
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            adminMode === "users"
+              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          Users
+        </button>
+      </div>
+
+      {adminMode === "users" ? (
+        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 pb-10 pt-4 sm:px-6 lg:min-h-[calc(100svh-6rem)] lg:flex-row lg:gap-6">
+          <aside className="flex w-full shrink-0 flex-col gap-3 border-b border-white/10 pb-4 lg:w-[320px] lg:border-b-0 lg:border-r lg:border-white/10 lg:pr-4">
+            <Input
+              placeholder="Search by name, email, or user id…"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="border-white/10 bg-zinc-950/80"
+            />
+            <ScrollArea className="h-[min(50vh,400px)] lg:h-[calc(100svh-12rem)]">
+              {loading ? (
+                <div className="flex justify-center py-12 text-zinc-500">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <ul className="space-y-0.5 pr-2">
+                  {filteredProfiles.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserId(p.id)}
+                        className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                          selectedUserId === p.id
+                            ? "bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/30"
+                            : "text-zinc-300 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="font-medium">{profileLabel(p)}</span>
+                        <span className="mt-0.5 block font-mono text-[10px] text-zinc-600">{p.id}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ScrollArea>
+          </aside>
+          <main className="min-w-0 flex-1">
+            {!selectedUserId ? (
+              <p className="rounded-xl border border-white/10 bg-zinc-900/40 p-8 text-center text-zinc-400">
+                Select a user to view and edit profile fields (name, phone, role).
+              </p>
+            ) : (
+              <div className="mx-auto max-w-xl space-y-5 rounded-2xl border border-white/10 bg-zinc-900/50 p-6">
+                <h2 className="text-base font-semibold text-white">Edit profile</h2>
+                <p className="text-xs text-zinc-500">
+                  Changes apply to <code className="rounded bg-black/40 px-1">public.profiles</code> for customer support.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="ufn">Full name</Label>
+                  <Input
+                    id="ufn"
+                    value={userDraft.full_name}
+                    onChange={(e) => setUserDraft((d) => ({ ...d, full_name: e.target.value }))}
+                    className="border-white/10 bg-zinc-950/80"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="uph">Phone (digits)</Label>
+                  <Input
+                    id="uph"
+                    value={userDraft.phone_number}
+                    onChange={(e) => setUserDraft((d) => ({ ...d, phone_number: e.target.value }))}
+                    className="border-white/10 bg-zinc-950/80"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select
+                    value={userDraft.role}
+                    onValueChange={(v) => setUserDraft((d) => ({ ...d, role: v }))}
+                  >
+                    <SelectTrigger className="border-white/10 bg-zinc-950/80">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">user</SelectItem>
+                      <SelectItem value="restaurant_owner">restaurant_owner</SelectItem>
+                      <SelectItem value="admin">admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  disabled={userSaving}
+                  onClick={() => void handleSaveUser()}
+                  className="gap-2 bg-amber-600 text-black hover:bg-amber-500"
+                >
+                  {userSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save profile
+                </Button>
+              </div>
+            )}
+          </main>
+        </div>
+      ) : (
       <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-0 px-0 pb-10 pt-4 sm:px-4 lg:min-h-[calc(100svh-4.75rem)] lg:flex-row lg:gap-6">
         <aside className="flex min-h-0 w-full shrink-0 flex-col border-b border-white/10 bg-zinc-950/60 lg:w-[320px] lg:flex-shrink-0 lg:self-stretch lg:border-b-0 lg:border-r lg:border-white/10">
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 lg:px-2">
@@ -493,6 +675,7 @@ export default function AdminPortalPage() {
           )}
         </main>
       </div>
+      )}
     </div>
   );
 }
