@@ -504,7 +504,7 @@ export default function LandingPage() {
       <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div>
-            <p className="text-3xl font-black tracking-tighter text-amber-400">rasvia</p>
+            <img src="/rasvia-logo.png" alt="Rasvia" className="h-8 w-auto" />
             <p className="mt-1 text-sm text-neutral-500">Built for restaurants. Loved by guests.</p>
           </div>
           <a
@@ -669,7 +669,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
             {/* Brand column */}
             <div className="col-span-2 md:col-span-1">
-              <p className="text-2xl font-black tracking-tighter text-amber-400">rasvia</p>
+              <img src="/rasvia-logo.png" alt="Rasvia" className="h-7 w-auto" />
               <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-neutral-500">
                 Built for restaurants. Loved by guests.
               </p>

@@ -12,7 +12,7 @@ export default function TermsPage() {
           Back to Home
         </a>
 
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-400">rasvia</p>
+        <img src="/rasvia-logo.png" alt="Rasvia" className="mb-4 h-6 w-auto" />
         <h1 className="text-4xl font-black tracking-tighter text-white">Terms of Service</h1>
         <p className="mt-2 text-sm text-neutral-500">Effective Date: March 1, 2026 &middot; Last Updated: March 26, 2026</p>
 

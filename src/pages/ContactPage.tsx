@@ -12,7 +12,7 @@ export default function ContactPage() {
           Back to Home
         </a>
 
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-400">rasvia</p>
+        <img src="/rasvia-logo.png" alt="Rasvia" className="mb-4 h-6 w-auto" />
         <h1 className="text-4xl font-black tracking-tighter text-white">Contact Us</h1>
         <p className="mt-3 text-neutral-400">
           We are here to help. Reach out anytime and we will get back to you within one business day.
