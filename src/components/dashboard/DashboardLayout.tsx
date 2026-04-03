@@ -11,6 +11,7 @@ import OrdersPanel from "./OrdersPanel";
 import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
+import KioskPage from "@/pages/KioskPage";
 import NotificationsPanel from "./NotificationsPanel";
 import TeamRolesPanel from "./TeamRolesPanel";
 
@@ -48,6 +49,7 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   pos: LazyPOS,
   kds: LazyKDS,
   reports: LazyReports,
+  kiosk: KioskPage,
 };
 
 /** Maps each view to the permission needed to access it */
@@ -63,6 +65,7 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
   pos: "access_pos",
   kds: "access_kds",
   reports: "view_reports",
+  kiosk: "access_kiosk",
 };
 
 function AccessDenied() {
@@ -130,7 +133,7 @@ export default function DashboardLayout() {
     if (requiredPerm && hasPermission(requiredPerm)) return; // current view is fine
 
     // Find the first permitted view
-    const viewOrder = ["dashboard", "pos", "waitlist", "floorplan", "orders", "kds", "menu", "reports", "notifications", "settings", "team"];
+    const viewOrder = ["dashboard", "kiosk", "pos", "waitlist", "floorplan", "orders", "kds", "menu", "reports", "notifications", "settings", "team"];
     const firstAllowed = viewOrder.find((v) => {
       const perm = VIEW_PERMISSIONS[v];
       return perm && hasPermission(perm);

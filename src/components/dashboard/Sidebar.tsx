@@ -17,6 +17,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Shield,
+  Tablet,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -38,6 +39,7 @@ import {
 /** Maps each nav view to the permission required to see it */
 const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; requiredPermission: Permission }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard", requiredPermission: "view_dashboard" },
+  { icon: Tablet, label: "Kiosk", view: "kiosk", requiredPermission: "access_kiosk" },
   { icon: Monitor, label: "POS Terminal", view: "pos", requiredPermission: "access_pos" },
   { icon: ClipboardList, label: "Waitlist", view: "waitlist", requiredPermission: "manage_waitlist" },
   { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },

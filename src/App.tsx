@@ -4,7 +4,6 @@ import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
 import Home from "./components/home";
 import JoinBridge from "./pages/JoinBridge";
-import KioskPage from "./pages/KioskPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import RestaurantSharePreview from "./pages/RestaurantSharePreview";
 import LandingPage from "./pages/LandingPage";
@@ -203,22 +202,13 @@ function AppContent() {
   }
 
   if (window.location.pathname.startsWith('/kiosk')) {
-    const params = new URLSearchParams(window.location.search);
-    const rawId = params.get('r') ?? params.get('restaurantId');
-    const restaurantId = rawId ? Number(rawId) : NaN;
-    if (!isNaN(restaurantId) && restaurantId > 0) {
-      return <KioskPage restaurantId={restaurantId} />;
-    }
+    // Standalone /kiosk URL redirects into the partner portal kiosk tab (requires auth)
+    window.location.replace('/partner-portal?tab=kiosk');
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
-        <div className="text-center space-y-3 p-8">
-          <p className="text-2xl font-bold text-zinc-100">Kiosk Setup Required</p>
-          <p className="text-zinc-400 text-base">
-            Add <code className="text-amber-400 font-mono">?r=YOUR_RESTAURANT_ID</code> to this URL.
-          </p>
-          <p className="text-zinc-500 text-sm">
-            Example: <span className="font-mono text-zinc-400">/kiosk?r=27</span>
-          </p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Redirecting to Kiosk...</span>
         </div>
       </div>
     );

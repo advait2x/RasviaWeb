@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 const VALID_NAV_VIEWS: NavView[] = [
   "dashboard", "waitlist", "floorplan", "orders", "menu",
-  "settings", "notifications", "team", "pos", "kds", "reports",
+  "settings", "notifications", "team", "pos", "kds", "reports", "kiosk",
 ];
 
 function getTabFromUrl(): NavView | null {

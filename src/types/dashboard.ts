@@ -9,7 +9,8 @@ export type NavView =
   | "team"
   | "pos"
   | "kds"
-  | "reports";
+  | "reports"
+  | "kiosk";
 
 export interface WaitlistEntry {
   id: string;
@@ -176,7 +177,8 @@ export type Permission =
   | "view_reports"
   | "manage_modifiers"
   | "transfer_tables"
-  | "access_kds";
+  | "access_kds"
+  | "access_kiosk";
 
 export const ALL_PERMISSIONS: { key: Permission; label: string; description: string }[] = [
   { key: "view_dashboard", label: "View Dashboard", description: "See the overview dashboard" },
@@ -200,6 +202,7 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; description: str
   { key: "manage_modifiers", label: "Manage Modifiers", description: "Create and edit item modifiers" },
   { key: "transfer_tables", label: "Transfer Tables", description: "Move orders between tables" },
   { key: "access_kds", label: "Access KDS", description: "View kitchen display system" },
+  { key: "access_kiosk", label: "Access Kiosk", description: "Open the walk-in kiosk for customers" },
 ];
 
 export interface RestaurantRole {

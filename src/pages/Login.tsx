@@ -51,13 +51,7 @@ export default function Login() {
 
                 {/* Logo / Brand mark */}
                 <div style={styles.logoArea}>
-                    <div style={styles.logoRing}>
-                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                            <circle cx="16" cy="16" r="12" stroke="#F59E0B" strokeWidth="2" fill="none" />
-                            <path d="M10 16 C10 12, 16 8, 22 12 C18 14 18 18 22 20 C16 24 10 20 10 16Z" fill="#F59E0B" opacity="0.9" />
-                        </svg>
-                    </div>
-                    <span style={styles.logoText}>rasvia</span>
+                    <img src="/rasvia-icon.png" alt="Rasvia" style={{ height: "58px", width: "auto" }} />
                 </div>
 
                 {/* Glass card */}

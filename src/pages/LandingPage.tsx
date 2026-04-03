@@ -501,11 +501,15 @@ export default function LandingPage() {
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur-md">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div>
-            <img src="/rasvia-logo.png" alt="Rasvia" className="h-8 w-auto" />
-            <p className="mt-1 text-sm text-neutral-500">Built for restaurants. Loved by guests.</p>
+          <div className="min-w-0 flex flex-col gap-1">
+            <a href="/" className="inline-block">
+              <img src="/rasvia-logo.png" alt="Rasvia" className="h-14 w-auto" />
+            </a>
+            <p className="text-sm leading-snug text-neutral-500">
+              Built for restaurants. Loved by guests.
+            </p>
           </div>
           <a
             href="/partner-portal"
@@ -516,7 +520,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="w-full py-12 pt-28">
+      <main className="w-full py-12 pt-32">
         <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <div
             className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07]"
