@@ -30,6 +30,7 @@ export default function WaitlistFeed() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [notifyConfirmId, setNotifyConfirmId] = useState<string | null>(null);
 
   const waitingList = waitlist.filter((w) => w.status === "waiting");
 
@@ -175,7 +176,7 @@ export default function WaitlistFeed() {
                           </motion.button>
                           <motion.button
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => notifyParty(entry.id)}
+                            onClick={() => setNotifyConfirmId(entry.id)}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${entry.notifiedAt
                                 ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
                                 : "bg-zinc-800 border border-white/10 text-zinc-300 hover:bg-zinc-700"
@@ -184,6 +185,30 @@ export default function WaitlistFeed() {
                             <Bell size={16} strokeWidth={1.5} />
                             {entry.notifiedAt ? "Notified" : "Notify"}
                           </motion.button>
+                          {notifyConfirmId === entry.id && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-500/8 border border-sky-500/25"
+                            >
+                              <Bell size={13} strokeWidth={1.5} className="text-sky-400 shrink-0" />
+                              <span className="text-xs text-sky-300 font-medium">Party will be notified via SMS</span>
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setNotifyConfirmId(null)}
+                                className="px-2.5 py-1 rounded-md bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-600 transition-colors"
+                              >
+                                Cancel
+                              </motion.button>
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => { notifyParty(entry.id); setNotifyConfirmId(null); }}
+                                className="px-2.5 py-1 rounded-md bg-sky-500/20 border border-sky-500/40 text-sky-300 text-xs font-semibold hover:bg-sky-500/30 transition-colors"
+                              >
+                                Send
+                              </motion.button>
+                            </motion.div>
+                          )}
                           {cancelConfirmId === entry.id ? (
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}

@@ -117,7 +117,7 @@ function FullScreenAccessDenied() {
 }
 
 export default function DashboardLayout() {
-  const { activeView, setActiveView, replaceActiveView } = useDashboard();
+  const { activeView, setActiveView, replaceActiveView, kioskFullscreen } = useDashboard();
   const { hasPermission, permissions, loading } = useAuth();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
@@ -178,16 +178,18 @@ export default function DashboardLayout() {
         />
       </div>
 
-      {/* Sidebar */}
-      <Sidebar expanded={sidebarExpanded} onExpandedChange={setSidebarExpanded} />
+      {/* Sidebar - hidden in kiosk fullscreen */}
+      {!activeView.includes("kiosk") || !kioskFullscreen ? (
+        <Sidebar expanded={sidebarExpanded} onExpandedChange={setSidebarExpanded} />
+      ) : null}
 
       {/* Main Content */}
       <div
         className="flex-1 flex flex-col h-full relative z-10 transition-[margin] duration-200"
-        style={{ marginLeft: sidebarExpanded ? 196 : 72 }}
+        style={{ marginLeft: (activeView.includes("kiosk") && kioskFullscreen) ? 0 : (sidebarExpanded ? 196 : 72) }}
       >
-        {/* Status Bar */}
-        <StatusBar />
+        {/* Status Bar - hidden in kiosk fullscreen */}
+        {(!activeView.includes("kiosk") || !kioskFullscreen) && <StatusBar />}
 
         {/* View Content — keep-alive: each view stays mounted once visited */}
         <div className="flex-1 overflow-hidden relative">

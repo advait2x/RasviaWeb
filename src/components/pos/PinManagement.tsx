@@ -153,8 +153,10 @@ export default function PinManagement({ staff, roles }: PinManagementProps) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-zinc-200 truncate">{s.user_id.slice(0, 8)}...</p>
-                <p className="text-[10px] text-zinc-500">{getRoleName(s.role_id)}</p>
+                <p className="text-xs font-medium text-zinc-200 truncate">
+                  {s.full_name?.trim() || s.email || `${s.user_id.slice(0, 8)}...`}
+                </p>
+                <p className="text-[10px] text-zinc-500">{getRoleName(s.role_id)} · {s.user_id.slice(0, 8)}…</p>
               </div>
               <div className="flex items-center gap-1.5">
                 <motion.button

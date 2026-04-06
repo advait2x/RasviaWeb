@@ -22,6 +22,8 @@ interface DashboardState {
   replaceActiveView: (view: NavView) => void;
   waitlistOpen: boolean;
   setWaitlistOpen: (open: boolean) => void;
+  kioskFullscreen: boolean;
+  setKioskFullscreen: (open: boolean) => void;
   currentWaitTime: number;
   setCurrentWaitTime: (time: number) => void;
   restaurantOpen: boolean | null;
@@ -162,6 +164,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const [waitlistOpen, setWaitlistOpen] = useState(true);
+  const [kioskFullscreen, setKioskFullscreen] = useState(false);
   const [currentWaitTime, setCurrentWaitTime] = useState(25);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [waitlistLoading, setWaitlistLoading] = useState(true);
@@ -432,15 +435,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-
     setWaitlist((prev) => prev.filter((w) => w.id !== waitlistId));
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
-          ? { ...t, status: "occupied" as const, seatedAt: new Date(), guestName: entry.guestName, partySize: entry.partySize }
-          : t
-      )
-    );
+
+    // Only update table state when a real tableId is provided
+    if (tableId) {
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === tableId
+            ? { ...t, status: "occupied" as const, seatedAt: new Date(), guestName: entry.guestName, partySize: entry.partySize }
+            : t
+        )
+      );
+    }
   }, [waitlist]);
 
   const cancelParty = useCallback(async (waitlistId: string) => {
@@ -1445,6 +1451,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         replaceActiveView,
         waitlistOpen,
         setWaitlistOpen,
+        kioskFullscreen,
+        setKioskFullscreen,
         currentWaitTime,
         setCurrentWaitTime,
         waitlist,

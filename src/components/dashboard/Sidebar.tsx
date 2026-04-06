@@ -40,9 +40,10 @@ import {
 const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; requiredPermission: Permission }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard", requiredPermission: "view_dashboard" },
   { icon: Tablet, label: "Kiosk", view: "kiosk", requiredPermission: "access_kiosk" },
-  { icon: Monitor, label: "POS Terminal", view: "pos", requiredPermission: "access_pos" },
+  // POS and Floor Plan are hidden from all accounts until viewing flags are added
+  // { icon: Monitor, label: "POS Terminal", view: "pos", requiredPermission: "access_pos" },
   { icon: ClipboardList, label: "Waitlist", view: "waitlist", requiredPermission: "manage_waitlist" },
-  { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
+  // { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
   { icon: ShoppingBag, label: "Orders", view: "orders", requiredPermission: "view_orders" },
   { icon: ChefHat, label: "Kitchen Display", view: "kds", requiredPermission: "access_kds" },
   { icon: UtensilsCrossed, label: "Menu Editor", view: "menu", requiredPermission: "view_menu" },

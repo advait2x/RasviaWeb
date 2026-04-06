@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "react-qr-code";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useDashboard } from "@/context/DashboardContext";
 import { Check, Loader2, AlertCircle, RotateCcw, Users, Maximize2, Minimize2 } from "lucide-react";
+import ManagerPinModal from "@/components/pos/ManagerPinModal";
 
 type KioskView = "form" | "success";
 
@@ -14,7 +16,7 @@ function formatPhone(raw: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
-const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const APP_DOWNLOAD_URL = "https://rasvia.com/download";
 
 export default function KioskPage() {
@@ -27,7 +29,9 @@ export default function KioskPage() {
   const [error, setError] = useState<string | null>(null);
   const [submittedName, setSubmittedName] = useState("");
   const [submittedPhone, setSubmittedPhone] = useState("");
-  const [fullscreen, setFullscreen] = useState(false);
+  const { kioskFullscreen: fullscreen, setKioskFullscreen: setFullscreen } = useDashboard();
+  const [showManagerPin, setShowManagerPin] = useState(false);
+  const [lastEdgeClick, setLastEdgeClick] = useState(0);
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -101,17 +105,36 @@ export default function KioskPage() {
   const toggleFullscreen = useCallback(() => {
     if (!fullscreen) {
       document.documentElement.requestFullscreen?.().catch(() => {});
+      setFullscreen(true);
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      setShowManagerPin(true);
     }
-    setFullscreen((f) => !f);
-  }, [fullscreen]);
+  }, [fullscreen, setFullscreen]);
+
+  const handleManagerVerified = useCallback(() => {
+    setShowManagerPin(false);
+    document.exitFullscreen?.().catch(() => {});
+    setFullscreen(false);
+  }, [setFullscreen]);
+
+  const handleSecretEdgeClick = useCallback((e: React.MouseEvent) => {
+    // Check if click is on the left edge (e.g. left 50px)
+    if (e.clientX <= 50) {
+      const now = Date.now();
+      if (now - lastEdgeClick < 500) { // Double click threshold
+        setShowManagerPin(true);
+        setLastEdgeClick(0); // Reset
+      } else {
+        setLastEdgeClick(now);
+      }
+    }
+  }, [lastEdgeClick]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
+  }, [setFullscreen]);
 
   if (!restaurantId) {
     return (
@@ -130,14 +153,17 @@ export default function KioskPage() {
     <div
       className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} bg-[#09090b] flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
       style={{ WebkitUserSelect: "none", userSelect: "none" }}
+      onClick={handleSecretEdgeClick}
     >
-      <button
-        onClick={toggleFullscreen}
-        className="absolute top-4 right-4 z-50 rounded-lg border border-white/10 bg-zinc-800/80 p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors"
-        title={fullscreen ? "Exit fullscreen" : "Enter fullscreen (for iPad kiosk)"}
-      >
-        {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-      </button>
+      {!fullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          className="absolute top-4 right-4 z-50 rounded-lg border border-white/10 bg-zinc-800/80 p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors"
+          title="Enter fullscreen (for iPad kiosk)"
+        >
+          <Maximize2 size={18} />
+        </button>
+      )}
 
       <AnimatePresence mode="wait">
         {view === "form" ? (
@@ -164,6 +190,13 @@ export default function KioskPage() {
           />
         )}
       </AnimatePresence>
+
+      <ManagerPinModal
+        open={showManagerPin}
+        onClose={() => setShowManagerPin(false)}
+        onVerified={handleManagerVerified}
+        actionDescription="Enter PIN to exit Kiosk Mode"
+      />
     </div>
   );
 }
@@ -185,7 +218,9 @@ function FormView({
   name, phone, partySize, loading, error, fullscreen,
   onNameChange, onPhoneChange, onPartySizeChange, onSubmit,
 }: FormViewProps) {
-  const isReady = name.trim().length > 0 && phone.replace(/\D/g, "").length >= 10 && partySize !== null;
+  const isReady = name.trim().length > 0 && phone.replace(/\D/g, "").length >= 10 && partySize !== null && partySize > 0;
+  const [customSizeRaw, setCustomSizeRaw] = useState(partySize && partySize > 9 ? String(partySize) : "");
+  const [isCustomMode, setIsCustomMode] = useState(partySize !== null && partySize > 9);
 
   return (
     <motion.div
@@ -247,18 +282,48 @@ function FormView({
               key={size}
               size={size}
               label={String(size)}
-              selected={partySize === size}
+              selected={partySize === size && !isCustomMode}
               fullscreen={fullscreen}
-              onClick={() => onPartySizeChange(size)}
+              onClick={() => {
+                setIsCustomMode(false);
+                setCustomSizeRaw("");
+                onPartySizeChange(size);
+              }}
             />
           ))}
-          <PartySizeButton
-            size={11}
-            label="10+"
-            selected={partySize === 11}
-            fullscreen={fullscreen}
-            onClick={() => onPartySizeChange(11)}
-          />
+          {isCustomMode ? (
+            <input
+              autoFocus
+              type="tel"
+              inputMode="numeric"
+              value={customSizeRaw}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+                setCustomSizeRaw(val);
+                const num = parseInt(val, 10);
+                if (!isNaN(num) && num > 0) onPartySizeChange(num);
+                else onPartySizeChange(0); // Invalid/empty state
+              }}
+              onBlur={() => {
+                if (!customSizeRaw) {
+                  setIsCustomMode(false);
+                  onPartySizeChange(0);
+                }
+              }}
+              placeholder="#"
+              className={`rounded-xl border-2 bg-amber-500/10 border-amber-500 text-amber-400 text-center focus:outline-none placeholder:text-amber-500/50 ${
+                fullscreen ? "h-[88px] text-[30px] rounded-2xl" : "h-12 text-lg"
+              }`}
+            />
+          ) : (
+            <PartySizeButton
+              size={10}
+              label="10+"
+              selected={false}
+              fullscreen={fullscreen}
+              onClick={() => setIsCustomMode(true)}
+            />
+          )}
         </div>
       </div>
 

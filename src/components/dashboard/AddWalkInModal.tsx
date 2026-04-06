@@ -1,157 +1,198 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { UserPlus, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Users, Phone, User, UserPlus } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 
 interface AddWalkInModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  if (digits.length <= 3) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
   const { addWalkIn } = useDashboard();
-  const [leaderName, setLeaderName] = useState("");
-  const [partySize, setPartySize] = useState("");
+
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [partySize, setPartySize] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    const newErrors: Record<string, string> = {};
-    if (!leaderName.trim()) newErrors.name = "Party leader name is required";
-    if (!partySize || parseInt(partySize) < 1) newErrors.partySize = "Party size must be at least 1";
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    // Only allow digits (and the phone format characters for backspace UX)
+    const digitsOnly = input.replace(/\D/g, "");
+    setPhone(formatPhone(digitsOnly));
+  };
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow backspace to work naturally by stripping trailing format chars
+    if (e.key === "Backspace") {
+      const digits = phone.replace(/\D/g, "");
+      if (digits.length > 0) {
+        e.preventDefault();
+        setPhone(formatPhone(digits.slice(0, -1)));
+      }
+    }
+  };
+
+  const handlePartySizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setPartySize(val);
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) { setError("Please enter the guest's name."); return; }
+    const size = parseInt(partySize, 10);
+    if (!partySize || isNaN(size) || size < 1) { setError("Please enter a valid party size."); return; }
     const digits = phone.replace(/\D/g, "");
-    if (!phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (digits.length !== 10) {
-      newErrors.phone = "Enter a valid 10-digit phone number";
-    }
+    if (digits.length !== 10) { setError("Please enter a valid 10-digit phone number."); return; }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
+    setLoading(true);
+    try {
+      await addWalkIn(trimmedName, size, digits);
+      setName("");
+      setPhone("");
+      setPartySize("");
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to add walk-in.");
+    } finally {
+      setLoading(false);
     }
-
-    addWalkIn(leaderName.trim(), parseInt(partySize), phone.trim());
-    handleClose();
   };
 
   const handleClose = () => {
-    setLeaderName("");
-    setPartySize("");
+    setName("");
     setPhone("");
-    setErrors({});
+    setPartySize("");
+    setError(null);
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
-          <DialogTitle className="text-xl font-bold text-zinc-100 tracking-tight flex items-center gap-2">
-            <UserPlus size={20} strokeWidth={1.5} className="text-amber-500" />
-            Add Walk-In
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="p-6 space-y-5">
-          {/* Party Leader Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Party Leader Name
-            </label>
-            <div className="relative">
-              <Input
-                value={leaderName}
-                onChange={(e) => {
-                  setLeaderName(e.target.value);
-                  setErrors((prev) => ({ ...prev, name: "" }));
-                }}
-                placeholder="e.g., Johnson"
-                className="h-12 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 pr-28"
-              />
-              {leaderName.trim() && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 pointer-events-none">
-                  → {leaderName.trim()}'s Party
-                </span>
-              )}
+      <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+              <UserPlus size={15} className="text-amber-400" strokeWidth={1.5} />
             </div>
-            {errors.name && (
-              <p className="text-xs text-red-400 mt-1">{errors.name}</p>
-            )}
+            <h2 className="text-base font-semibold text-zinc-100">Add Walk-In</h2>
           </div>
+          <button
+            onClick={handleClose}
+            className="w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            <X size={14} strokeWidth={1.5} />
+          </button>
+        </div>
 
-          {/* Party Size */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Party Size
+        {/* Form Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Guest Name */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <User size={10} strokeWidth={1.5} />
+              Guest Name
             </label>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((size) => (
-                <motion.button
-                  key={size}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => {
-                    setPartySize(String(size));
-                    setErrors((prev) => ({ ...prev, partySize: "" }));
-                  }}
-                  className={`w-10 h-10 rounded-lg font-semibold text-sm transition-all duration-150 ${
-                    partySize === String(size)
-                      ? "bg-amber-500 text-black border border-amber-400 amber-glow-sm"
-                      : "bg-zinc-800/60 text-zinc-400 border border-white/10 hover:border-white/20 hover:text-zinc-200"
-                  }`}
-                >
-                  {size}
-                </motion.button>
-              ))}
-            </div>
-            {errors.partySize && (
-              <p className="text-xs text-red-400 mt-1">{errors.partySize}</p>
-            )}
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Phone Number
-            </label>
-            <Input
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setErrors((prev) => ({ ...prev, phone: "" }));
-              }}
-              placeholder="(555) 555-0123"
-              className="h-12 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 font-mono"
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="First name or party name"
+              className="w-full h-10 px-3 rounded-xl bg-zinc-800/60 border border-white/8 text-zinc-100 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
             />
-            {errors.phone && (
-              <p className="text-xs text-red-400 mt-1">{errors.phone}</p>
-            )}
           </div>
+
+          {/* Phone + Party Size — side by side */}
+          <div className="flex gap-3">
+            {/* Phone */}
+            <div className="flex-1 space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Phone size={10} strokeWidth={1.5} />
+                Phone
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phone}
+                onChange={handlePhoneChange}
+                onKeyDown={handlePhoneKeyDown}
+                placeholder="(555) 000-0000"
+                maxLength={14}
+                className="w-full h-10 px-3 rounded-xl bg-zinc-800/60 border border-white/8 text-zinc-100 text-sm font-mono placeholder:text-zinc-600 placeholder:font-sans focus:outline-none focus:border-amber-500/50 transition-colors"
+              />
+            </div>
+
+            {/* Party Size */}
+            <div className="w-28 space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Users size={10} strokeWidth={1.5} />
+                Party Size
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={partySize}
+                onChange={handlePartySizeChange}
+                placeholder="e.g. 4"
+                maxLength={3}
+                className="w-full h-10 px-3 rounded-xl bg-zinc-800/60 border border-white/8 text-zinc-100 text-sm text-center font-semibold placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Error */}
+          <AnimatePresence>
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-xs text-red-400 text-center"
+              >
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 justify-end pt-2">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
+          <div className="flex gap-3 pt-1">
+            <button
               onClick={handleClose}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-zinc-700 transition-colors"
+              className="flex-1 py-2.5 rounded-xl bg-zinc-800 border border-white/8 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
             >
-              <X size={16} strokeWidth={1.5} />
               Cancel
-            </motion.button>
+            </button>
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97 }}
               onClick={handleSubmit}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors amber-glow-sm"
+              disabled={loading}
+              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
-              <UserPlus size={16} strokeWidth={1.5} />
-              Add to Waitlist
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+              ) : (
+                <>
+                  <UserPlus size={14} strokeWidth={2} />
+                  Add to Waitlist
+                </>
+              )}
             </motion.button>
           </div>
         </div>
