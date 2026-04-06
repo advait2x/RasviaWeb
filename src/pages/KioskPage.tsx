@@ -31,7 +31,6 @@ export default function KioskPage() {
   const [submittedPhone, setSubmittedPhone] = useState("");
   const { kioskFullscreen: fullscreen, setKioskFullscreen: setFullscreen } = useDashboard();
   const [showManagerPin, setShowManagerPin] = useState(false);
-  const [lastEdgeClick, setLastEdgeClick] = useState(0);
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,18 +116,13 @@ export default function KioskPage() {
     setFullscreen(false);
   }, [setFullscreen]);
 
-  const handleSecretEdgeClick = useCallback((e: React.MouseEvent) => {
-    // Check if click is on the left edge (e.g. left 50px)
-    if (e.clientX <= 50) {
-      const now = Date.now();
-      if (now - lastEdgeClick < 500) { // Double click threshold
-        setShowManagerPin(true);
-        setLastEdgeClick(0); // Reset
-      } else {
-        setLastEdgeClick(now);
-      }
+  const handleSecretExitDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!fullscreen) return;
+    const leftThirdBoundary = window.innerWidth / 3;
+    if (e.clientX <= leftThirdBoundary) {
+      setShowManagerPin(true);
     }
-  }, [lastEdgeClick]);
+  }, [fullscreen]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);
@@ -153,7 +147,7 @@ export default function KioskPage() {
     <div
       className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} bg-[#09090b] flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
       style={{ WebkitUserSelect: "none", userSelect: "none" }}
-      onClick={handleSecretEdgeClick}
+      onDoubleClick={handleSecretExitDoubleClick}
     >
       {!fullscreen && (
         <button
