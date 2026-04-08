@@ -10,10 +10,17 @@ type PartyItemRow = {
   quantity: number;
   menu_items: { name: string; price: number; description: string | null; image_url: string | null } | null;
 };
+type PaymentMode = "host_pays" | "split" | "assign";
+
+function normalizePaymentMode(mode: unknown): PaymentMode {
+  return mode === "split" || mode === "assign" || mode === "host_pays" ? mode : "host_pays";
+}
 
 export default function JoinBridge() {
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get("id") ?? "";
+  const splitPaid = params.get("split_paid") === "1";
+  const splitPaidPayer = params.get("payer") ?? "";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +29,8 @@ export default function JoinBridge() {
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("host_pays");
+  const [assignedPayer, setAssignedPayer] = useState<string | null>(null);
   const [menu, setMenu] = useState<any[]>([]);
   const [cartItems, setCartItems] = useState<PartyItemRow[]>([]);
   const [guestName, setGuestName] = useState("");
@@ -34,6 +43,7 @@ export default function JoinBridge() {
   const [appLinkFired, setAppLinkFired] = useState(false);
   const [qtyByItem, setQtyByItem] = useState<Record<string, number>>({});
   const [selectedMenuItem, setSelectedMenuItem] = useState<any | null>(null);
+  const [payingMyShare, setPayingMyShare] = useState(false);
   const nameKeyRef = useRef(`rasvia:web:party-name:${sessionId}`);
 
   const fetchCart = async () => {
@@ -63,13 +73,15 @@ export default function JoinBridge() {
 
         const { data: sessionData, error: sessionError } = await supabase
           .from("party_sessions")
-          .select("id, restaurant_id, host_user_id, status, restaurants(name, image_url)")
+          .select("id, restaurant_id, host_user_id, status, payment_mode, assigned_payer_name, restaurants(name, image_url)")
           .eq("id", sessionId)
           .single();
         if (sessionError || !sessionData) throw new Error("Session not found.");
 
         if (sessionData.status === "submitted") setSubmitted(true);
         if (sessionData.status === "cancelled") throw new Error("This group order has ended.");
+        setPaymentMode(normalizePaymentMode((sessionData as any).payment_mode));
+        setAssignedPayer((sessionData as any).assigned_payer_name ?? null);
 
         setRestaurantId(sessionData.restaurant_id);
         setRestaurantName((sessionData.restaurants as any)?.name ?? "Restaurant");
@@ -102,7 +114,10 @@ export default function JoinBridge() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "party_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
-          if ((payload.new as any)?.status === "submitted") setSubmitted(true);
+          const nextSession = payload.new as Record<string, unknown>;
+          if (nextSession?.status === "submitted") setSubmitted(true);
+          setPaymentMode(normalizePaymentMode(nextSession?.payment_mode));
+          setAssignedPayer(typeof nextSession?.assigned_payer_name === "string" ? nextSession.assigned_payer_name : null);
         }
       )
       .subscribe();
@@ -146,6 +161,15 @@ export default function JoinBridge() {
   const members = useMemo(() => Array.from(new Set(cartItems.map((i) => i.added_by_name).filter(Boolean))), [cartItems]);
   const totalItems = cartItems.reduce((s, i) => s + (i.quantity ?? 1), 0);
   const total = cartItems.reduce((s, i) => s + Number(i.menu_items?.price ?? 0) * (i.quantity ?? 1), 0);
+  const memberTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const item of cartItems) {
+      const payerName = item.added_by_name || "Unknown";
+      totals[payerName] = (totals[payerName] ?? 0) + Number(item.menu_items?.price ?? 0) * (item.quantity ?? 1);
+    }
+    return totals;
+  }, [cartItems]);
+  const myShareTotal = guestName ? (memberTotals[guestName] ?? 0) : 0;
   const lineTotal = (price: number, qty: number) => Number(price ?? 0) * Math.max(1, qty);
 
   const addItem = async (item: any) => {
@@ -210,6 +234,78 @@ export default function JoinBridge() {
       setError("Could not submit group order.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const syncPaymentMode = async (nextMode: PaymentMode, nextAssignedPayer: string | null) => {
+    setPaymentMode(nextMode);
+    setAssignedPayer(nextAssignedPayer);
+    if (!isHost) return;
+
+    const { error } = await supabase
+      .from("party_sessions")
+      .update({
+        payment_mode: nextMode,
+        assigned_payer_name: nextMode === "assign" ? nextAssignedPayer : null,
+      })
+      .eq("id", sessionId);
+    if (error) throw error;
+  };
+
+  const payMyShare = async () => {
+    if (!restaurantId || !sessionId || !guestName || myShareTotal <= 0 || payingMyShare) return;
+    setPayingMyShare(true);
+    try {
+      const { data: restData, error: restError } = await supabase
+        .from("restaurants")
+        .select("stripe_account_id")
+        .eq("id", restaurantId)
+        .single();
+      if (restError) throw restError;
+      const stripeAccountId = restData?.stripe_account_id;
+      if (!stripeAccountId) {
+        throw new Error("Online payments are not enabled for this restaurant yet.");
+      }
+
+      const payerItems = cartItems
+        .filter((item) => item.added_by_name === guestName)
+        .map((item) => ({
+          name: item.menu_items?.name ?? "Unknown",
+          price: Number(item.menu_items?.price ?? 0),
+          quantity: item.quantity ?? 1,
+          menu_item_id: item.menu_item_id,
+          added_by: item.added_by_name || guestName,
+        }));
+
+      if (payerItems.length === 0) {
+        throw new Error("No items found for your share.");
+      }
+
+      const returnBase = `${window.location.origin}/join?id=${encodeURIComponent(sessionId)}&split_paid=1&payer=${encodeURIComponent(guestName)}`;
+      const { data, error: checkoutError } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          restaurant_id: restaurantId,
+          stripe_account_id: stripeAccountId,
+          amount: myShareTotal,
+          party_session_id: sessionId,
+          cart_items: payerItems,
+          restaurant_name: restaurantName,
+          customer_name: guestName,
+          user_id: null,
+          order_type: "dine_in",
+          return_url_base: returnBase,
+        },
+      });
+
+      if (checkoutError) throw checkoutError;
+      const checkoutUrl = (data as any)?.url;
+      if (!checkoutUrl) throw new Error("Checkout URL was not returned.");
+
+      window.location.href = checkoutUrl;
+    } catch (err: any) {
+      setError(err?.message ?? "Could not initiate payment.");
+    } finally {
+      setPayingMyShare(false);
     }
   };
 
@@ -361,6 +457,16 @@ export default function JoinBridge() {
         </div>
       )}
 
+      {splitPaid && (
+        <div className="mx-auto max-w-6xl px-4 pt-4">
+          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-200">
+            {splitPaidPayer
+              ? `${splitPaidPayer} completed payment successfully.`
+              : "Payment completed successfully."}
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto max-w-6xl px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-zinc-900/80 overflow-hidden">
           <div className="p-4 border-b border-white/10">
@@ -476,15 +582,97 @@ export default function JoinBridge() {
             ))}
             {cartItems.length === 0 && <div className="text-zinc-500 text-sm">No items yet.</div>}
           </div>
-          <div className="p-4 border-t border-white/10">
-            <div className="flex items-center justify-between mb-3">
+          <div className="p-4 border-t border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
               <span className="text-zinc-400 text-sm">Total</span>
               <span className="font-bold text-lg">${total.toFixed(2)}</span>
             </div>
+
+            {members.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-2">Per-person totals</div>
+                <div className="space-y-1.5">
+                  {members.map((name) => (
+                    <div key={name} className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-300">{name}</span>
+                      <span className="font-semibold text-indigo-300">${(memberTotals[name] ?? 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isHost && totalItems > 0 && (
+              <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-wide text-zinc-500">Payment mode</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      syncPaymentMode("host_pays", null).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
+                    }}
+                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "host_pays" ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
+                  >
+                    I'll Pay
+                  </button>
+                  <button
+                    onClick={() => {
+                      syncPaymentMode("split", null).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
+                    }}
+                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "split" ? "bg-indigo-500/15 border-indigo-500/50 text-indigo-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
+                  >
+                    Split by Person
+                  </button>
+                  <button
+                    onClick={() => {
+                      const fallbackPayer = assignedPayer || guestName || members[0] || null;
+                      syncPaymentMode("assign", fallbackPayer).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
+                    }}
+                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "assign" ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
+                  >
+                    Assign
+                  </button>
+                </div>
+                {paymentMode === "assign" && (
+                  <div className="space-y-1.5 pt-1">
+                    {members.map((name) => (
+                      <button
+                        key={name}
+                        onClick={() => {
+                          syncPaymentMode("assign", name).catch((err: any) => setError(err?.message ?? "Could not update assigned payer."));
+                        }}
+                        className={`w-full text-left rounded-lg px-2.5 py-2 text-xs border ${assignedPayer === name ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {submitted ? (
               <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-semibold py-2.5 text-center">
                 Order Submitted
               </div>
+            ) : paymentMode === "split" ? (
+              <>
+                {myShareTotal > 0 && (
+                  <button
+                    onClick={payMyShare}
+                    disabled={payingMyShare}
+                    className="w-full rounded-xl bg-indigo-500 text-white font-semibold py-2.5 hover:bg-indigo-400 disabled:opacity-60"
+                  >
+                    {payingMyShare ? "Opening checkout..." : `Pay My Share · $${myShareTotal.toFixed(2)}`}
+                  </button>
+                )}
+                <div className="rounded-xl bg-indigo-500/12 border border-indigo-500/30 text-indigo-200 text-xs py-2.5 px-3 text-center">
+                  {isHost
+                    ? "Split mode is active. Everyone can pay exactly for what they ordered."
+                    : myShareTotal > 0
+                      ? "Host enabled split checkout. Pay your amount above."
+                      : "Host enabled split checkout. Add items to see your amount."}
+                </div>
+              </>
             ) : isHost ? (
               <button
                 onClick={submitGroupOrder}
