@@ -107,6 +107,7 @@ function mapRow(row: Record<string, unknown>): WaitlistEntry {
     addedAt: new Date(row.created_at as string),
     status: row.status as WaitlistEntry["status"],
     notifiedAt: row.notified_at ? new Date(row.notified_at as string) : undefined,
+    source: (row.source as WaitlistEntry["source"]) ?? undefined,
   };
 }
 

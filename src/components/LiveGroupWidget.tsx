@@ -1,43 +1,54 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
 export default function LiveGroupWidget({ restaurantId }: { restaurantId: number }) {
     const [activeSessions, setActiveSessions] = useState<any[]>([]);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const fetchSessions = useCallback(async () => {
+        if (!restaurantId) return;
+        const { data } = await supabase
+            .from('party_sessions')
+            .select(`
+                id,
+                status,
+                party_items ( count )
+            `)
+            .eq('restaurant_id', restaurantId)
+            .eq('status', 'open');
+
+        setActiveSessions(data || []);
+    }, [restaurantId]);
+
+    const debouncedFetch = useCallback(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => fetchSessions(), 150);
+    }, [fetchSessions]);
 
     useEffect(() => {
         if (!restaurantId) return;
 
-        // 1. Fetch initial open sessions
-        const fetchSessions = async () => {
-            const { data } = await supabase
-                .from('party_sessions')
-                .select(`
-          id, 
-          status, 
-          party_items ( count )
-        `)
-                .eq('restaurant_id', restaurantId)
-                .eq('status', 'open');
-
-            setActiveSessions(data || []);
-        };
-
         fetchSessions();
 
-        // 2. Listen for NEW items being added anywhere
         const channel = supabase
-            .channel('kitchen-display')
+            .channel(`group-widget-${restaurantId}`)
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'party_items' },
-                () => {
-                    fetchSessions();
-                }
+                { event: '*', schema: 'public', table: 'party_items' },
+                () => { debouncedFetch(); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'party_sessions', filter: `restaurant_id=eq.${restaurantId}` },
+                () => { debouncedFetch(); }
             )
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
-    }, [restaurantId]);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            supabase.removeChannel(channel);
+        };
+    }, [restaurantId, fetchSessions, debouncedFetch]);
 
     return (
         <div className="card-premium rounded-xl p-5 flex flex-col h-full">

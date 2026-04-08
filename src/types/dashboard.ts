@@ -20,6 +20,8 @@ export interface WaitlistEntry {
   addedAt: Date;
   status: "waiting" | "seated" | "cancelled";
   notifiedAt?: Date;
+  /** Where this entry originated: kiosk walk-in, mobile app, or web join link */
+  source?: "walk_in" | "app" | "web";
 }
 
 export interface TableInfo {

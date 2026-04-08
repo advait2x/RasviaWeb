@@ -117,6 +117,11 @@ export default function WaitlistFeed() {
                       <span className="text-base font-bold text-zinc-100 truncate">
                         {entry.guestName}
                       </span>
+                      {entry.source === "walk_in" && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wide">
+                          Walk-in
+                        </span>
+                      )}
                       {entry.notifiedAt && (
                         <BellRing size={13} strokeWidth={1.5} className="text-emerald-400 shrink-0" />
                       )}
