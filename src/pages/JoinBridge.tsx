@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { X, Users, ShoppingCart, Plus, Minus, Crown, Smartphone, ExternalLink } from "lucide-react";
 
@@ -111,34 +111,31 @@ export default function JoinBridge() {
     };
   }, [sessionId]);
 
-  // Fire deep link on mount, dismiss overlay after 2.5s if app didn't open
-  useEffect(() => {
-    if (!sessionId) return;
-    const scheme = import.meta.env.PROD
+  // Build deep link — include guest name so the app can skip the name prompt
+  const buildAppScheme = (name?: string) => {
+    const storedName = name ?? localStorage.getItem(nameKeyRef.current) ?? "";
+    const base = import.meta.env.PROD
       ? `rasvia://join/${sessionId}`
       : `exp://192.168.1.96:8081/--/join/${sessionId}`;
+    return storedName ? `${base}?name=${encodeURIComponent(storedName)}` : base;
+  };
 
-    // Small delay so the page renders before we fire the redirect
-    const fire = setTimeout(() => {
-      window.location.href = scheme;
-      setAppLinkFired(true);
-    }, 300);
+  const appScheme = buildAppScheme();
 
-    // If app is installed, browser navigates away and this never runs.
-    // If not installed, we dismiss the overlay and show the web fallback.
-    const dismiss = setTimeout(() => {
-      setAppOverlay(false);
-    }, 2800);
+  // Fire deep link immediately on mount — before data loading completes
+  useEffect(() => {
+    if (!sessionId) return;
 
-    return () => {
-      clearTimeout(fire);
-      clearTimeout(dismiss);
-    };
+    // Fire immediately — browser will navigate away if app is installed
+    const scheme = buildAppScheme();
+    window.location.href = scheme;
+    setAppLinkFired(true);
+
+    // Dismiss overlay after 2.5s if the app didn't open (not installed)
+    const dismiss = setTimeout(() => setAppOverlay(false), 2500);
+    return () => clearTimeout(dismiss);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
-
-  const appScheme = import.meta.env.PROD
-    ? `rasvia://join/${sessionId}`
-    : `exp://192.168.1.96:8081/--/join/${sessionId}`;
 
   const filteredMenu = useMemo(() => {
     if (!search.trim()) return menu;
@@ -216,6 +213,86 @@ export default function JoinBridge() {
     }
   };
 
+  // Show overlay immediately — don't wait for data to load
+  if (appOverlay) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#09090b] px-6">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="w-24 h-24 rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-amber-500/10 mb-8"
+        >
+          <img src="/rasvia-icon.png" alt="Rasvia" className="w-full h-full object-cover" />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="text-center space-y-2 mb-8"
+        >
+          <h1 className="text-3xl font-black text-zinc-100 tracking-tight">
+            {restaurantName || "Group Order"}
+          </h1>
+          <p className="text-zinc-400 text-base">You've been invited to a group order.</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="w-full max-w-xs space-y-3"
+        >
+          <a
+            href={appScheme}
+            className="flex items-center justify-center gap-3 w-full rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-4 text-lg transition-colors shadow-xl shadow-amber-500/20"
+          >
+            <Smartphone size={22} strokeWidth={2} />
+            Open in Rasvia
+          </a>
+          <button
+            onClick={() => setAppOverlay(false)}
+            className="w-full text-zinc-500 text-sm hover:text-zinc-300 transition-colors py-2"
+          >
+            Continue in browser instead
+          </button>
+        </motion.div>
+
+        {appLinkFired && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-6 text-center space-y-2"
+          >
+            <p className="text-xs text-zinc-600">Don't have the app?</p>
+            <div className="flex items-center justify-center gap-4">
+              <a
+                href="https://apps.apple.com/app/rasvia/id123456789"
+                className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={11} />
+                App Store
+              </a>
+              <a
+                href="https://play.google.com/store/apps/details?id=com.rasvia"
+                className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={11} />
+                Google Play
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
@@ -261,94 +338,6 @@ export default function JoinBridge() {
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100">
-      {/* Full-screen app interstitial overlay */}
-      <AnimatePresence>
-        {appOverlay && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#09090b] px-6"
-          >
-            {/* App icon */}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="w-24 h-24 rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-amber-500/10 mb-8"
-            >
-              <img src="/rasvia-icon.png" alt="Rasvia" className="w-full h-full object-cover" />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="text-center space-y-2 mb-8"
-            >
-              <h1 className="text-3xl font-black text-zinc-100 tracking-tight">
-                {restaurantName || "Group Order"}
-              </h1>
-              <p className="text-zinc-400 text-base">
-                You've been invited to a group order.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="w-full max-w-xs space-y-3"
-            >
-              <a
-                href={appScheme}
-                className="flex items-center justify-center gap-3 w-full rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-4 text-lg transition-colors shadow-xl shadow-amber-500/20"
-              >
-                <Smartphone size={22} strokeWidth={2} />
-                Open in Rasvia
-              </a>
-              <button
-                onClick={() => setAppOverlay(false)}
-                className="w-full text-zinc-500 text-sm hover:text-zinc-300 transition-colors py-2"
-              >
-                Continue in browser instead
-              </button>
-            </motion.div>
-
-            {appLinkFired && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-6 text-center space-y-2"
-              >
-                <p className="text-xs text-zinc-600">Don't have the app?</p>
-                <div className="flex items-center justify-center gap-4">
-                  <a
-                    href="https://apps.apple.com/app/rasvia/id123456789"
-                    className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink size={11} />
-                    App Store
-                  </a>
-                  <a
-                    href="https://play.google.com/store/apps/details?id=com.rasvia"
-                    className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink size={11} />
-                    Google Play
-                  </a>
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Sticky "Open in App" button — visible after overlay dismisses */}
       {!appOverlay && showBanner && (
         <div className="sticky top-0 z-50 w-full border-b border-white/8 bg-zinc-950/95 backdrop-blur-md">
