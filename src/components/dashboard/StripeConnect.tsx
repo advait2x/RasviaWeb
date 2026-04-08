@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
+import { CreditCard, CheckCircle2, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,9 @@ export default function StripeConnect() {
     const { restaurantId } = useAuth();
     const [loading, setLoading] = useState(true);
     const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+    const [payoutsEnabled, setPayoutsEnabled] = useState(false);
+    const [detailsSubmitted, setDetailsSubmitted] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
         async function fetchStripeStatus() {
@@ -18,24 +22,70 @@ export default function StripeConnect() {
                 return;
             }
 
-            const { data, error } = await supabase
-                .from("restaurants")
-                .select("stripe_account_id")
-                .eq("id", restaurantId)
-                .single();
+            try {
+                // 1. Get stripe_account_id from database
+                const { data, error } = await supabase
+                    .from("restaurants")
+                    .select("stripe_account_id")
+                    .eq("id", restaurantId)
+                    .single();
 
-            if (!error && data) {
-                setStripeAccountId((data as { stripe_account_id: string | null }).stripe_account_id ?? null);
+                if (!error && data) {
+                    const accountId = (data as { stripe_account_id: string | null }).stripe_account_id ?? null;
+                    setStripeAccountId(accountId);
+                    
+                    // 2. Check actual status from Stripe API
+                    if (accountId) {
+                        const { data: statusData, error: statusErr } = await supabase.functions.invoke('check-stripe-status', {
+                            body: { stripe_account_id: accountId }
+                        });
+                        
+                        if (!statusErr && statusData) {
+                            setPayoutsEnabled(statusData.payouts_enabled);
+                            setDetailsSubmitted(statusData.details_submitted);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch stripe status:", err);
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         }
 
         fetchStripeStatus();
     }, [restaurantId]);
 
-    const handleConnectClick = () => {
-        alert("Contact Support to enable payouts");
+    const handleConnectClick = async () => {
+        if (!restaurantId) return;
+        
+        setActionLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-stripe-account', {
+                body: { restaurant_id: restaurantId }
+            });
+            
+            console.log("Stripe Setup response:", { data, error });
+            if (error) {
+                alert(`Supabase Invoke Error: ${error.message}\nReview the browser console for details.`);
+                throw new Error(error.message);
+            }
+            if (data?.error) {
+                alert(`Stripe Edge Function Error: ${data.error}`);
+                throw new Error(data.error);
+            }
+            if (!data?.url) {
+                alert(`No URL returned! Data: ${JSON.stringify(data)}`);
+                throw new Error("Failed to generate onboarding link");
+            }
+            
+            // Redirect to Stripe onboarding
+            window.location.href = data.url;
+        } catch (err: any) {
+            console.error("Stripe connect error:", err);
+            toast.error(err.message || "Failed to start onboarding. Please try again.");
+            setActionLoading(false);
+        }
     };
 
     return (
@@ -66,7 +116,7 @@ export default function StripeConnect() {
                             <div className="h-2.5 w-40 rounded bg-zinc-700/40 animate-pulse" />
                         </div>
                     </div>
-                ) : stripeAccountId ? (
+                ) : stripeAccountId && payoutsEnabled ? (
                     /* ── Payouts Active ── */
                     <div className="flex items-center gap-3 w-full">
                         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -84,6 +134,37 @@ export default function StripeConnect() {
                             Active ✅
                         </span>
                     </div>
+                ) : stripeAccountId && !payoutsEnabled ? (
+                    /* ── Onboarding Started but Not Finished/Verified ── */
+                    <div className="flex items-center gap-3 w-full">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle size={18} strokeWidth={1.5} className="text-amber-400" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-zinc-200">Action Required</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                                {detailsSubmitted 
+                                    ? "Stripe is verifying your details. Check back later." 
+                                    : "Please complete onboarding to enable payouts."}
+                            </p>
+                        </div>
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            whileHover={{ scale: 1.02 }}
+                            onClick={handleConnectClick}
+                            disabled={actionLoading}
+                            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-500 transition-colors flex-shrink-0 min-w-[140px]"
+                        >
+                            {actionLoading ? (
+                                <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                                <>
+                                    <ExternalLink size={12} strokeWidth={2.5} />
+                                    {detailsSubmitted ? "Update Details" : "Finish Onboarding"}
+                                </>
+                            )}
+                        </motion.button>
+                    </div>
                 ) : (
                     /* ── Not connected ── */
                     <div className="flex items-center gap-3 w-full">
@@ -100,10 +181,17 @@ export default function StripeConnect() {
                             whileTap={{ scale: 0.95 }}
                             whileHover={{ scale: 1.02 }}
                             onClick={handleConnectClick}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors flex-shrink-0 shadow-lg shadow-amber-500/20"
+                            disabled={actionLoading}
+                            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors flex-shrink-0 shadow-lg shadow-amber-500/20 min-w-[140px]"
                         >
-                            <ExternalLink size={12} strokeWidth={2.5} />
-                            Connect Bank Account
+                            {actionLoading ? (
+                                <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                                <>
+                                    <ExternalLink size={12} strokeWidth={2.5} />
+                                    Connect Bank Account
+                                </>
+                            )}
                         </motion.button>
                     </div>
                 )}
@@ -112,14 +200,7 @@ export default function StripeConnect() {
             {/* Fine print */}
             {!loading && !stripeAccountId && (
                 <p className="text-[11px] text-zinc-600 leading-relaxed px-1">
-                    Payouts are processed via Stripe. Contact{" "}
-                    <a
-                        href="mailto:support@rasvia.com"
-                        className="text-amber-500/70 hover:text-amber-400 underline underline-offset-2 transition-colors"
-                    >
-                        support@rasvia.com
-                    </a>{" "}
-                    to get started with manual onboarding.
+                    Payouts are processed securely via Stripe. By connecting, you agree to the Stripe Connected Account Agreement.
                 </p>
             )}
         </div>
