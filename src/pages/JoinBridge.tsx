@@ -337,8 +337,8 @@ export default function JoinBridge() {
     return (
       <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-zinc-900/80 p-8 sm:p-10 text-center">
-          <div className="mx-auto mb-6">
-            <img src="/rasvia-logo.png" alt="Rasvia" className="h-14 w-auto object-contain" />
+          <div className="mx-auto mb-6 inline-flex items-center justify-center h-16 w-16 bg-zinc-900 border border-white/10">
+            <img src="/rasvia-icon.png" alt="Rasvia" className="h-12 w-12 object-contain" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
             Group Order Ended
@@ -372,7 +372,9 @@ export default function JoinBridge() {
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="mb-8"
         >
-          <img src="/rasvia-logo.png" alt="Rasvia" className="h-12 w-auto object-contain" />
+          <div className="inline-flex items-center justify-center h-14 w-14 bg-zinc-900 border border-white/10">
+            <img src="/rasvia-icon.png" alt="Rasvia" className="h-10 w-10 object-contain" />
+          </div>
         </motion.div>
 
         <motion.div
@@ -495,7 +497,9 @@ export default function JoinBridge() {
         <div className="sticky top-0 z-50 w-full border-b border-white/8 bg-zinc-950/95 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <img src="/rasvia-logo.png" alt="Rasvia" className="h-6 w-auto object-contain" />
+              <div className="inline-flex items-center justify-center h-7 w-7 bg-zinc-900 border border-white/10">
+                <img src="/rasvia-icon.png" alt="Rasvia" className="h-5 w-5 object-contain" />
+              </div>
               <span className="text-sm text-zinc-300 font-medium">Better in the app — faster checkout & group controls.</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
