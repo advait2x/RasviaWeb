@@ -22,6 +22,8 @@ export default function JoinBridge() {
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [endedMessage, setEndedMessage] = useState("This group order has ended.");
   const [menu, setMenu] = useState<any[]>([]);
   const [cartItems, setCartItems] = useState<PartyItemRow[]>([]);
   const [guestName, setGuestName] = useState("");
@@ -68,12 +70,21 @@ export default function JoinBridge() {
           .single();
         if (sessionError || !sessionData) throw new Error("Session not found.");
 
-        if (sessionData.status === "submitted") setSubmitted(true);
-        if (sessionData.status === "cancelled") throw new Error("This group order has ended.");
-
         setRestaurantId(sessionData.restaurant_id);
         setRestaurantName((sessionData.restaurants as any)?.name ?? "Restaurant");
         setRestaurantImage((sessionData.restaurants as any)?.image_url ?? null);
+
+        if (sessionData.status === "submitted") {
+          setSubmitted(true);
+          setEnded(true);
+          setEndedMessage("This group order has already been submitted.");
+          return;
+        }
+        if (sessionData.status === "cancelled") {
+          setEnded(true);
+          setEndedMessage("This group order has ended.");
+          return;
+        }
 
         const [{ data: menuData }, { data: authData }] = await Promise.all([
           supabase.from("menu_items").select("*").eq("restaurant_id", sessionData.restaurant_id).neq("is_available", false),
@@ -102,7 +113,15 @@ export default function JoinBridge() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "party_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
-          if ((payload.new as any)?.status === "submitted") setSubmitted(true);
+          const nextStatus = (payload.new as any)?.status;
+          if (nextStatus === "submitted") {
+            setSubmitted(true);
+            setEnded(true);
+            setEndedMessage("This group order has already been submitted.");
+          } else if (nextStatus === "cancelled") {
+            setEnded(true);
+            setEndedMessage("This group order has ended.");
+          }
         }
       )
       .subscribe();
@@ -122,21 +141,6 @@ export default function JoinBridge() {
 
   const appScheme = buildAppScheme();
 
-  // Fire deep link immediately on mount — before data loading completes
-  useEffect(() => {
-    if (!sessionId) return;
-
-    // Fire immediately — browser will navigate away if app is installed
-    const scheme = buildAppScheme();
-    window.location.href = scheme;
-    setAppLinkFired(true);
-
-    // Dismiss overlay after 2.5s if the app didn't open (not installed)
-    const dismiss = setTimeout(() => setAppOverlay(false), 2500);
-    return () => clearTimeout(dismiss);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
   const filteredMenu = useMemo(() => {
     if (!search.trim()) return menu;
     const q = search.toLowerCase().trim();
@@ -150,24 +154,43 @@ export default function JoinBridge() {
 
   const addItem = async (item: any) => {
     const qty = Math.max(1, qtyByItem[String(item.id)] ?? 1);
-    const optimistic: PartyItemRow = {
-      id: `tmp-${Date.now()}`,
-      menu_item_id: item.id,
-      added_by_name: guestName,
-      quantity: qty,
-      menu_items: { name: item.name, price: Number(item.price ?? 0), description: item.description ?? null, image_url: item.image_url ?? null },
-    };
-    setCartItems((prev) => [...prev, optimistic]);
+    const existing = cartItems.find(
+      (ci) => ci.menu_item_id === item.id && (ci.added_by_name || "").trim() === guestName.trim()
+    );
 
-    const { error } = await supabase.from("party_items").insert({
-      session_id: sessionId,
-      menu_item_id: item.id,
-      added_by_name: guestName,
-      quantity: qty,
-    });
-    if (error) {
-      setCartItems((prev) => prev.filter((x) => x.id !== optimistic.id));
-      return;
+    if (existing && !String(existing.id).startsWith("tmp-")) {
+      const nextQty = (existing.quantity ?? 1) + qty;
+      setCartItems((prev) =>
+        prev.map((ci) => (ci.id === existing.id ? { ...ci, quantity: nextQty } : ci))
+      );
+      const { error } = await supabase
+        .from("party_items")
+        .update({ quantity: nextQty })
+        .eq("id", existing.id);
+      if (error) {
+        await fetchCart();
+        return;
+      }
+    } else {
+      const optimistic: PartyItemRow = {
+        id: `tmp-${Date.now()}`,
+        menu_item_id: item.id,
+        added_by_name: guestName,
+        quantity: qty,
+        menu_items: { name: item.name, price: Number(item.price ?? 0), description: item.description ?? null, image_url: item.image_url ?? null },
+      };
+      setCartItems((prev) => [...prev, optimistic]);
+
+      const { error } = await supabase.from("party_items").insert({
+        session_id: sessionId,
+        menu_item_id: item.id,
+        added_by_name: guestName,
+        quantity: qty,
+      });
+      if (error) {
+        setCartItems((prev) => prev.filter((x) => x.id !== optimistic.id));
+        return;
+      }
     }
     setQtyByItem((prev) => {
       const next = { ...prev };
@@ -213,6 +236,41 @@ export default function JoinBridge() {
     }
   };
 
+  if (ended) {
+    return (
+      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-zinc-900/80 p-8 sm:p-10 text-center">
+          <div className="mx-auto mb-6 h-20 w-20 overflow-hidden border border-white/10 bg-zinc-100">
+            <img src="/rasvia-icon.png" alt="Rasvia" className="h-full w-full object-contain" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
+            Group Order Ended
+          </h1>
+          <p className="text-zinc-300 text-base sm:text-lg mb-2">
+            This group order has ended, but there are still great restaurants to be found on Rasvia.
+          </p>
+          <p className="text-zinc-500 text-sm mb-8">{endedMessage}</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href={appScheme}
+              onClick={() => setAppLinkFired(true)}
+              className="rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-3.5 px-4 transition-colors"
+            >
+              Open Rasvia App
+            </a>
+            <a
+              href="https://rasvia.com"
+              className="rounded-2xl border border-white/15 bg-zinc-800/70 hover:bg-zinc-800 text-zinc-100 font-semibold py-3.5 px-4 transition-colors"
+            >
+              Explore on Web
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show overlay immediately — don't wait for data to load
   if (appOverlay) {
     return (
@@ -221,9 +279,9 @@ export default function JoinBridge() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="w-24 h-24 rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-amber-500/10 mb-8"
+          className="w-24 h-24 overflow-hidden border border-white/10 bg-zinc-100 shadow-2xl shadow-amber-500/10 mb-8"
         >
-          <img src="/rasvia-icon.png" alt="Rasvia" className="w-full h-full object-cover" />
+          <img src="/rasvia-icon.png" alt="Rasvia" className="w-full h-full object-contain" />
         </motion.div>
 
         <motion.div
@@ -244,13 +302,16 @@ export default function JoinBridge() {
           transition={{ delay: 0.25 }}
           className="w-full max-w-xs space-y-3"
         >
-          <a
-            href={appScheme}
+          <button
+            onClick={() => {
+              setAppLinkFired(true);
+              window.location.href = appScheme;
+            }}
             className="flex items-center justify-center gap-3 w-full rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-4 text-lg transition-colors shadow-xl shadow-amber-500/20"
           >
             <Smartphone size={22} strokeWidth={2} />
             Open in Rasvia
-          </a>
+          </button>
           <button
             onClick={() => setAppOverlay(false)}
             className="w-full text-zinc-500 text-sm hover:text-zinc-300 transition-colors py-2"
@@ -369,7 +430,7 @@ export default function JoinBridge() {
               <img
                 src={restaurantImage}
                 alt={restaurantName}
-                className="mt-2 h-24 w-full rounded-xl object-cover border border-white/10"
+                className="mt-2 h-24 w-full rounded-xl object-contain bg-zinc-950 border border-white/10"
               />
             )}
             <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2">
@@ -465,7 +526,11 @@ export default function JoinBridge() {
                   <span className="text-xs text-amber-300">${(Number(c.menu_items?.price ?? 0) * (c.quantity ?? 1)).toFixed(2)}</span>
                   {(isHost || c.added_by_name === guestName) && (
                     <button
-                      onClick={() => removeItem(c.id)}
+                      onClick={() => {
+                        const confirmed = window.confirm("Are you sure you want to remove this item from the group cart?");
+                        if (!confirmed) return;
+                        removeItem(c.id);
+                      }}
                       className="text-[11px] px-2 py-1 rounded-md bg-red-500/15 text-red-300 border border-red-500/30"
                     >
                       Remove
