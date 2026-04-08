@@ -367,16 +367,6 @@ export default function JoinBridge() {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#09090b] px-6">
         <motion.div
-<<<<<<< Updated upstream
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-          className="mb-8"
-        >
-          <div className="inline-flex items-center justify-center h-14 w-14 bg-zinc-900 border border-white/10">
-            <img src="/rasvia-icon.png" alt="Rasvia" className="h-10 w-10 object-contain" />
-          </div>
-=======
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -388,7 +378,6 @@ export default function JoinBridge() {
             className="h-14 w-auto"
             style={{ objectFit: "contain" }}
           />
->>>>>>> Stashed changes
         </motion.div>
 
         <motion.div
@@ -511,13 +500,7 @@ export default function JoinBridge() {
         <div className="sticky top-0 z-50 w-full border-b border-white/8 bg-zinc-950/95 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-<<<<<<< Updated upstream
-              <div className="inline-flex items-center justify-center h-7 w-7 bg-zinc-900 border border-white/10">
-                <img src="/rasvia-icon.png" alt="Rasvia" className="h-5 w-5 object-contain" />
-              </div>
-=======
               <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-5 w-auto" />
->>>>>>> Stashed changes
               <span className="text-sm text-zinc-300 font-medium">Better in the app — faster checkout & group controls.</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
