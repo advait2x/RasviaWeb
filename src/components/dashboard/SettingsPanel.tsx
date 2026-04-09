@@ -26,6 +26,7 @@ interface RestaurantProfile {
   cuisineTags: string[];
   description: string;
   imageUrl: string;
+  chainGroupKey: string;
 }
 
 const DEFAULT_CUISINE_OPTIONS = [
@@ -57,17 +58,21 @@ const DEFAULT_CUISINE_OPTIONS = [
   "Mithai & Desserts",
 ];
 
-interface DayHours {
+interface TimePeriod {
   open: string;   // "09:00"
   close: string;  // "22:00"
+}
+
+interface DayHours {
   closed: boolean;
+  periods: TimePeriod[];
 }
 
 type OperatingHours = Record<string, DayHours>;
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const defaultDayHours = (): DayHours => ({ open: "09:00", close: "22:00", closed: false });
+const defaultDayHours = (): DayHours => ({ closed: false, periods: [{ open: "09:00", close: "22:00" }] });
 
 const defaultHours = (): OperatingHours =>
   Object.fromEntries(DAYS.map((d) => [d, defaultDayHours()]));
@@ -81,22 +86,30 @@ const empty = (): RestaurantProfile => ({
   cuisineTags: [],
   description: "",
   imageUrl: "",
+  chainGroupKey: "",
 });
 
 function parseHoursRows(rows: Record<string, unknown>[]): OperatingHours {
   const result = defaultHours();
+  const grouped = new Map<number, TimePeriod[]>();
   for (const row of rows) {
     const idx = row.day_of_week as number; // 0=Sun, 1=Mon … 6=Sat
-    const day = DAYS[idx];
-    if (!day) continue;
     const openRaw = (row.open_time as string | null) ?? "";
     const closeRaw = (row.close_time as string | null) ?? "";
-    // Supabase time type comes back as "HH:MM:SS" — trim to "HH:MM"
-    result[day] = {
+    if (!DAYS[idx] || !openRaw || !closeRaw) continue;
+    const next = grouped.get(idx) ?? [];
+    next.push({
       open: openRaw.slice(0, 5),
       close: closeRaw.slice(0, 5),
-      closed: !openRaw,
-    };
+    });
+    grouped.set(idx, next);
+  }
+  for (let idx = 0; idx < DAYS.length; idx += 1) {
+    const day = DAYS[idx];
+    const periods = (grouped.get(idx) ?? []).sort((a, b) => a.open.localeCompare(b.open));
+    result[day] = periods.length > 0
+      ? { closed: false, periods }
+      : { closed: true, periods: [] };
   }
   return result;
 }
@@ -127,6 +140,9 @@ export default function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [communityImagesEnabled, setCommunityImagesEnabled] = useState(true);
+  const [savedCommunityImagesEnabled, setSavedCommunityImagesEnabled] = useState(true);
+  const [communityImagesSettingAvailable, setCommunityImagesSettingAvailable] = useState(true);
 
   // Operating hours
   const [hours, setHours] = useState<OperatingHours | null>(null);
@@ -164,9 +180,17 @@ export default function SettingsPanel() {
       cuisineTags: Array.isArray(row?.cuisine_tags) ? (row.cuisine_tags as string[]) : [],
       description: String(row?.description ?? row?.bio ?? ""),
       imageUrl: String(row?.image_url ?? ""),
+      chainGroupKey: String(row?.chain_group_key ?? ""),
     };
     setProfile(p);
     setDraft(p);
+    const hasCommunitySetting = !!(row && Object.prototype.hasOwnProperty.call(row, "accept_community_image_contributions"));
+    setCommunityImagesSettingAvailable(hasCommunitySetting);
+    if (hasCommunitySetting) {
+      const enabled = row?.accept_community_image_contributions !== false;
+      setCommunityImagesEnabled(enabled);
+      setSavedCommunityImagesEnabled(enabled);
+    }
 
     const earlyEn = row?.waitlist_early_open_enabled === true;
     const earlyM = Math.max(0, Math.min(24 * 60, Number(row?.waitlist_early_open_minutes) || 30));
@@ -300,7 +324,11 @@ export default function SettingsPanel() {
       address: draft.address.trim(),
       cuisine_tags: draft.cuisineTags,
       description: draft.description.trim(),
+      chain_group_key: draft.chainGroupKey.trim() || null,
     };
+    if (communityImagesSettingAvailable) {
+      patch.accept_community_image_contributions = communityImagesEnabled;
+    }
     if (draft.phone.trim()) patch.phone = draft.phone.trim();
     const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurantId);
     setSaving(false);
@@ -309,6 +337,7 @@ export default function SettingsPanel() {
       setSaveError(error.message);
     } else {
       setProfile({ ...draft });
+      setSavedCommunityImagesEnabled(communityImagesEnabled);
       setEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -317,14 +346,65 @@ export default function SettingsPanel() {
 
   const handleDiscard = () => {
     setDraft({ ...profile });
+    setCommunityImagesEnabled(savedCommunityImagesEnabled);
     setEditing(false);
     setShowOtherInput(false);
     setOtherValue("");
   };
 
   // Operating hours handlers
-  const setDayField = (day: string, field: keyof DayHours, value: string | boolean) => {
-    setHoursDraft((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
+  const setDayClosed = (day: string, closed: boolean) => {
+    setHoursDraft((prev) => {
+      const current = prev[day] ?? defaultDayHours();
+      return {
+        ...prev,
+        [day]: {
+          closed,
+          periods: closed
+            ? []
+            : (current.periods.length > 0 ? current.periods : [{ open: "09:00", close: "22:00" }]),
+        },
+      };
+    });
+  };
+
+  const setPeriodField = (day: string, idx: number, field: keyof TimePeriod, value: string) => {
+    setHoursDraft((prev) => {
+      const current = prev[day] ?? defaultDayHours();
+      const nextPeriods = [...current.periods];
+      nextPeriods[idx] = { ...nextPeriods[idx], [field]: value };
+      return { ...prev, [day]: { ...current, periods: nextPeriods } };
+    });
+  };
+
+  const addPeriod = (day: string) => {
+    setHoursDraft((prev) => {
+      const current = prev[day] ?? defaultDayHours();
+      const tail = current.periods[current.periods.length - 1];
+      const nextOpen = tail?.close || "13:00";
+      const nextClose = "22:00";
+      return {
+        ...prev,
+        [day]: {
+          closed: false,
+          periods: [...current.periods, { open: nextOpen, close: nextClose }],
+        },
+      };
+    });
+  };
+
+  const removePeriod = (day: string, idx: number) => {
+    setHoursDraft((prev) => {
+      const current = prev[day] ?? defaultDayHours();
+      const nextPeriods = current.periods.filter((_, pIdx) => pIdx !== idx);
+      return {
+        ...prev,
+        [day]: {
+          closed: nextPeriods.length === 0,
+          periods: nextPeriods,
+        },
+      };
+    });
   };
 
   const handleSaveHours = async () => {
@@ -344,16 +424,18 @@ export default function SettingsPanel() {
       return;
     }
 
-    // Step 2: insert a row for each open day (skip closed days)
+    // Step 2: insert one row per open period
     const insertRows: Record<string, unknown>[] = [];
     DAYS.forEach((day, idx) => {
       const d = hoursDraft[day];
-      if (!d.closed) {
+      if (d.closed) return;
+      for (const period of d.periods) {
+        if (!period.open || !period.close) continue;
         insertRows.push({
           restaurant_id: restaurantId,
           day_of_week: idx,
-          open_time: d.open,
-          close_time: d.close,
+          open_time: period.open,
+          close_time: period.close,
         });
       }
     });
@@ -411,6 +493,7 @@ export default function SettingsPanel() {
       { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
       { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
       { key: "phone", label: "Phone Number", icon: Phone, placeholder: "(555) 000-0000" },
+      { key: "chainGroupKey", label: "Chain Group Key", icon: Store, placeholder: "e.g. saravanaa-bhavan" },
       { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
     ];
 
@@ -633,6 +716,27 @@ export default function SettingsPanel() {
                 </AnimatePresence>
               </div>
 
+              {/* Community image contributions toggle */}
+              <div className="space-y-2">
+                <label className="flex items-center justify-between rounded-lg border border-white/10 bg-zinc-900/40 px-3 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-200">Community Menu Photos</p>
+                    <p className="text-xs text-zinc-500">
+                      {communityImagesSettingAvailable
+                        ? (communityImagesEnabled ? "Accepting user photo submissions" : "Submissions are disabled")
+                        : "Setting unavailable. Run latest mobile migration to enable."}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={communityImagesEnabled}
+                    disabled={!editing || !communityImagesSettingAvailable}
+                    onChange={(e) => setCommunityImagesEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded accent-amber-500 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+
               {/* Error */}
               <AnimatePresence>
                 {saveError && (
@@ -775,37 +879,57 @@ export default function SettingsPanel() {
                     {isClosed && !isEditing ? (
                       <span className="text-xs text-zinc-600 flex-1">Closed</span>
                     ) : isEditing ? (
-                      <div className="flex items-center gap-2 flex-1 flex-wrap">
-                        {!isClosed && (
-                          <>
+                      <div className="flex flex-col gap-2 flex-1">
+                        {!isClosed && dayData.periods.map((period, idx) => (
+                          <div key={`${day}-period-${idx}`} className="flex items-center gap-2 flex-wrap">
                             <input
                               type="time"
-                              value={dayData.open}
-                              onChange={(e) => setDayField(day, "open", e.target.value)}
+                              value={period.open}
+                              onChange={(e) => setPeriodField(day, idx, "open", e.target.value)}
                               className="h-8 px-2 rounded-lg border border-white/10 bg-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-amber-500/50"
                             />
                             <span className="text-zinc-600 text-xs">to</span>
                             <input
                               type="time"
-                              value={dayData.close}
-                              onChange={(e) => setDayField(day, "close", e.target.value)}
+                              value={period.close}
+                              onChange={(e) => setPeriodField(day, idx, "close", e.target.value)}
                               className="h-8 px-2 rounded-lg border border-white/10 bg-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-amber-500/50"
                             />
-                          </>
-                        )}
-                        <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none ml-auto">
-                          <input
-                            type="checkbox"
-                            checked={isClosed}
-                            onChange={(e) => setDayField(day, "closed", e.target.checked)}
-                            className="w-3.5 h-3.5 rounded accent-amber-500"
-                          />
-                          Closed
-                        </label>
+                            {dayData.periods.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removePeriod(day, idx)}
+                                className="h-8 px-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-[11px]"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          {!isClosed && (
+                            <button
+                              type="button"
+                              onClick={() => addPeriod(day)}
+                              className="h-8 px-2 rounded-lg border border-white/10 bg-zinc-800 text-zinc-300 text-[11px]"
+                            >
+                              + Add Period
+                            </button>
+                          )}
+                          <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none ml-auto">
+                            <input
+                              type="checkbox"
+                              checked={isClosed}
+                              onChange={(e) => setDayClosed(day, e.target.checked)}
+                              className="w-3.5 h-3.5 rounded accent-amber-500"
+                            />
+                            Closed
+                          </label>
+                        </div>
                       </div>
                     ) : (
                       <span className="text-xs text-zinc-400 flex-1">
-                        {fmt12(dayData.open)} – {fmt12(dayData.close)}
+                        {dayData.periods.map((period) => `${fmt12(period.open)} - ${fmt12(period.close)}`).join(", ")}
                       </span>
                     )}
                   </div>

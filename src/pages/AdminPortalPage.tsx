@@ -36,6 +36,7 @@ type RestaurantRow = {
   is_enabled: boolean | null;
   waitlist_open: boolean | null;
   stripe_account_id: string | null;
+  chain_group_key: string | null;
 };
 
 type ProfileOption = {
@@ -62,6 +63,7 @@ function emptyForm(): Partial<RestaurantRow> {
     is_enabled: true,
     waitlist_open: true,
     stripe_account_id: "",
+    chain_group_key: "",
   };
 }
 
@@ -78,11 +80,16 @@ export default function AdminPortalPage() {
   const [latText, setLatText] = useState("");
   const [lngText, setLngText] = useState("");
 
-  const [adminMode, setAdminMode] = useState<"restaurants" | "users">("restaurants");
+  const [adminMode, setAdminMode] = useState<"restaurants" | "groups" | "users">("restaurants");
   const [userSearch, setUserSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userDraft, setUserDraft] = useState({ full_name: "", phone_number: "", role: "user" });
   const [userSaving, setUserSaving] = useState(false);
+  const [groupEditorMode, setGroupEditorMode] = useState<"create" | "edit" | null>(null);
+  const [groupOriginalKey, setGroupOriginalKey] = useState<string | null>(null);
+  const [groupEditorName, setGroupEditorName] = useState("");
+  const [groupEditorRestaurantIds, setGroupEditorRestaurantIds] = useState<number[]>([]);
+  const [groupSaving, setGroupSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,6 +124,23 @@ export default function AdminPortalPage() {
         p.id.toLowerCase().includes(q),
     );
   }, [profiles, userSearch]);
+
+  const chainGroups = useMemo(() => {
+    const groups = new Map<string, RestaurantRow[]>();
+    for (const r of restaurants) {
+      const key = String(r.chain_group_key ?? "").trim();
+      if (!key) continue;
+      const list = groups.get(key) ?? [];
+      list.push(r);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries())
+      .map(([key, members]) => ({
+        key,
+        members: [...members].sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedUserId) return;
@@ -174,6 +198,94 @@ export default function AdminPortalPage() {
       setLngText(selectedRestaurant.long != null ? String(selectedRestaurant.long) : "");
     }
   }, [selectedId, selectedRestaurant]);
+
+  const normalizeGroupKey = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-_]/g, "")
+      .replace(/\s+/g, "-");
+
+  function openCreateGroupEditor() {
+    setGroupEditorMode("create");
+    setGroupOriginalKey(null);
+    setGroupEditorName("");
+    setGroupEditorRestaurantIds([]);
+  }
+
+  function openEditGroupEditor(groupKey: string, memberIds: number[]) {
+    setGroupEditorMode("edit");
+    setGroupOriginalKey(groupKey);
+    setGroupEditorName(groupKey);
+    setGroupEditorRestaurantIds(memberIds);
+  }
+
+  async function handleSaveGroupEditor() {
+    const groupKey = normalizeGroupKey(groupEditorName);
+    if (!groupKey) {
+      toast.error("Group name is required.");
+      return;
+    }
+    if (groupEditorRestaurantIds.length < 2) {
+      toast.error("Select at least 2 restaurants.");
+      return;
+    }
+    setGroupSaving(true);
+    try {
+      if (groupEditorMode === "edit" && groupOriginalKey) {
+        const previousMemberIds = restaurants
+          .filter((r) => String(r.chain_group_key ?? "").trim() === groupOriginalKey)
+          .map((r) => r.id);
+        if (previousMemberIds.length > 0) {
+          const { error: clearError } = await supabase
+            .from("restaurants")
+            .update({ chain_group_key: null })
+            .in("id", previousMemberIds);
+          if (clearError) throw clearError;
+        }
+      }
+
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ chain_group_key: groupKey })
+        .in("id", groupEditorRestaurantIds);
+      if (error) throw error;
+
+      await load();
+      setGroupEditorMode(null);
+      setGroupOriginalKey(null);
+      setGroupEditorName("");
+      setGroupEditorRestaurantIds([]);
+      toast.success(groupEditorMode === "create" ? "Group created." : "Group updated.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not save group.");
+    } finally {
+      setGroupSaving(false);
+    }
+  }
+
+  async function handleDeleteGroup(groupKey: string) {
+    setGroupSaving(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ chain_group_key: null })
+        .eq("chain_group_key", groupKey);
+      if (error) throw error;
+      await load();
+      if (groupOriginalKey === groupKey) {
+        setGroupEditorMode(null);
+        setGroupOriginalKey(null);
+        setGroupEditorName("");
+        setGroupEditorRestaurantIds([]);
+      }
+      toast.success("Group deleted.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not delete group.");
+    } finally {
+      setGroupSaving(false);
+    }
+  }
 
   const profileLabel = (p: ProfileOption) => {
     const bits = [p.full_name?.trim(), p.email?.trim()].filter(Boolean);
@@ -238,6 +350,7 @@ export default function AdminPortalPage() {
       is_enabled: draft.is_enabled !== false,
       waitlist_open: draft.waitlist_open !== false,
       stripe_account_id: draft.stripe_account_id?.trim() || null,
+      chain_group_key: draft.chain_group_key?.trim() || null,
     };
 
     setSaving(true);
@@ -335,6 +448,22 @@ export default function AdminPortalPage() {
           <Users className="h-4 w-4" />
           Users
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAdminMode("groups");
+            setSelectedId(null);
+            setSelectedUserId(null);
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            adminMode === "groups"
+              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
+              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          Groups
+        </button>
       </div>
 
       {adminMode === "users" ? (
@@ -431,6 +560,149 @@ export default function AdminPortalPage() {
             )}
           </main>
         </div>
+      ) : adminMode === "groups" ? (
+      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 pb-10 pt-4 sm:px-6 lg:min-h-[calc(100svh-6rem)] lg:flex-row lg:gap-6">
+        <aside className="flex w-full shrink-0 flex-col gap-3 border-b border-white/10 pb-4 lg:w-[360px] lg:border-b-0 lg:border-r lg:border-white/10 lg:pr-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Groups</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-8 gap-1 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25"
+              onClick={openCreateGroupEditor}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Group
+            </Button>
+          </div>
+          <ScrollArea className="h-[min(55vh,420px)] lg:h-[calc(100svh-12rem)]">
+            {chainGroups.length === 0 ? (
+              <p className="rounded-lg border border-white/10 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                No groups yet.
+              </p>
+            ) : (
+              <ul className="space-y-2 pr-2">
+                {chainGroups.map((g) => (
+                  <li key={g.key} className="rounded-lg border border-white/10 bg-zinc-900/40 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-mono text-xs text-sky-300">{g.key}</p>
+                      <span className="text-[11px] text-zinc-500">{g.members.length} restaurants</span>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500 line-clamp-2">
+                      {g.members.map((m) => m.name).join(", ")}
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 border-sky-500/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
+                        onClick={() => openEditGroupEditor(g.key, g.members.map((m) => m.id))}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                        onClick={() => {
+                          if (window.confirm(`Delete group "${g.key}"?`)) {
+                            void handleDeleteGroup(g.key);
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
+        </aside>
+
+        <main className="min-w-0 flex-1">
+          {!groupEditorMode ? (
+            <p className="rounded-xl border border-white/10 bg-zinc-900/40 p-8 text-center text-zinc-400">
+              Select a group to edit, or create a new group.
+            </p>
+          ) : (
+            <div className="mx-auto max-w-2xl space-y-5 rounded-2xl border border-white/10 bg-zinc-900/50 p-6">
+              <h2 className="text-base font-semibold text-white">
+                {groupEditorMode === "create" ? "Create Group" : `Edit Group — ${groupOriginalKey ?? ""}`}
+              </h2>
+              <div className="space-y-2">
+                <Label htmlFor="group_key">Group name / key</Label>
+                <Input
+                  id="group_key"
+                  value={groupEditorName}
+                  onChange={(e) => setGroupEditorName(e.target.value)}
+                  placeholder="e.g. saravanaa-bhavan"
+                  className="border-white/10 bg-zinc-950/80"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Select restaurants</Label>
+                <ScrollArea className="h-[300px] rounded-lg border border-white/10 bg-zinc-950/40 p-2">
+                  <ul className="space-y-1 pr-2">
+                    {restaurants.map((r) => {
+                      const checked = groupEditorRestaurantIds.includes(r.id);
+                      return (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGroupEditorRestaurantIds((prev) =>
+                                prev.includes(r.id) ? prev.filter((id) => id !== r.id) : [...prev, r.id],
+                              )
+                            }
+                            className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                              checked
+                                ? "bg-sky-500/15 text-sky-100 ring-1 ring-sky-500/30"
+                                : "text-zinc-300 hover:bg-white/5"
+                            }`}
+                          >
+                            <span className="font-medium">{r.name}</span>
+                            <span className="mt-0.5 block text-xs text-zinc-500">ID {r.id}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </ScrollArea>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  disabled={groupSaving}
+                  onClick={() => void handleSaveGroupEditor()}
+                  className="gap-2 bg-sky-600 text-black hover:bg-sky-500"
+                >
+                  {groupSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {groupEditorMode === "create" ? "Create group" : "Save group"} ({groupEditorRestaurantIds.length})
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/15 bg-zinc-900/80 text-zinc-200 hover:bg-zinc-800"
+                  onClick={() => {
+                    setGroupEditorMode(null);
+                    setGroupOriginalKey(null);
+                    setGroupEditorName("");
+                    setGroupEditorRestaurantIds([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
       ) : (
       <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-0 px-0 pb-10 pt-4 sm:px-4 lg:min-h-[calc(100svh-4.75rem)] lg:flex-row lg:gap-6">
         <aside className="flex min-h-0 w-full shrink-0 flex-col border-b border-white/10 bg-zinc-950/60 lg:w-[320px] lg:flex-shrink-0 lg:self-stretch lg:border-b-0 lg:border-r lg:border-white/10">
