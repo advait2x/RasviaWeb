@@ -71,10 +71,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (session) {
                 // Refetch on sign-in and initial session so `profiles.role` (e.g. admin) is always current.
                 // Skip TOKEN_REFRESHED to avoid flashing reload on silent refresh.
+                // For SIGNED_IN, only refetch when the user actually changed (different user ID) to
+                // prevent the loading spinner from appearing every time the browser tab is focused,
+                // which can trigger a SIGNED_IN event due to background token refresh.
                 const shouldRefetchUserData =
                     event === "INITIAL_SESSION" ||
                     event === "USER_UPDATED" ||
-                    event === "SIGNED_IN";
+                    (event === "SIGNED_IN" && incomingUserId !== previousUserId);
                 if (shouldRefetchUserData) {
                     setLoading(true);
                     fetchUserData(session.user.id);

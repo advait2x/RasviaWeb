@@ -632,9 +632,24 @@ export default function TeamRolesPanel() {
                                 <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                     Permissions
                                 </label>
-                                <span className="text-[10px] text-zinc-500">
-                                    {roleDraft.permissions.length} / {ALL_PERMISSIONS.length} selected
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-zinc-500">
+                                        {roleDraft.permissions.length} / {ALL_PERMISSIONS.length} selected
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const allSelected = roleDraft.permissions.length === ALL_PERMISSIONS.length;
+                                            setRoleDraft((d) => ({
+                                                ...d,
+                                                permissions: allSelected ? [] : ALL_PERMISSIONS.map((p) => p.key),
+                                            }));
+                                        }}
+                                        className="text-[10px] text-amber-500 hover:text-amber-400 transition-colors font-medium"
+                                    >
+                                        {roleDraft.permissions.length === ALL_PERMISSIONS.length ? "Deselect all" : "Select all"}
+                                    </button>
+                                </div>
                             </div>
                             <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                                 {ALL_PERMISSIONS.map(({ key, label, description }) => {
