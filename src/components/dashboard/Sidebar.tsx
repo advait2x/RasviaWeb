@@ -62,7 +62,7 @@ export default function Sidebar({
 }) {
   const { activeView, setActiveView, unreadCount, preorderCount, waitlist } = useDashboard();
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
-  const { hasPermission, isAdmin, restaurantId } = useAuth();
+  const { hasPermission, isAdmin, restaurantId, session, userRole } = useAuth();
   const [restaurantBranding, setRestaurantBranding] = useState<{
     name: string;
     image_url: string | null;
@@ -278,8 +278,50 @@ export default function Sidebar({
           </div>
         </nav>
 
-        {/* Bottom: sign out + status + collapse */}
+        {/* Bottom: profile + sign out + status + collapse */}
         <div className="flex w-full shrink-0 flex-col items-center">
+          {/* User profile chip */}
+          {session && (() => {
+            const email = session.user.email ?? "";
+            const initials = email
+              .split("@")[0]
+              .replace(/[^a-zA-Z0-9]/g, " ")
+              .trim()
+              .split(" ")
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((s) => s[0].toUpperCase())
+              .join("") || "?";
+            const displayRole = userRole
+              ? userRole.charAt(0).toUpperCase() + userRole.slice(1).replace(/_/g, " ")
+              : "Staff";
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`mb-2 flex items-center rounded-xl border border-white/6 bg-zinc-800/40 ${
+                      expanded ? "w-[150px] px-2.5 py-2 gap-2.5" : "w-11 h-11 justify-center"
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[11px] font-bold text-amber-400 select-none">{initials}</span>
+                    </div>
+                    {expanded && (
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-zinc-300 truncate leading-tight">{email}</p>
+                        <p className="text-[9px] text-zinc-500 truncate leading-tight mt-0.5">{displayRole}</p>
+                      </div>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+                  <p className="font-semibold">{email}</p>
+                  <p className="text-zinc-400 mt-0.5">{displayRole}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })()}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <motion.button

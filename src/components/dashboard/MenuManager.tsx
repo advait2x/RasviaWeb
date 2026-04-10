@@ -443,6 +443,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 function ModifiersManager() {
   const { restaurantId, hasPermission } = useAuth();
+  const canManageMods = hasPermission("manage_modifiers") || hasPermission("manage_menu");
   const [modifiers, setModifiers] = useState<ItemModifier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -513,10 +514,12 @@ function ModifiersManager() {
           <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Item Modifiers</h2>
           <p className="text-xs text-zinc-500 mt-0.5">{modifiers.length} modifier{modifiers.length !== 1 ? "s" : ""}</p>
         </div>
-        <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setEditing(null); setForm({ name: "", priceAdjustment: "", category: "Extras" }); setShowForm(true); }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors">
-          <Plus size={14} strokeWidth={2} />New Modifier
-        </motion.button>
+        {canManageMods && (
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setEditing(null); setForm({ name: "", priceAdjustment: "", category: "Extras" }); setShowForm(true); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors">
+            <Plus size={14} strokeWidth={2} />New Modifier
+          </motion.button>
+        )}
       </div>
 
       <ScrollArea className="flex-1">
@@ -530,15 +533,19 @@ function ModifiersManager() {
                     <p className="text-sm font-medium text-zinc-100">{mod.name}</p>
                     <p className="text-xs text-zinc-500">{mod.priceAdjustment > 0 ? "+" : ""}${mod.priceAdjustment.toFixed(2)}</p>
                   </div>
-                  <Switch checked={mod.active} onCheckedChange={() => handleToggle(mod.id, mod.active)} />
-                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setEditing(mod); setForm({ name: mod.name, priceAdjustment: String(mod.priceAdjustment), category: mod.category }); setShowForm(true); }}
-                    className="w-7 h-7 rounded-lg bg-zinc-700/50 border border-white/8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
-                    <Pencil size={12} strokeWidth={1.5} />
-                  </motion.button>
-                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDelete(mod.id)}
-                    className="w-7 h-7 rounded-lg bg-red-500/8 border border-red-500/15 flex items-center justify-center text-red-400/60 hover:text-red-400 transition-colors">
-                    <Trash2 size={12} strokeWidth={1.5} />
-                  </motion.button>
+                  {canManageMods && <Switch checked={mod.active} onCheckedChange={() => handleToggle(mod.id, mod.active)} />}
+                  {canManageMods && (
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setEditing(mod); setForm({ name: mod.name, priceAdjustment: String(mod.priceAdjustment), category: mod.category }); setShowForm(true); }}
+                      className="w-7 h-7 rounded-lg bg-zinc-700/50 border border-white/8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
+                      <Pencil size={12} strokeWidth={1.5} />
+                    </motion.button>
+                  )}
+                  {canManageMods && (
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDelete(mod.id)}
+                      className="w-7 h-7 rounded-lg bg-red-500/8 border border-red-500/15 flex items-center justify-center text-red-400/60 hover:text-red-400 transition-colors">
+                      <Trash2 size={12} strokeWidth={1.5} />
+                    </motion.button>
+                  )}
                 </div>
               ))}
             </div>
@@ -585,6 +592,7 @@ function ModifiersManager() {
 export default function MenuManager() {
   const { menuItems, menuLoading, toggleMenuItem, addMenuItem, updateMenuItem, deleteMenuItem } = useDashboard();
   const { hasPermission } = useAuth();
+  const canEdit = hasPermission("manage_menu");
   const [menuTab, setMenuTab] = useState<"items" | "modifiers">("items");
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
@@ -720,14 +728,16 @@ export default function MenuManager() {
             </AnimatePresence>
           </div>
 
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={openAdd}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
-          >
-            <Plus size={14} strokeWidth={2} />
-            Add Item
-          </motion.button>
+          {canEdit && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={openAdd}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+            >
+              <Plus size={14} strokeWidth={2} />
+              Add Item
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -832,27 +842,29 @@ export default function MenuManager() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => openEdit(item)}
-                          className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
-                        >
-                          <Pencil size={13} strokeWidth={1.5} />
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setConfirmDelete(item.id)}
-                          className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          <Trash2 size={13} strokeWidth={1.5} />
-                        </motion.button>
-                        <Switch
-                          checked={item.inStock}
-                          onCheckedChange={() => toggleMenuItem(item.id)}
-                          className={`ml-1 ${item.inStock ? "data-[state=checked]:bg-amber-500" : "data-[state=unchecked]:bg-zinc-700"}`}
-                        />
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => openEdit(item)}
+                            className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                          >
+                            <Pencil size={13} strokeWidth={1.5} />
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setConfirmDelete(item.id)}
+                            className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 size={13} strokeWidth={1.5} />
+                          </motion.button>
+                          <Switch
+                            checked={item.inStock}
+                            onCheckedChange={() => toggleMenuItem(item.id)}
+                            className={`ml-1 ${item.inStock ? "data-[state=checked]:bg-amber-500" : "data-[state=unchecked]:bg-zinc-700"}`}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Description */}
