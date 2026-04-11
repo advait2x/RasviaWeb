@@ -137,6 +137,7 @@ export default function SettingsPanel() {
   const [imageUploading, setImageUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showWaitlistCapacityDialog, setShowWaitlistCapacityDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -157,6 +158,8 @@ export default function SettingsPanel() {
   const [waitlistEarlyMinutes, setWaitlistEarlyMinutes] = useState(30);
   const [savedWaitlistEarlyEnabled, setSavedWaitlistEarlyEnabled] = useState(false);
   const [savedWaitlistEarlyMinutes, setSavedWaitlistEarlyMinutes] = useState(30);
+  const [maxWaitlistSize, setMaxWaitlistSize] = useState(15);
+  const [savedMaxWaitlistSize, setSavedMaxWaitlistSize] = useState(15);
 
   const fetchProfile = useCallback(async () => {
     if (!restaurantId) return;
@@ -198,6 +201,9 @@ export default function SettingsPanel() {
     setWaitlistEarlyMinutes(earlyM);
     setSavedWaitlistEarlyEnabled(earlyEn);
     setSavedWaitlistEarlyMinutes(earlyM);
+    const maxWait = Math.max(1, Math.min(200, Number(row?.max_waitlist_size) || 15));
+    setMaxWaitlistSize(maxWait);
+    setSavedMaxWaitlistSize(maxWait);
 
     const dbTags: string[] = [];
     if (!cuisinesRes.error && cuisinesRes.data) {
@@ -313,7 +319,9 @@ export default function SettingsPanel() {
 
   useEffect(() => { fetchProfile(); fetchHours(); }, [fetchProfile, fetchHours]);
 
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
+  const isDirty =
+    JSON.stringify(draft) !== JSON.stringify(profile) ||
+    (communityImagesSettingAvailable && communityImagesEnabled !== savedCommunityImagesEnabled);
 
   const handleSave = async () => {
     if (!restaurantId) return;
@@ -452,11 +460,13 @@ export default function SettingsPanel() {
     }
 
     const earlyM = Math.max(0, Math.min(24 * 60, Number(waitlistEarlyMinutes) || 0));
+    const maxWait = Math.max(1, Math.min(200, Number(maxWaitlistSize) || 15));
     const { error: earlyErr } = await supabase
       .from("restaurants")
       .update({
         waitlist_early_open_enabled: waitlistEarlyEnabled,
         waitlist_early_open_minutes: earlyM,
+        max_waitlist_size: maxWait,
       })
       .eq("id", restaurantId);
     if (earlyErr) {
@@ -466,6 +476,7 @@ export default function SettingsPanel() {
     }
     setSavedWaitlistEarlyEnabled(waitlistEarlyEnabled);
     setSavedWaitlistEarlyMinutes(earlyM);
+    setSavedMaxWaitlistSize(maxWait);
 
     setHours({ ...hoursDraft });
     setEditingHours(false);
@@ -479,8 +490,30 @@ export default function SettingsPanel() {
     setHoursDraft(hours ?? defaultHours());
     setWaitlistEarlyEnabled(savedWaitlistEarlyEnabled);
     setWaitlistEarlyMinutes(savedWaitlistEarlyMinutes);
+    setMaxWaitlistSize(savedMaxWaitlistSize);
     setEditingHours(false);
     setHoursError(null);
+  };
+
+  const saveWaitlistCapacity = async () => {
+    if (!restaurantId) return;
+    setHoursSaving(true);
+    setHoursError(null);
+    const maxWait = Math.max(1, Math.min(200, Number(maxWaitlistSize) || 15));
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ max_waitlist_size: maxWait })
+      .eq("id", restaurantId);
+    setHoursSaving(false);
+    if (error) {
+      setHoursError(error.message);
+      return;
+    }
+    setSavedMaxWaitlistSize(maxWait);
+    setMaxWaitlistSize(maxWait);
+    setShowWaitlistCapacityDialog(false);
+    setHoursSuccess(true);
+    setTimeout(() => setHoursSuccess(false), 3000);
   };
 
   const fields: {
@@ -820,6 +853,23 @@ export default function SettingsPanel() {
             )}
           </div>
 
+          <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Waitlist Capacity</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Max active parties: <span className="text-zinc-300 font-semibold">{savedMaxWaitlistSize}</span>
+              </p>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowWaitlistCapacityDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
+            >
+              <Pencil size={12} strokeWidth={1.5} />
+              Edit
+            </motion.button>
+          </div>
+
           {!hoursLoaded ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 size={20} strokeWidth={1.5} className="text-zinc-600 animate-spin" />
@@ -1000,6 +1050,53 @@ export default function SettingsPanel() {
       </div>
 
       {/* Profile Confirmation Dialog */}
+      <Dialog open={showWaitlistCapacityDialog} onOpenChange={(o) => !o && setShowWaitlistCapacityDialog(false)}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-zinc-100">Waitlist Capacity</h3>
+              <p className="text-sm text-zinc-400">
+                Set how many active parties can wait before new joins are blocked.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Max active parties</label>
+              <Input
+                type="number"
+                min={1}
+                max={200}
+                value={maxWaitlistSize}
+                onChange={(e) => setMaxWaitlistSize(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+                className="h-10 bg-zinc-900 border-white/10 text-zinc-100 text-sm"
+              />
+            </div>
+            <p className="text-xs text-zinc-500">
+              Guests above this limit will be told to call the restaurant directly.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setMaxWaitlistSize(savedMaxWaitlistSize);
+                  setShowWaitlistCapacityDialog(false);
+                }}
+                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={saveWaitlistCapacity}
+                disabled={hoursSaving}
+                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
+              >
+                {hoursSaving ? "Saving..." : "Save"}
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showConfirm} onOpenChange={(o) => !o && setShowConfirm(false)}>
         <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="flex flex-col items-center text-center gap-4">

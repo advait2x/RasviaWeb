@@ -131,7 +131,7 @@ export default function StripeConnect() {
                         {/* Badge */}
                         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-xs font-semibold text-emerald-400 flex-shrink-0">
                             <CheckCircle2 size={11} strokeWidth={2.5} />
-                            Active ✅
+                            Active
                         </span>
                     </div>
                 ) : stripeAccountId && !payoutsEnabled ? (

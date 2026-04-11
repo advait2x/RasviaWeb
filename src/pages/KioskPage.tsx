@@ -70,6 +70,32 @@ export default function KioskPage() {
     setLoading(true);
     setError(null);
 
+    const [{ data: restData, error: restErr }, { count: activeCount, error: countErr }] = await Promise.all([
+      supabase
+        .from("restaurants")
+        .select("max_waitlist_size")
+        .eq("id", restaurantId)
+        .maybeSingle(),
+      supabase
+        .from("waitlist_entries")
+        .select("id", { head: true, count: "exact" })
+        .eq("restaurant_id", restaurantId)
+        .in("status", ["waiting", "notified"]),
+    ]);
+
+    if (restErr || countErr) {
+      setLoading(false);
+      setError("Something went wrong. Please ask a staff member for help.");
+      return;
+    }
+
+    const maxWaitlistSize = Math.max(1, Math.min(200, Number(restData?.max_waitlist_size) || 15));
+    if ((activeCount ?? 0) >= maxWaitlistSize) {
+      setLoading(false);
+      setError("Waitlist is currently full. Please call the restaurant for availability.");
+      return;
+    }
+
     const { error: insertError } = await supabase.from("waitlist_entries").insert({
       restaurant_id: restaurantId,
       name: `${trimmedName}'s Party`,
