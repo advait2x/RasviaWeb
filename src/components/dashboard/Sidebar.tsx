@@ -67,6 +67,7 @@ export default function Sidebar({
     name: string;
     image_url: string | null;
   } | null>(null);
+  const [profileName, setProfileName] = useState<string>("");
 
   useEffect(() => {
     if (!restaurantId) {
@@ -91,6 +92,28 @@ export default function Sidebar({
       cancelled = true;
     };
   }, [restaurantId]);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      setProfileName("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      const nextName = String((data as { full_name?: string | null } | null)?.full_name ?? "").trim();
+      setProfileName(nextName);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
@@ -283,6 +306,8 @@ export default function Sidebar({
           {/* User profile chip */}
           {session && (() => {
             const email = session.user.email ?? "";
+            const fallbackName = email.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "User";
+            const displayName = profileName || fallbackName;
             const initials = email
               .split("@")[0]
               .replace(/[^a-zA-Z0-9]/g, " ")
@@ -298,24 +323,27 @@ export default function Sidebar({
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => window.location.assign("/partner-profile")}
                     className={`mb-2 flex items-center rounded-xl border border-white/6 bg-zinc-800/40 ${
                       expanded ? "w-[150px] px-2.5 py-2 gap-2.5" : "w-11 h-11 justify-center"
-                    }`}
+                    } hover:bg-zinc-700/50 transition-colors`}
                   >
                     <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
                       <span className="text-[11px] font-bold text-amber-400 select-none">{initials}</span>
                     </div>
                     {expanded && (
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-zinc-300 truncate leading-tight">{email}</p>
+                        <p className="text-[10px] font-semibold text-zinc-300 truncate leading-tight">{displayName}</p>
                         <p className="text-[9px] text-zinc-500 truncate leading-tight mt-0.5">{displayRole}</p>
                       </div>
                     )}
-                  </div>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-                  <p className="font-semibold">{email}</p>
+                  <p className="font-semibold">{displayName}</p>
+                  <p className="text-zinc-500">{email}</p>
                   <p className="text-zinc-400 mt-0.5">{displayRole}</p>
                 </TooltipContent>
               </Tooltip>

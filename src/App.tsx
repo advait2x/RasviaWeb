@@ -11,6 +11,7 @@ import ContactPage from "./pages/ContactPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import AdminPortalPage from "./pages/AdminPortalPage";
+import PartnerProfilePage from "./pages/PartnerProfilePage";
 import { Toaster } from "sonner";
 
 function AdminPortalApp() {
@@ -163,6 +164,29 @@ function PartnerPortalApp() {
   );
 }
 
+function PartnerProfileApp() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+          </div>
+          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Profile…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  return <PartnerProfilePage />;
+}
+
 function AppContent() {
   // Re-render on browser back/forward (Safari popstate fix)
   const [, setPath] = useState(window.location.pathname);
@@ -220,6 +244,10 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/partner-portal')) {
     return <PartnerPortalApp />;
+  }
+
+  if (window.location.pathname.startsWith('/partner-profile')) {
+    return <PartnerProfileApp />;
   }
 
   if (window.location.pathname.startsWith('/contact')) {

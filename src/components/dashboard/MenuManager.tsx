@@ -601,6 +601,7 @@ export default function MenuManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmStockItem, setConfirmStockItem] = useState<MenuItem | null>(null);
 
   const toggleFilter = (mt: MealTime) => {
     setActiveFilters((prev) =>
@@ -860,7 +861,9 @@ export default function MenuManager() {
                           </motion.button>
                           <Switch
                             checked={item.inStock}
-                            onCheckedChange={() => toggleMenuItem(item.id)}
+                            onCheckedChange={() => {
+                              setConfirmStockItem(item);
+                            }}
                             className={`ml-1 ${item.inStock ? "data-[state=checked]:bg-amber-500" : "data-[state=unchecked]:bg-zinc-700"}`}
                           />
                         </div>
@@ -934,6 +937,45 @@ export default function MenuManager() {
         onClose={() => { setShowForm(false); setEditingItem(null); }}
         onSave={handleSave}
       />
+
+      <Dialog open={!!confirmStockItem} onOpenChange={(o) => !o && setConfirmStockItem(null)}>
+        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="space-y-4">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-base font-semibold text-zinc-100">
+                {confirmStockItem?.inStock ? "Mark out of stock?" : "Mark back in stock?"}
+              </DialogTitle>
+            </DialogHeader>
+            {confirmStockItem && (
+              <p className="text-sm text-zinc-300">
+                Are you sure you want to mark{" "}
+                <span className="font-semibold text-zinc-100">{confirmStockItem.name}</span>{" "}
+                {confirmStockItem.inStock ? "out of stock" : "back in stock"}?
+              </p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setConfirmStockItem(null)}
+                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (!confirmStockItem) return;
+                  toggleMenuItem(confirmStockItem.id);
+                  setConfirmStockItem(null);
+                }}
+                className="flex-1 py-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-semibold hover:bg-amber-500/25 transition-colors"
+              >
+                Confirm
+              </motion.button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
