@@ -24,6 +24,17 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+function getMembersFromItems(items: PartyItemRow[]): string[] {
+  return Array.from(new Set(items.map((i) => String(i.added_by_name || "").trim()).filter(Boolean)));
+}
+
+function getCartTotalFromItems(items: PartyItemRow[]): number {
+  return items.reduce(
+    (sum, item) => sum + Number(item.menu_items?.price ?? 0) * Math.max(1, Number(item.quantity ?? 1)),
+    0
+  );
+}
+
 function parseItemSplitMeta(raw: unknown): ItemSplitMeta | null {
   if (typeof raw !== "string" || !raw.startsWith(SPLIT_META_PREFIX)) return null;
   try {
@@ -101,25 +112,39 @@ export default function JoinBridge() {
       .select("*, menu_items(name, price, description, image_url)")
       .eq("session_id", sessionId)
       .order("created_at", { ascending: true });
-    setCartItems((data ?? []) as unknown as PartyItemRow[]);
+    const nextItems = (data ?? []) as unknown as PartyItemRow[];
+    setCartItems(nextItems);
+    return nextItems;
   };
 
-  const fetchSplitPaidMembers = async () => {
+  const fetchSplitPaidMembers = async (cartTotalOverride?: number, memberListOverride?: string[]) => {
     if (!sessionId) return;
     try {
       const { data } = await supabase
         .from("orders")
-        .select("customer_name,status,party_session_id")
+        .select("customer_name,subtotal")
         .eq("party_session_id", sessionId)
-        .in("status", ["paid", "ready", "served"]);
+        .in("status", ["pending", "preparing", "ready", "served", "completed"]);
+
+      const effectiveMembers = memberListOverride ?? members;
+      const effectiveCartTotal = cartTotalOverride ?? total;
+
+      const paidRows = (data ?? []) as Array<{ customer_name: string | null; subtotal: number | null }>;
+      const paidTotal = paidRows.reduce((sum, row) => sum + Number(row?.subtotal ?? 0), 0);
 
       const paid = Array.from(
         new Set(
-          (data ?? [])
+          paidRows
             .map((row: any) => String(row?.customer_name ?? "").trim())
             .filter(Boolean)
         )
       );
+
+      if (effectiveCartTotal > 0 && paidTotal + 0.005 >= effectiveCartTotal) {
+        setSplitPaidMembers(effectiveMembers);
+        return;
+      }
+
       setSplitPaidMembers(paid);
     } catch {
       // ignore for anonymous browsers
@@ -175,8 +200,10 @@ export default function JoinBridge() {
         setCurrentUserId(authData.session?.user?.id ?? null);
         setIsHost(Boolean(authData.session?.user?.id && authData.session.user.id === sessionData.host_user_id));
 
-        await fetchCart();
-        await fetchSplitPaidMembers();
+        const fetchedCart = (await fetchCart()) ?? [];
+        const fetchedMembers = getMembersFromItems(fetchedCart);
+        const fetchedTotal = getCartTotalFromItems(fetchedCart);
+        await fetchSplitPaidMembers(fetchedTotal, fetchedMembers);
       } catch (err: any) {
         setError(err.message ?? "Could not load group order.");
       } finally {
@@ -189,9 +216,16 @@ export default function JoinBridge() {
 
   useEffect(() => {
     if (!sessionId) return;
+    const refreshCartAndPayments = async () => {
+      const latestCart = (await fetchCart()) ?? [];
+      await fetchSplitPaidMembers(getCartTotalFromItems(latestCart), getMembersFromItems(latestCart));
+    };
+
     const channel = supabase
       .channel(`web-party-live-${sessionId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "party_items", filter: `session_id=eq.${sessionId}` }, fetchCart)
+      .on("postgres_changes", { event: "*", schema: "public", table: "party_items", filter: `session_id=eq.${sessionId}` }, () => {
+        refreshCartAndPayments().catch(() => {});
+      })
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "party_sessions", filter: `id=eq.${sessionId}` },
@@ -223,8 +257,9 @@ export default function JoinBridge() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `party_session_id=eq.${sessionId}` },
-        () => {
-          fetchSplitPaidMembers().catch(() => {});
+        async () => {
+          const latestCart = (await fetchCart()) ?? [];
+          fetchSplitPaidMembers(getCartTotalFromItems(latestCart), getMembersFromItems(latestCart)).catch(() => {});
         }
       )
       .subscribe();
@@ -294,6 +329,10 @@ export default function JoinBridge() {
     [splitRequiredMembers, splitPaidMemberSet]
   );
   const mySharePaid = guestName ? splitPaidMemberSet.has(normalizeName(guestName)) : false;
+  const paidMemberCount = useMemo(
+    () => members.filter((name) => splitPaidMemberSet.has(normalizeName(name))).length,
+    [members, splitPaidMemberSet]
+  );
   const membersWithAppIdentity = useMemo(
     () =>
       members.filter((name) =>
@@ -759,9 +798,11 @@ export default function JoinBridge() {
       {splitPaid && (
         <div className="mx-auto max-w-6xl px-4 pt-4">
           <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-200">
-            {splitPaidPayer
-              ? `${splitPaidPayer} completed payment successfully.`
-              : "Payment completed successfully."}
+            {splitAllPaid
+              ? "All Paid — Order Submitted"
+              : splitPaidPayer && splitPaidMemberSet.has(normalizeName(splitPaidPayer))
+                ? `${splitPaidPayer} completed payment successfully.`
+                : "Payment completed successfully."}
           </div>
         </div>
       )}
@@ -917,10 +958,20 @@ export default function JoinBridge() {
                 <div className="space-y-1.5">
                   {members.map((name) => (
                     <div key={name} className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-300">{name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-300">{name}</span>
+                        {splitPaidMemberSet.has(normalizeName(name)) && (
+                          <span className="rounded-full border border-emerald-500/35 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                            Paid
+                          </span>
+                        )}
+                      </div>
                       <span className="font-semibold text-indigo-300">${(memberTotals[name] ?? 0).toFixed(2)}</span>
                     </div>
                   ))}
+                </div>
+                <div className="mt-2 text-[11px] text-zinc-400">
+                  {paidMemberCount} of {members.length} members paid
                 </div>
               </div>
             )}
@@ -997,18 +1048,24 @@ export default function JoinBridge() {
             ) : paymentMode === "split" ? (
               <>
                 {myShareTotal > 0 && (
-                  <button
-                    onClick={payMyShare}
-                    disabled={payingMyShare || mySharePaid}
-                    className="w-full rounded-xl bg-indigo-500 text-white font-semibold py-2.5 hover:bg-indigo-400 disabled:opacity-60"
-                  >
-                    {payingMyShare ? "Opening checkout..." : mySharePaid ? "My Share Paid" : `Pay My Share · $${myShareTotal.toFixed(2)}`}
-                  </button>
+                  mySharePaid ? (
+                    <div className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-200 font-semibold py-2.5 text-center">
+                      Your Share Paid
+                    </div>
+                  ) : (
+                    <button
+                      onClick={payMyShare}
+                      disabled={payingMyShare}
+                      className="w-full rounded-xl bg-indigo-500 text-white font-semibold py-2.5 hover:bg-indigo-400 disabled:opacity-60"
+                    >
+                      {payingMyShare ? "Opening checkout..." : `Pay My Share · $${myShareTotal.toFixed(2)}`}
+                    </button>
+                  )
                 )}
                 <div className="rounded-xl bg-indigo-500/12 border border-indigo-500/30 text-indigo-200 text-xs py-2.5 px-3 text-center">
                   {isHost
                     ? splitAllPaid
-                      ? "All members have paid. You can submit the order."
+                      ? "All Paid — Order Submitted"
                       : `Split mode is active. Waiting on: ${unpaidSplitMembers.join(", ")}`
                     : myShareTotal > 0
                       ? mySharePaid
