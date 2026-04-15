@@ -28,7 +28,7 @@ RasviaWeb/
 │   ├── main.tsx                  # App entry, providers
 │   ├── index.css                 # Global styles
 │   ├── pages/                    # Route-level page components
-│   │   ├── LandingPage.tsx       # Public homepage
+│   │   ├── LandingPage.tsx       # Public homepage (navbar, pricing, about/founders)
 │   │   ├── Login.tsx             # Dashboard login
 │   │   ├── AdminPortalPage.tsx   # Main dashboard (owner/admin)
 │   │   ├── JoinBridge.tsx        # Group order join flow
@@ -205,3 +205,46 @@ Current repo defaults:
 6. **Edge functions share code between Rasvia1 and RasviaWeb** — `create-checkout` and `payment-redirect` exist in both repos and should be kept in sync
 7. **Receipt print HTML must be escaped** — never inject unsanitized order/user fields into the print window markup
 8. **`chart.tsx` uses `dangerouslySetInnerHTML`** — this is the standard shadcn/ui pattern for injecting CSS variables into a `<style>` tag; the values come from the config object, not user input
+
+## Landing Page Navigation & Content
+
+The landing page (`LandingPage.tsx`) includes a top navbar, hero section, feature gallery, pricing section, about/founders section, and footer. All navigation categories and content data are defined as constants at the top of the file for easy editing.
+
+### Navbar Categories
+
+| Category | Type | Content |
+|----------|------|---------|
+| **Products** | Hover dropdown | Waitlists, Group Carts, Fast Payouts (matches footer) |
+| **Pricing** | Anchor link | Scrolls to `#pricing` section |
+| **About** | Anchor link | Scrolls to `#about` section |
+
+The navbar includes a mobile hamburger menu that mirrors the desktop navigation.
+
+### Pricing Tiers (`PRICING_TIERS`)
+
+| Tier | Price | Highlighted |
+|------|-------|-------------|
+| Starter | $49/mo | No |
+| Professional | $99/mo | Yes ("Most Popular") |
+| Enterprise | $149/mo | No |
+
+Edit the `PRICING_TIERS` array at the top of `LandingPage.tsx` to update tier names, prices, descriptions, and feature lists.
+
+### Founder Data (`FOUNDERS`)
+
+The `FOUNDERS` array contains 3 entries with these fields:
+- `name` — display name
+- `role` — title (e.g. "CEO & Co-Founder")
+- `bio` — short biography
+- `initials` — 2-letter initials for the avatar fallback
+- `gradient` — Tailwind gradient classes for the avatar background
+- `imageSrc` — set to a real image path (e.g. `"/founders/arjun.jpg"`) to replace the initials avatar
+
+### Footer Structure
+
+| Column | Links |
+|--------|-------|
+| **Product** | Waitlists, Group Carts, Fast Payouts, Pricing |
+| **About** | Our Mission, Team, Contact Sales, Partner Login |
+| **Legal** | Privacy Policy, Terms of Service |
+

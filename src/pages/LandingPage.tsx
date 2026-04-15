@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Menu, Pause, Play, X } from "lucide-react";
 
 const FEATURE_SLIDES = [
   {
@@ -53,6 +53,239 @@ const INVENTORY_ROWS = [
   { name: "Mutton Biryani", category: "Main course", available: false },
   { name: "Garlic Naan", category: "Bread", available: true },
 ];
+
+// ──────────────────────────────────────────────────────
+// NAV / PRICING / ABOUT DATA
+// ──────────────────────────────────────────────────────
+
+const NAV_PRODUCT_LINKS = [
+  { name: "Waitlists", description: "Real-time waitlist management with SMS notifications" },
+  { name: "Group Carts", description: "Live cart sync with per-member splits and modifiers" },
+  { name: "Fast Payouts", description: "Clean payout summaries your accounting team can trust" },
+];
+
+const PRICING_TIERS = [
+  {
+    name: "Starter",
+    price: 49,
+    description: "Perfect for small restaurants getting started",
+    features: [
+      "Up to 20 tables",
+      "Basic waitlist management",
+      "Menu management",
+      "Email support",
+      "1 staff account",
+      "Basic analytics dashboard",
+    ],
+    highlighted: false,
+  },
+  {
+    name: "Professional",
+    price: 99,
+    description: "For growing restaurants that need more power",
+    features: [
+      "Unlimited tables",
+      "Advanced waitlist with SMS alerts",
+      "Group ordering & split payments",
+      "Real-time 86 switch",
+      "Up to 10 staff accounts",
+      "Priority support",
+      "Advanced analytics & reports",
+      "Stripe Connect payouts",
+    ],
+    highlighted: true,
+  },
+  {
+    name: "Enterprise",
+    price: 149,
+    description: "Full-featured solution for high-volume venues",
+    features: [
+      "Everything in Professional",
+      "Unlimited staff accounts",
+      "Multi-location support",
+      "Custom role permissions",
+      "Dedicated account manager",
+      "API access",
+      "White-label kiosk mode",
+      "Custom integrations",
+      "24/7 phone support",
+    ],
+    highlighted: false,
+  },
+];
+
+/* ── Founder data ─────────────────────────────────────
+   To add a real photo, set `imageSrc` to the image path,
+   e.g. imageSrc: "/founders/arjun.jpg"
+   ──────────────────────────────────────────────────── */
+const FOUNDERS = [
+    {
+    name: "Rithwik Matta",
+    role: "CTO & Co-Founder",
+    bio: "Computer science student at the University of Texas at Dallas passionate about full stack development and cloud infrastructure.",
+    initials: "RM",
+    gradient: "from-violet-500 to-purple-600",
+    imageSrc: null as string | null,
+  },
+
+  {
+    name: "Advait Sagi",
+    role: "CEO & Founder",
+    bio: "Student at Texas A&M University passionate about delivering impactful business solutions.",
+    initials: "AS",
+    gradient: "from-amber-500 to-orange-600",
+    imageSrc: null as string | null,
+  },
+  {
+    name: "Akshaj Ande",
+    role: "COO & Co-Founder",
+    bio: "Computer science student at the University of Texas at Dallas passionate about UI design.",
+    initials: "AA",
+    gradient: "from-emerald-500 to-teal-600",
+    imageSrc: null as string | null,
+  },
+];
+
+// ──────────────────────────────────────────────────────
+// NAVBAR COMPONENT
+// ──────────────────────────────────────────────────────
+
+function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openDropdown = (key: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setActiveDropdown(key);
+  };
+  const closeDropdown = () => {
+    timeoutRef.current = setTimeout(() => setActiveDropdown(null), 150);
+  };
+
+  return (
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.06] bg-black/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+        {/* Logo */}
+        <a href="/" className="flex-shrink-0">
+          <img src="/rasvia-logo.png" alt="Rasvia" className="h-10 w-auto" />
+        </a>
+
+        {/* Desktop Nav */}
+        <nav className="hidden items-center gap-1 md:flex">
+          {/* Products dropdown */}
+          <div
+            className="relative"
+            onMouseEnter={() => openDropdown("products")}
+            onMouseLeave={closeDropdown}
+          >
+            <button
+              className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                activeDropdown === "products"
+                  ? "bg-white/[0.06] text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Products
+              <ChevronDown
+                size={14}
+                className={`transition-transform duration-200 ${
+                  activeDropdown === "products" ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {activeDropdown === "products" && (
+              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-xl">
+                {NAV_PRODUCT_LINKS.map((item) => (
+                  <a
+                    key={item.name}
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-white/[0.05]"
+                  >
+                    <span className="text-sm font-semibold text-zinc-200">{item.name}</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">{item.description}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pricing */}
+          <a
+            href="#pricing"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+          >
+            Pricing
+          </a>
+
+          {/* About */}
+          <a
+            href="#about"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+          >
+            About
+          </a>
+        </nav>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          <a
+            href="/partner-portal"
+            className="hidden rounded-xl border border-amber-400/40 bg-amber-500/[0.08] px-4 py-2 text-sm font-semibold text-amber-400 transition-all duration-300 hover:bg-amber-500/[0.15] hover:border-amber-400/60 hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] sm:inline-flex"
+          >
+            Partner Portal
+          </a>
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            className="rounded-lg border border-white/10 p-2 text-zinc-400 transition-colors hover:text-white md:hidden"
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="border-t border-white/[0.06] bg-black/95 backdrop-blur-xl md:hidden">
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-6 py-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Products</p>
+            {NAV_PRODUCT_LINKS.map((item) => (
+              <a
+                key={item.name}
+                href="#"
+                onClick={(e) => { e.preventDefault(); setMobileOpen(false); }}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+              >
+                {item.name}
+              </a>
+            ))}
+            <div className="my-2 h-px bg-white/[0.06]" />
+            <a href="#pricing" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]">
+              Pricing
+            </a>
+            <a href="#about" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]">
+              About
+            </a>
+            <div className="my-2 h-px bg-white/[0.06]" />
+            <a
+              href="/partner-portal"
+              className="mt-1 block rounded-xl border border-amber-400/40 bg-amber-500/[0.08] px-4 py-2.5 text-center text-sm font-semibold text-amber-400"
+            >
+              Partner Portal
+            </a>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// ──────────────────────────────────────────────────────
+// FEATURE MOCKUP COMPONENTS
+// ──────────────────────────────────────────────────────
 
 function HostDashboardMockup() {
   return (
@@ -469,6 +702,10 @@ function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
   );
 }
 
+// ──────────────────────────────────────────────────────
+// LANDING PAGE
+// ──────────────────────────────────────────────────────
+
 export default function LandingPage() {
   const [audience, setAudience] = useState<"business" | "consumer">("business");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -501,26 +738,9 @@ export default function LandingPage() {
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div className="min-w-0 flex flex-col gap-1">
-            <a href="/" className="inline-block">
-              <img src="/rasvia-logo.png" alt="Rasvia" className="h-14 w-auto" />
-            </a>
-            <p className="text-sm leading-snug text-neutral-500">
-              Built for restaurants. Loved by guests.
-            </p>
-          </div>
-          <a
-            href="/partner-portal"
-            className="rounded-xl border border-amber-400/40 bg-amber-500/[0.08] px-4 py-2 text-sm font-semibold text-amber-400 transition-all duration-300 hover:bg-amber-500/[0.15] hover:border-amber-400/60 hover:shadow-[0_0_16px_rgba(245,158,11,0.15)]"
-          >
-            Enter Partner Portal
-          </a>
-        </div>
-      </header>
+      <Navbar />
 
-      <main className="w-full py-12 pt-32">
+      <main className="w-full py-12 pt-28">
         <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <div
             className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07]"
@@ -666,12 +886,114 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* ── Pricing Section ──────────────────────────── */}
+        <section id="pricing" className="mt-24 mx-auto max-w-7xl px-6">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">Pricing</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              Simple, transparent pricing
+            </h2>
+            <p className="mt-3 max-w-xl mx-auto text-neutral-400">
+              Choose the plan that fits your restaurant. All plans include a 14-day free trial.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {PRICING_TIERS.map((tier) => (
+              <div
+                key={tier.name}
+                className={`relative rounded-2xl border p-6 transition-all duration-300 ${
+                  tier.highlighted
+                    ? "border-amber-500/30 bg-gradient-to-b from-amber-500/[0.04] to-transparent shadow-[0_0_60px_rgba(245,158,11,0.06)]"
+                    : "border-white/[0.08] bg-zinc-900/40 hover:border-white/15"
+                }`}
+              >
+                {tier.highlighted && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-0.5 text-[11px] font-bold text-amber-400">
+                    Most Popular
+                  </div>
+                )}
+                <h3 className="text-lg font-bold text-white">{tier.name}</h3>
+                <p className="mt-1 text-sm text-neutral-500">{tier.description}</p>
+                <div className="mt-5 flex items-baseline gap-1">
+                  <span className="text-4xl font-black tracking-tight text-white">${tier.price}</span>
+                  <span className="text-sm text-neutral-500">/mo</span>
+                </div>
+                <a
+                  href="/contact"
+                  className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-bold transition-all duration-300 ${
+                    tier.highlighted
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.35)]"
+                      : "border border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:border-white/20"
+                  }`}
+                >
+                  Contact Sales
+                </a>
+                <ul className="mt-6 flex flex-col gap-2.5">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5">
+                      <Check
+                        size={14}
+                        className={`mt-0.5 flex-shrink-0 ${
+                          tier.highlighted ? "text-amber-400" : "text-zinc-600"
+                        }`}
+                      />
+                      <span className="text-sm text-zinc-400">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── About Section ────────────────────────────── */}
+        <section id="about" className="mt-24 mx-auto max-w-7xl px-6">
+          <div className="text-center mb-14">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">About</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              Our Mission
+            </h2>
+            <p className="mt-4 max-w-2xl mx-auto text-lg leading-relaxed text-neutral-400">
+              We believe every restaurant deserves the tools that were once only available to major chains.
+              Rasvia is on a mission to democratize restaurant technology — making real-time operations,
+              seamless payments, and smart guest experiences accessible to every restaurant, from family-owned
+              spots to high-volume venues.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-center text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-8">Meet the Founders</p>
+            <div className="grid gap-8 md:grid-cols-3">
+              {FOUNDERS.map((founder) => (
+                <div
+                  key={founder.name}
+                  className="group rounded-2xl border border-white/[0.08] bg-zinc-900/40 p-6 text-center transition-all duration-300 hover:border-white/15 hover:bg-zinc-900/60"
+                >
+                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full">
+                    {founder.imageSrc ? (
+                      <img src={founder.imageSrc} alt={founder.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${founder.gradient}`}>
+                        <span className="text-2xl font-black text-white/90">{founder.initials}</span>
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-white">{founder.name}</h3>
+                  <p className="mt-1 text-sm font-medium text-amber-400/70">{founder.role}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-neutral-500">{founder.bio}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="mt-10 border-t border-white/10">
+      <footer className="mt-24 border-t border-white/[0.06]">
         <div className="mx-auto max-w-7xl px-6 pt-16 pb-8">
           <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-            {/* Brand column */}
+            {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <img src="/rasvia-logo.png" alt="Rasvia" className="h-7 w-auto" />
               <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-neutral-500">
@@ -690,23 +1012,22 @@ export default function LandingPage() {
                     </a>
                   </li>
                 ))}
+                <li>
+                  <a href="#pricing" className="text-sm text-neutral-500 transition-colors hover:text-white">
+                    Pricing
+                  </a>
+                </li>
               </ul>
             </div>
 
-            {/* Company */}
+            {/* About */}
             <div>
-              <p className="text-sm font-medium text-white">Company</p>
+              <p className="text-sm font-medium text-white">About</p>
               <ul className="mt-4 flex flex-col gap-3">
-                {[
-                  { label: "Contact Sales", href: "/contact" },
-                  { label: "Partner Login", href: "/partner-portal" },
-                ].map((link) => (
-                  <li key={link.label}>
-                    <a href={link.href} className="text-sm text-neutral-500 transition-colors hover:text-white">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
+                <li><a href="#about" className="text-sm text-neutral-500 transition-colors hover:text-white">Our Mission</a></li>
+                <li><a href="#about" className="text-sm text-neutral-500 transition-colors hover:text-white">Team</a></li>
+                <li><a href="/contact" className="text-sm text-neutral-500 transition-colors hover:text-white">Contact Sales</a></li>
+                <li><a href="/partner-portal" className="text-sm text-neutral-500 transition-colors hover:text-white">Partner Login</a></li>
               </ul>
             </div>
 
