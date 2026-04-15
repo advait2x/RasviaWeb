@@ -719,7 +719,7 @@ export default function AdminPortalPage() {
               New
             </Button>
           </div>
-          <ScrollArea className="h-[min(40vh,320px)] min-h-0 lg:h-auto lg:flex-1">
+          <ScrollArea className="h-[min(40vh,320px)] min-h-0 lg:h-[calc(100svh-12rem)]">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-zinc-500">
                 <Loader2 className="h-6 w-6 animate-spin" />

@@ -83,7 +83,7 @@ export default function RestaurantSwitcher() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
               transition={{ duration: 0.14 }}
-              className="absolute left-2 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-zinc-900/98 backdrop-blur-xl shadow-2xl z-50 py-1.5 overflow-hidden"
+              className="absolute left-2 top-full z-50 mt-1.5 w-56 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/98 py-1.5 shadow-2xl backdrop-blur-xl"
             >
               {restaurants.length === 0 ? (
                 <p className="text-xs text-zinc-600 px-3 py-2 italic">No restaurants found</p>

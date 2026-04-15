@@ -827,6 +827,80 @@ export default function SettingsPanel() {
           )}
         </div>
 
+        {/* ── Waitlist Settings ──────────────────────────────────────── */}
+        <div className="space-y-4 border-t border-white/5 pt-6">
+          <div>
+            <h3 className="text-base font-bold text-zinc-100 tracking-tight flex items-center gap-2">
+              <Clock size={16} strokeWidth={1.5} className="text-amber-500/70" />
+              Waitlist Settings
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Configure max active parties and optional early opening window.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Waitlist Capacity</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Max active parties: <span className="text-zinc-300 font-semibold">{savedMaxWaitlistSize}</span>
+              </p>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowWaitlistCapacityDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
+            >
+              <Pencil size={12} strokeWidth={1.5} />
+              Edit
+            </motion.button>
+          </div>
+
+          <div className="p-4 rounded-xl border border-white/10 bg-zinc-800/40 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Early waitlist window</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Allow opening the waitlist this many minutes before the first scheduled open (same day).
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={waitlistEarlyEnabled}
+                  onChange={(e) => setWaitlistEarlyEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded accent-amber-500"
+                />
+                <span className="text-xs text-zinc-400">Enable</span>
+              </label>
+            </div>
+            {waitlistEarlyEnabled && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Minutes before open</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  value={waitlistEarlyMinutes}
+                  onChange={(e) => setWaitlistEarlyMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))}
+                  className="h-9 bg-zinc-900 border-white/10 text-zinc-100 text-sm max-w-[120px]"
+                />
+              </div>
+            )}
+            {(waitlistEarlyEnabled !== savedWaitlistEarlyEnabled || waitlistEarlyMinutes !== savedWaitlistEarlyMinutes) && (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => void handleSaveHours()}
+                disabled={hoursSaving}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {hoursSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={2} />}
+                Save waitlist settings
+              </motion.button>
+            )}
+          </div>
+        </div>
+
         {/* ── Operating Hours ────────────────────────────────────────── */}
         <div className="space-y-4 border-t border-white/5 pt-6">
           <div className="flex items-start justify-between">
@@ -853,63 +927,12 @@ export default function SettingsPanel() {
             )}
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3.5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Waitlist Capacity</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Max active parties: <span className="text-zinc-300 font-semibold">{savedMaxWaitlistSize}</span>
-              </p>
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowWaitlistCapacityDialog(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
-            >
-              <Pencil size={12} strokeWidth={1.5} />
-              Edit
-            </motion.button>
-          </div>
-
           {!hoursLoaded ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 size={20} strokeWidth={1.5} className="text-zinc-600 animate-spin" />
             </div>
           ) : (
             <div className="space-y-2">
-              {editingHours && (
-                <div className="mb-4 p-4 rounded-xl border border-white/10 bg-zinc-800/40 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-200">Early waitlist window</p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Allow opening the waitlist this many minutes before the first scheduled open (same day).
-                      </p>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={waitlistEarlyEnabled}
-                        onChange={(e) => setWaitlistEarlyEnabled(e.target.checked)}
-                        className="w-4 h-4 rounded accent-amber-500"
-                      />
-                      <span className="text-xs text-zinc-400">Enable</span>
-                    </label>
-                  </div>
-                  {waitlistEarlyEnabled && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Minutes before open</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={1440}
-                        value={waitlistEarlyMinutes}
-                        onChange={(e) => setWaitlistEarlyMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))}
-                        className="h-9 bg-zinc-900 border-white/10 text-zinc-100 text-sm max-w-[120px]"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
               {DAYS.map((day) => {
                 const dayData = hoursDraft[day];
                 const isEditing = editingHours;

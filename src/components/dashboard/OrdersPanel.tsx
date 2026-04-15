@@ -42,13 +42,6 @@ const PREV_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
 type TabKey = "active" | "preorders" | "completed";
 
-const PARTY_SIZE_FILTERS = [
-    { label: "1-2", min: 1, max: 2 },
-    { label: "3-4", min: 3, max: 4 },
-    { label: "5-6", min: 5, max: 6 },
-    { label: "7+", min: 7, max: 99 },
-];
-
 const DIET_FILTERS: { value: DietType; label: string; icon: typeof Leaf }[] = [
     { value: "veg", label: "Veg", icon: Leaf },
     { value: "non_veg", label: "Non-Veg", icon: Drumstick },
@@ -78,19 +71,15 @@ function getTimeColor(date: Date): string {
 }
 
 export default function OrdersPanel() {
-    const { orders, tables, updateOrderStatus, notifyCustomer } = useDashboard();
+    const { orders, updateOrderStatus, notifyCustomer } = useDashboard();
     const [tab, setTab] = useState<TabKey>("active");
     const [search, setSearch] = useState("");
     const [showFilters, setShowFilters] = useState(false);
-    const [partySizeFilter, setPartySizeFilter] = useState<string | null>(null);
     const [dietFilter, setDietFilter] = useState<DietType[]>([]);
     const [mealFilter, setMealFilter] = useState<MealTime[]>([]);
     const [statusFilter, setStatusFilter] = useState<OrderStatus[]>([]);
-    const [tableFilter, setTableFilter] = useState<number | null>(null);
     const [showTakeOrder, setShowTakeOrder] = useState(false);
     const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
-
-    const occupiedTables = tables.filter((t) => t.status === "occupied" && !t.isCombinedChild);
 
     const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
     const completedStatuses: OrderStatus[] = ["completed", "cancelled"];
@@ -122,11 +111,6 @@ export default function OrdersPanel() {
             );
         }
 
-        if (partySizeFilter) {
-            const pf = PARTY_SIZE_FILTERS.find((p) => p.label === partySizeFilter);
-            if (pf) result = result.filter((o) => o.partySize >= pf.min && o.partySize <= pf.max);
-        }
-
         if (dietFilter.length > 0) {
             result = result.filter((o) =>
                 o.items.some((i) => i.dietType && dietFilter.includes(i.dietType))
@@ -141,25 +125,19 @@ export default function OrdersPanel() {
             result = result.filter((o) => statusFilter.includes(o.status));
         }
 
-        if (tableFilter !== null) {
-            result = result.filter((o) => o.tableNumber === tableFilter);
-        }
-
         return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    }, [tabOrders, search, partySizeFilter, dietFilter, mealFilter, statusFilter, tableFilter]);
+    }, [tabOrders, search, dietFilter, mealFilter, statusFilter]);
 
     const activeCount = orders.filter((o) => activeStatuses.includes(o.status) && o.orderType === "dine_in").length;
     const preorderCount = orders.filter((o) => activeStatuses.includes(o.status) && (o.orderType === "pre_order" || o.orderType === "takeout")).length;
     const completedCount = orders.filter((o) => completedStatuses.includes(o.status)).length;
 
-    const hasAnyFilter = partySizeFilter || dietFilter.length > 0 || mealFilter.length > 0 || statusFilter.length > 0 || tableFilter !== null;
+    const hasAnyFilter = dietFilter.length > 0 || mealFilter.length > 0 || statusFilter.length > 0;
 
     const clearFilters = () => {
-        setPartySizeFilter(null);
         setDietFilter([]);
         setMealFilter([]);
         setStatusFilter([]);
-        setTableFilter(null);
     };
 
     const handleAdvanceStatus = (orderId: string, currentStatus: OrderStatus) => {
@@ -257,25 +235,6 @@ export default function OrdersPanel() {
                         exit={{ opacity: 0, height: 0 }}
                         className="px-5 pb-3 space-y-2 overflow-hidden"
                     >
-                        {/* Party Size */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold w-16 shrink-0">Party</span>
-                            <div className="flex gap-1">
-                                {PARTY_SIZE_FILTERS.map(({ label }) => (
-                                    <button
-                                        key={label}
-                                        onClick={() => setPartySizeFilter(partySizeFilter === label ? null : label)}
-                                        className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${partySizeFilter === label
-                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                                            : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
-                                            }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
                         {/* Diet */}
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold w-16 shrink-0">Diet</span>
@@ -324,27 +283,6 @@ export default function OrdersPanel() {
                                             </button>
                                         );
                                     })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Table */}
-                        {occupiedTables.length > 0 && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold w-16 shrink-0">Table</span>
-                                <div className="flex gap-1 flex-wrap">
-                                    {occupiedTables.map((t) => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => setTableFilter(tableFilter === t.tableNumber ? null : t.tableNumber)}
-                                            className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${tableFilter === t.tableNumber
-                                                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                                                : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
-                                                }`}
-                                        >
-                                            T{t.tableNumber}
-                                        </button>
-                                    ))}
                                 </div>
                             </div>
                         )}

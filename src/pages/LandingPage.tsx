@@ -16,16 +16,12 @@ const FEATURE_SLIDES = [
     description: "Seat a party, notify guests, and fire pre-orders to kitchen in one host action.",
   },
   {
-    name: "1-Tap 86 Switch",
+    name: "Real-Time Item Controls",
     description: "Mark sold-out items instantly and sync availability across active guests in real time.",
   },
   {
     name: "Zero-Math Payouts",
     description: "Let guests split freely while restaurants receive one clean payout summary.",
-  },
-  {
-    name: "Real-Time Item Controls",
-    description: "Toggle sold-out items instantly and sync across all active guest sessions.",
   },
   {
     name: "Location Adjustment",
@@ -39,7 +35,7 @@ const FEATURE_SLIDES = [
 type FeatureSlide = (typeof FEATURE_SLIDES)[number];
 
 const BUSINESS_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
-  ["Fire When Seated", "1-Tap 86 Switch", "Real-Time Item Controls", "Location Adjustment"].includes(slide.name)
+  ["Fire When Seated", "Real-Time Item Controls", "Location Adjustment"].includes(slide.name)
 );
 
 const CONSUMER_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
@@ -639,7 +635,7 @@ function GroupSplitMockup() {
 }
 
 function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
-  if (slide.name === "1-Tap 86 Switch") {
+  if (slide.name === "Real-Time Item Controls") {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6">
         <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
@@ -697,10 +693,6 @@ function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
 
   if (slide.name === "Zero-Math Payouts") {
     return <SplitReceiptMockup />;
-  }
-
-  if (slide.name === "Real-Time Item Controls") {
-    return <InventoryMockup />;
   }
 
   if (slide.name === "Location Adjustment") {

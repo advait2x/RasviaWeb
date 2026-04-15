@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +106,7 @@ export default function Login() {
                                         </svg>
                                     </span>
                                     <input
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         required
                                         style={styles.input}
                                         placeholder="••••••••"
@@ -120,6 +121,26 @@ export default function Login() {
                                             (e.target.parentElement as HTMLElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
                                         }}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((v) => !v)}
+                                        style={styles.eyeButton}
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                        title={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showPassword ? (
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path d="M2 8c1.6-2.3 3.5-3.5 6-3.5S12.4 5.7 14 8c-1.6 2.3-3.5 3.5-6 3.5S3.6 10.3 2 8Z" stroke="currentColor" strokeWidth="1.5" />
+                                                <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                                            </svg>
+                                        ) : (
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path d="M2 8c1.6-2.3 3.5-3.5 6-3.5S12.4 5.7 14 8c-1.6 2.3-3.5 3.5-6 3.5S3.6 10.3 2 8Z" stroke="currentColor" strokeWidth="1.5" />
+                                                <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                                                <path d="M3 13L13 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                            </svg>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
 
@@ -420,11 +441,25 @@ const styles: Record<string, React.CSSProperties> = {
         background: "transparent",
         border: "none",
         outline: "none",
-        padding: "13px 14px 13px 42px",
+        padding: "13px 42px 13px 42px",
         color: "#fff",
         fontSize: 14,
         fontFamily: "'Inter', sans-serif",
         width: "100%",
+    },
+    eyeButton: {
+        position: "absolute",
+        right: 12,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 24,
+        height: 24,
+        border: "none",
+        background: "transparent",
+        color: "rgba(255,255,255,0.45)",
+        cursor: "pointer",
+        padding: 0,
     },
     errorBox: {
         display: "flex",

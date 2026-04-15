@@ -320,15 +320,22 @@ function FormView({
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "").slice(0, 3);
                 setCustomSizeRaw(val);
-                const num = parseInt(val, 10);
-                if (!isNaN(num) && num > 0) onPartySizeChange(num);
-                else onPartySizeChange(0); // Invalid/empty state
               }}
               onBlur={() => {
-                if (!customSizeRaw) {
+                const num = parseInt(customSizeRaw, 10);
+                if (!customSizeRaw || isNaN(num) || num === 0) {
                   setIsCustomMode(false);
+                  setCustomSizeRaw("");
                   onPartySizeChange(0);
+                  return;
                 }
+                if (num >= 1 && num <= 9) {
+                  setIsCustomMode(false);
+                  setCustomSizeRaw("");
+                  onPartySizeChange(num);
+                  return;
+                }
+                onPartySizeChange(num);
               }}
               placeholder="#"
               className={`rounded-xl border-2 bg-amber-500/10 border-amber-500 text-amber-400 text-center focus:outline-none placeholder:text-amber-500/50 ${

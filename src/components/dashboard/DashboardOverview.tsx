@@ -2,8 +2,6 @@ import { motion } from "framer-motion";
 import {
   Users,
   Clock,
-  Armchair,
-  TrendingUp,
   AlertTriangle,
   UtensilsCrossed,
 } from "lucide-react";
@@ -16,12 +14,10 @@ function getWaitMinutes(addedAt: Date): number {
 }
 
 export default function DashboardOverview() {
-  const { waitlist, tables, menuItems, setActiveView } = useDashboard();
+  const { waitlist, menuItems, setActiveView } = useDashboard();
   const { restaurantId } = useAuth();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
-  const occupiedCount = tables.filter((t) => t.status === "occupied").length;
-  const availableCount = tables.filter((t) => t.status === "available").length;
   const eightySixed = menuItems.filter((m) => !m.inStock).length;
   const avgWait =
     waitingCount > 0
@@ -61,24 +57,6 @@ export default function DashboardOverview() {
       tab: "waitlist" as const,
     },
     {
-      label: "Tables Available",
-      value: availableCount,
-      icon: Armchair,
-      color: "text-emerald-400",
-      iconBg: "bg-emerald-500/10 border-emerald-500/20",
-      glowColor: "rgba(16,185,129,0.06)",
-      tab: "floorplan" as const,
-    },
-    {
-      label: "Tables Occupied",
-      value: occupiedCount,
-      icon: TrendingUp,
-      color: "text-blue-400",
-      iconBg: "bg-blue-500/10 border-blue-500/20",
-      glowColor: "rgba(59,130,246,0.06)",
-      tab: "floorplan" as const,
-    },
-    {
       label: "Longest Wait",
       value: `${longestWait}m`,
       icon: AlertTriangle,
@@ -105,7 +83,7 @@ export default function DashboardOverview() {
       </h2>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {stats.map((stat, index) => (
           <motion.div
             key={stat.label}

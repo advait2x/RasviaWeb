@@ -13,12 +13,10 @@ import {
 } from "@/components/ui/dialog";
 
 export default function StatusBar() {
-  const { waitlistOpen, setWaitlistOpen, waitlist, tables, restaurantOpen } = useDashboard();
-  const { restaurantId, isAdmin, session } = useAuth();
+  const { waitlistOpen, setWaitlistOpen, waitlist, restaurantOpen } = useDashboard();
+  const { restaurantId } = useAuth();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
-  const occupiedCount = tables.filter((t) => t.status === "occupied").length;
-  const totalTables = tables.length;
 
   // Pending toggle state — when set, shows confirmation dialog
   const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
@@ -113,51 +111,20 @@ export default function StatusBar() {
             )}
           </div>
 
-          <div className="w-px h-8 bg-white/8" />
-
-          {/* Party Count */}
-          <div className="flex items-center gap-2">
-            <Users size={15} strokeWidth={1.5} className="text-zinc-500" />
-            <span className="text-sm text-zinc-400">
-              <span className="text-amber-500 font-bold tabular-nums">
-                {waitingCount}
-              </span>{" "}
-              waiting
-            </span>
-          </div>
-
         </div>
 
         {/* Center: Current Wait Time */}
         <WaitTimeWidget />
 
-        {/* Right: Table Stats */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <div
-              className="w-2 h-2 rounded-full bg-emerald-500"
-              style={{ boxShadow: "0 0 6px rgba(16,185,129,0.4)" }}
-            />
-            <span className="text-zinc-400">
-              <span className="text-zinc-100 font-bold tabular-nums">
-                {totalTables - occupiedCount}
-              </span>{" "}
-              available
-            </span>
-          </div>
-          <div className="w-px h-8 bg-white/8" />
-          <div className="flex items-center gap-2 text-sm">
-            <div
-              className="w-2 h-2 rounded-full bg-amber-500"
-              style={{ boxShadow: "0 0 6px rgba(245,158,11,0.4)" }}
-            />
-            <span className="text-zinc-400">
-              <span className="text-zinc-100 font-bold tabular-nums">
-                {occupiedCount}
-              </span>{" "}
-              occupied
-            </span>
-          </div>
+        {/* Right: Waiting count */}
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/70 px-3.5 py-1.5">
+          <Users size={17} strokeWidth={1.7} className="text-amber-400" />
+          <span className="text-base font-semibold text-zinc-200">
+            <span className="text-amber-400 font-bold tabular-nums">
+              {waitingCount}
+            </span>{" "}
+            waiting
+          </span>
         </div>
       </div>
       {/* Subtle gradient accent line */}
