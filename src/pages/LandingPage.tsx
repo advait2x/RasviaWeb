@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Menu, Pause, Play, X } from "lucide-react";
 
+/** Smooth-scroll to a section id, accounting for the fixed navbar height. */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const navHeight = 88;
+  const top = el.getBoundingClientRect().top + window.scrollY - navHeight;
+  window.scrollTo({ top, behavior: "smooth" });
+}
+
 const FEATURE_SLIDES = [
   {
     name: "Fire When Seated",
@@ -212,20 +221,22 @@ function Navbar() {
           </div>
 
           {/* Pricing */}
-          <a
-            href="#pricing"
+          <button
+            type="button"
+            onClick={() => scrollToSection("pricing")}
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
           >
             Pricing
-          </a>
+          </button>
 
           {/* About */}
-          <a
-            href="#about"
+          <button
+            type="button"
+            onClick={() => scrollToSection("about")}
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
           >
             About
-          </a>
+          </button>
         </nav>
 
         {/* Right side */}
@@ -263,12 +274,20 @@ function Navbar() {
               </a>
             ))}
             <div className="my-2 h-px bg-white/[0.06]" />
-            <a href="#pricing" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]">
+            <button
+              type="button"
+              onClick={() => { scrollToSection("pricing"); setMobileOpen(false); }}
+              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+            >
               Pricing
-            </a>
-            <a href="#about" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]">
+            </button>
+            <button
+              type="button"
+              onClick={() => { scrollToSection("about"); setMobileOpen(false); }}
+              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+            >
               About
-            </a>
+            </button>
             <div className="my-2 h-px bg-white/[0.06]" />
             <a
               href="/partner-portal"
@@ -1013,9 +1032,9 @@ export default function LandingPage() {
                   </li>
                 ))}
                 <li>
-                  <a href="#pricing" className="text-sm text-neutral-500 transition-colors hover:text-white">
+                  <button type="button" onClick={() => scrollToSection("pricing")} className="text-sm text-neutral-500 transition-colors hover:text-white">
                     Pricing
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -1024,8 +1043,8 @@ export default function LandingPage() {
             <div>
               <p className="text-sm font-medium text-white">About</p>
               <ul className="mt-4 flex flex-col gap-3">
-                <li><a href="#about" className="text-sm text-neutral-500 transition-colors hover:text-white">Our Mission</a></li>
-                <li><a href="#about" className="text-sm text-neutral-500 transition-colors hover:text-white">Team</a></li>
+                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Our Mission</button></li>
+                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Team</button></li>
                 <li><a href="/contact" className="text-sm text-neutral-500 transition-colors hover:text-white">Contact Sales</a></li>
                 <li><a href="/partner-portal" className="text-sm text-neutral-500 transition-colors hover:text-white">Partner Login</a></li>
               </ul>
