@@ -127,11 +127,11 @@ const PRICING_TIERS = [
    To add a real photo, set `imageSrc` to the image path,
    e.g. imageSrc: "/founders/arjun.jpg"
    ──────────────────────────────────────────────────── */
-const FOUNDERS = [
+  const FOUNDERS = [
     {
     name: "Rithwik Matta",
     role: "CTO & Co-Founder",
-    bio: "Computer science student at the University of Texas at Dallas passionate about full stack development and cloud infrastructure.",
+    bio: "Computer Science student at the University of Texas at Dallas passionate about Full Stack Development and Cloud Infrastructure.",
     initials: "RM",
     gradient: "from-violet-500 to-purple-600",
     imageSrc: null as string | null,
@@ -147,8 +147,8 @@ const FOUNDERS = [
   },
   {
     name: "Akshaj Ande",
-    role: "COO & Co-Founder",
-    bio: "Computer science student at the University of Texas at Dallas passionate about UI design.",
+    role: "CFO & Co-Founder",
+    bio: "Computer Science student at the University of Texas at Dallas passionate about Data Analytics and Cloud Infrastructure.",
     initials: "AA",
     gradient: "from-emerald-500 to-teal-600",
     imageSrc: null as string | null,
@@ -204,7 +204,7 @@ function Navbar() {
               />
             </button>
             {activeDropdown === "products" && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-xl">
+              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900 p-1.5 shadow-2xl">
                 {NAV_PRODUCT_LINKS.map((item) => (
                   <a
                     key={item.name}
@@ -907,7 +907,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Pricing Section ──────────────────────────── */}
-        <section id="pricing" className="mt-24 mx-auto max-w-7xl px-6">
+        <section id="pricing" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">Pricing</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -929,7 +929,7 @@ export default function LandingPage() {
                 }`}
               >
                 {tier.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-0.5 text-[11px] font-bold text-amber-400">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-500 px-3 py-0.5 text-[11px] font-bold text-black">
                     Most Popular
                   </div>
                 )}
@@ -968,7 +968,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── About Section ────────────────────────────── */}
-        <section id="about" className="mt-24 mx-auto max-w-7xl px-6">
+        <section id="about" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">About</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">

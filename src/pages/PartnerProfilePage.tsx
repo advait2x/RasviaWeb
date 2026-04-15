@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, LogOut, Mail, Phone, Save, Shield, User, Building2, Clock3, BellRing, Lock, Eye, EyeOff, RefreshCw, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Copy, LogOut, Mail, Phone, Save, Shield, User, Building2, Clock3, BellRing, RefreshCw, Plus, ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
@@ -10,6 +10,7 @@ type ProfileRow = {
   role: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  use_regular_image_as_first_slide?: boolean | null;
 };
 
 type Prefs = {
@@ -17,6 +18,9 @@ type Prefs = {
   waitlistAlerts: boolean;
   productUpdates: boolean;
 };
+
+type MenuItemOption = { id: number; name: string; image_url: string | null };
+type SlideDraft = { localId: string; imageUrl: string; menuItemId: number | null };
 
 const PREFS_KEY = "rasvia:web:profile-prefs:v1";
 
@@ -32,25 +36,27 @@ function prettyRole(role: string | null) {
   return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function toPublicImageUrl(value: string): string {
+  const raw = value.trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return supabase.storage.from("restaurant-images").getPublicUrl(raw).data.publicUrl;
+}
+
 export default function PartnerProfilePage() {
   const { session, restaurantId, userRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
-  const [verifyingCode, setVerifyingCode] = useState(false);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [fullNameDraft, setFullNameDraft] = useState("");
   const [statusMessage, setStatusMessage] = useState<string>("");
-  const [resetStep, setResetStep] = useState<"idle" | "enter-code" | "new-password" | "done">("idle");
-  const [resetCode, setResetCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [resetError, setResetError] = useState("");
   const [prefs, setPrefs] = useState<Prefs>({ orderAlerts: true, waitlistAlerts: true, productUpdates: false });
+  const [menuItems, setMenuItems] = useState<MenuItemOption[]>([]);
+  const [slides, setSlides] = useState<SlideDraft[]>([]);
+  const [carouselSaving, setCarouselSaving] = useState(false);
+  const [uploadingSlideId, setUploadingSlideId] = useState<string | null>(null);
+  const [includeDefaultStarter, setIncludeDefaultStarter] = useState(true);
 
   useEffect(() => {
     try {
@@ -87,7 +93,7 @@ export default function PartnerProfilePage() {
             .eq("id", session.user.id)
             .maybeSingle(),
           restaurantId
-            ? supabase.from("restaurants").select("name").eq("id", restaurantId).maybeSingle()
+            ? supabase.from("restaurants").select("name, use_regular_image_as_first_slide").eq("id", restaurantId).maybeSingle()
             : Promise.resolve({ data: null as any }),
         ]);
 
@@ -96,6 +102,7 @@ export default function PartnerProfilePage() {
         setProfile(row);
         setFullNameDraft(row?.full_name ?? "");
         setRestaurantName(String((restResult as any)?.data?.name ?? ""));
+        setIncludeDefaultStarter((restResult as any)?.data?.use_regular_image_as_first_slide !== false);
       } finally {
         if (active) setLoading(false);
       }
@@ -105,6 +112,46 @@ export default function PartnerProfilePage() {
       active = false;
     };
   }, [session?.user?.id, restaurantId]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!restaurantId) return;
+      const rid = Number(restaurantId);
+      if (!Number.isFinite(rid) || rid <= 0) return;
+
+      try {
+        const [menuRes, slidesRes] = await Promise.all([
+          supabase
+            .from("menu_items")
+            .select("id, name, image_url")
+            .eq("restaurant_id", rid)
+            .order("name", { ascending: true }),
+          supabase
+            .from("restaurant_media_slides")
+            .select("id, image_url, menu_item_id, position")
+            .eq("restaurant_id", rid)
+            .order("position", { ascending: true }),
+        ]);
+
+        if (!active) return;
+        if (!menuRes.error) setMenuItems((menuRes.data ?? []) as MenuItemOption[]);
+        if (!slidesRes.error) {
+          const next = ((slidesRes.data ?? []) as any[]).map((row) => ({
+            localId: String(row.id),
+            imageUrl: String(row.image_url ?? ""),
+            menuItemId: row.menu_item_id ? Number(row.menu_item_id) : null,
+          }));
+          setSlides(next);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [restaurantId]);
 
   const accountId = session?.user?.id ?? "";
   const email = profile?.email || session?.user?.email || "-";
@@ -156,75 +203,88 @@ export default function PartnerProfilePage() {
     setStatusMessage("Profile updated.");
   };
 
-  const sendPasswordReset = async () => {
-    if (!email || email === "-") return;
-    setSendingReset(true);
-    setResetError("");
-    setStatusMessage("Sending reset code…");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/partner-profile`,
-    });
-    setSendingReset(false);
-    if (error) {
-      setStatusMessage("");
-      setResetError(error.message || "Could not send reset email.");
-      return;
-    }
-    setResetStep("enter-code");
-    setStatusMessage("Reset code sent. Check your email.");
-  };
-
-  const verifyResetCode = async () => {
-    if (!email || email === "-") return;
-    const token = resetCode.replace(/\D/g, "");
-    if (token.length !== 7) {
-      setResetError("Please enter the full 7-digit code.");
-      return;
-    }
-    setVerifyingCode(true);
-    setResetError("");
-    setStatusMessage("Verifying code…");
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "recovery",
-    });
-    setVerifyingCode(false);
-    if (error) {
-      setStatusMessage("");
-      setResetError(error.message || "Invalid code.");
-      return;
-    }
-    setResetStep("new-password");
-    setStatusMessage("Code verified. Set your new password.");
-  };
-
-  const updatePassword = async () => {
-    if (newPassword.length < 6) {
-      setResetError("Password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setResetError("Passwords do not match.");
-      return;
-    }
-    setUpdatingPassword(true);
-    setResetError("");
-    setStatusMessage("Updating password…");
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setUpdatingPassword(false);
-    if (error) {
-      setStatusMessage("");
-      setResetError(error.message || "Could not update password.");
-      return;
-    }
-    setResetStep("done");
-    setStatusMessage("Password updated successfully.");
-  };
-
   const signOutAll = async () => {
     await supabase.auth.signOut({ scope: "global" as any });
     window.location.assign("/partner-portal");
+  };
+
+  const addSlide = () =>
+    setSlides((prev) => [
+      ...prev,
+      { localId: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`, imageUrl: "", menuItemId: null },
+    ]);
+
+  const updateSlide = (localId: string, patch: Partial<SlideDraft>) =>
+    setSlides((prev) => prev.map((s) => (s.localId === localId ? { ...s, ...patch } : s)));
+
+  const removeSlide = (localId: string) => setSlides((prev) => prev.filter((s) => s.localId !== localId));
+
+  const moveSlide = (index: number, dir: -1 | 1) => {
+    setSlides((prev) => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.splice(target, 0, item);
+      return copy;
+    });
+  };
+
+  const uploadImageForSlide = async (localId: string, file: File | null) => {
+    if (!file) return;
+    const rid = Number(restaurantId);
+    if (!Number.isFinite(rid) || rid <= 0) {
+      setStatusMessage("No restaurant selected.");
+      return;
+    }
+    try {
+      setUploadingSlideId(localId);
+      const extFromName = file.name.split(".").pop()?.toLowerCase();
+      const ext = extFromName && /^[a-z0-9]+$/.test(extFromName) ? extFromName : "jpg";
+      const path = `${rid}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from("restaurant-images")
+        .upload(path, file, { upsert: false, contentType: file.type || "image/jpeg" });
+      if (error) throw error;
+      updateSlide(localId, { imageUrl: data.path });
+      setStatusMessage("Image uploaded.");
+    } catch (err: any) {
+      setStatusMessage(err?.message || "Could not upload image.");
+    } finally {
+      setUploadingSlideId(null);
+    }
+  };
+
+  const saveCarousel = async () => {
+    const rid = Number(restaurantId);
+    if (!Number.isFinite(rid) || rid <= 0) return;
+    const validSlides = slides.filter((s) => s.imageUrl.trim().length > 0 || !!s.menuItemId);
+    setCarouselSaving(true);
+    try {
+      const { error: restUpdateErr } = await supabase
+        .from("restaurants")
+        .update({ use_regular_image_as_first_slide: includeDefaultStarter })
+        .eq("id", rid);
+      if (restUpdateErr) throw restUpdateErr;
+
+      const { error: delError } = await supabase.from("restaurant_media_slides").delete().eq("restaurant_id", rid);
+      if (delError) throw delError;
+      if (validSlides.length > 0) {
+        const payload = validSlides.map((s, idx) => ({
+          restaurant_id: rid,
+          position: idx,
+          image_url: s.imageUrl.trim() || null,
+          menu_item_id: s.menuItemId,
+        }));
+        const { error: insError } = await supabase.from("restaurant_media_slides").insert(payload as any);
+        if (insError) throw insError;
+      }
+      setStatusMessage("Carousel settings saved.");
+    } catch (err: any) {
+      setStatusMessage(err?.message || "Could not save carousel settings.");
+    } finally {
+      setCarouselSaving(false);
+    }
   };
 
   if (!session) {
@@ -314,14 +374,6 @@ export default function PartnerProfilePage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={sendPasswordReset}
-              disabled={sendingReset}
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/12 px-3 py-2 text-sm text-amber-300 disabled:opacity-50"
-            >
-              <Lock size={14} /> {sendingReset ? "Sending..." : "Change Password"}
-            </button>
-            <button
-              type="button"
               onClick={signOutAll}
               className="inline-flex items-center gap-2 rounded-lg border border-red-500/35 bg-red-500/12 px-3 py-2 text-sm text-red-300"
             >
@@ -329,125 +381,6 @@ export default function PartnerProfilePage() {
             </button>
           </div>
 
-          {resetStep !== "idle" && (
-            <div className="mt-2 rounded-xl border border-white/10 bg-zinc-800/55 p-4 space-y-3">
-              {resetStep === "enter-code" && (
-                <>
-                  <p className="text-sm text-zinc-300">Enter the 7-digit code sent to <span className="text-zinc-100 font-semibold">{email}</span>.</p>
-                  <input
-                    value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value.replace(/\\D/g, "").slice(0, 7))}
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    className="sr-only"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const active = document.activeElement as HTMLElement | null;
-                      if (active) active.blur();
-                      const hidden = document.querySelector<HTMLInputElement>('input[autocomplete=\"one-time-code\"]');
-                      hidden?.focus();
-                    }}
-                    className="w-full"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      {Array.from({ length: 7 }).map((_, i) => {
-                        const filled = i < resetCode.length;
-                        return (
-                          <div
-                            key={i}
-                            className={`h-11 flex-1 rounded-xl border text-center flex items-center justify-center text-base font-semibold ${
-                              filled ? "border-amber-500/45 bg-amber-500/10 text-amber-300" : "border-white/12 bg-zinc-900/50 text-zinc-500"
-                            }`}
-                          >
-                            {filled ? resetCode[i] : ""}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </button>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={verifyResetCode}
-                      disabled={verifyingCode || resetCode.length !== 7}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-sm text-amber-300 disabled:opacity-50"
-                    >
-                      {verifyingCode ? <RefreshCw size={14} className="animate-spin" /> : <Shield size={14} />} Verify Code
-                    </button>
-                    <button
-                      type="button"
-                      onClick={sendPasswordReset}
-                      disabled={sendingReset}
-                      className="rounded-lg border border-white/10 bg-zinc-700/50 px-3 py-2 text-sm text-zinc-300 disabled:opacity-50"
-                    >
-                      Resend
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {resetStep === "new-password" && (
-                <>
-                  <p className="text-sm text-zinc-300">Code verified. Enter your new password.</p>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="New password"
-                        className="w-full h-11 rounded-xl border border-white/10 bg-zinc-900/60 px-3 pr-10 text-sm text-zinc-100 placeholder:text-zinc-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
-                      >
-                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Confirm password"
-                        className="w-full h-11 rounded-xl border border-white/10 bg-zinc-900/60 px-3 pr-10 text-sm text-zinc-100 placeholder:text-zinc-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
-                      >
-                        {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={updatePassword}
-                    disabled={updatingPassword}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/15 px-3 py-2 text-sm text-amber-300 disabled:opacity-50"
-                  >
-                    {updatingPassword ? <RefreshCw size={14} className="animate-spin" /> : <Lock size={14} />}
-                    Update Password
-                  </button>
-                </>
-              )}
-
-              {resetStep === "done" && (
-                <div className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 inline-flex items-center gap-2">
-                  <CheckCircle2 size={15} /> Password updated.
-                </div>
-              )}
-
-              {resetError && (
-                <p className="text-xs text-red-400">{resetError}</p>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 sm:p-6 space-y-3">
@@ -470,6 +403,137 @@ export default function PartnerProfilePage() {
             ))}
           </div>
           <p className="text-xs text-zinc-500">Preferences are saved on this browser for now.</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 sm:p-6 space-y-3">
+          <h2 className="text-base font-semibold">Restaurant Media Carousel</h2>
+          <p className="text-xs text-zinc-500">
+            First slide is the starting image. Add image URLs, optional linked menu items, and reorder.
+          </p>
+
+          <div className="rounded-xl border border-white/10 bg-zinc-800/55 p-3">
+            <label className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">Use regular restaurant image as slide 1</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {includeDefaultStarter ? "Custom slides start at Slide 2." : "Custom slides start at Slide 1."}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={includeDefaultStarter}
+                onChange={(e) => setIncludeDefaultStarter(e.target.checked)}
+                className="h-4 w-4 accent-amber-500"
+              />
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            {slides.map((slide, index) => (
+              <div key={slide.localId} className="rounded-xl border border-white/10 bg-zinc-800/55 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-zinc-100">
+                    Slide {index + (includeDefaultStarter ? 2 : 1)}
+                    {index === 0 ? (includeDefaultStarter ? " (First custom slide)" : " (Starts first)") : ""}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveSlide(index, -1)}
+                      disabled={index === 0}
+                      className="rounded-md border border-white/10 bg-zinc-900/60 p-1.5 text-zinc-300 disabled:opacity-40"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSlide(index, 1)}
+                      disabled={index === slides.length - 1}
+                      className="rounded-md border border-white/10 bg-zinc-900/60 p-1.5 text-zinc-300 disabled:opacity-40"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSlide(slide.localId)}
+                      className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-300"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  value={slide.imageUrl}
+                  onChange={(e) => updateSlide(slide.localId, { imageUrl: e.target.value })}
+                  placeholder="Storage path or https://image-url..."
+                  className="w-full h-10 rounded-lg border border-white/10 bg-zinc-900/60 px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                />
+
+                {!!slide.imageUrl.trim() && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">Preview</p>
+                    <img
+                      src={toPublicImageUrl(slide.imageUrl)}
+                      alt="Slide preview"
+                      className="h-16 w-16 rounded-lg border border-white/10 bg-zinc-900/40 object-cover"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <input
+                    id={`carousel-upload-${slide.localId}`}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      void uploadImageForSlide(slide.localId, file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor={`carousel-upload-${slide.localId}`}
+                    className={`inline-flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 ${uploadingSlideId === slide.localId ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}
+                  >
+                    {uploadingSlideId === slide.localId ? "Uploading..." : "Upload from Computer"}
+                  </label>
+                </div>
+
+                <select
+                  value={slide.menuItemId ?? ""}
+                  onChange={(e) => updateSlide(slide.localId, { menuItemId: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full h-10 rounded-lg border border-white/10 bg-zinc-900/60 px-3 text-sm text-zinc-100"
+                >
+                  <option value="">No linked menu item</option>
+                  {menuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={addSlide}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-800/60 px-3 py-2 text-sm text-zinc-200"
+            >
+              <Plus size={14} /> Add Slide
+            </button>
+            <button
+              type="button"
+              onClick={saveCarousel}
+              disabled={carouselSaving}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/12 px-3 py-2 text-sm text-amber-300 disabled:opacity-50"
+            >
+              {carouselSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Save Carousel
+            </button>
+          </div>
         </div>
       </div>
     </div>
