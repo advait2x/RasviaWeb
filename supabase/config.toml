@@ -23,10 +23,12 @@ entrypoint = "./functions/stripe-webhook/index.ts"
 
 [functions.check-stripe-status]
 enabled = true
-verify_jwt = true
+verify_jwt = false
+# JWT is verified manually in-function via supabase.auth.getUser(token)
 entrypoint = "./functions/check-stripe-status/index.ts"
 
 [functions.create-stripe-account]
 enabled = true
-verify_jwt = true
+verify_jwt = false
+# JWT is verified manually in-function via supabase.auth.getUser(token)
 entrypoint = "./functions/create-stripe-account/index.ts"
