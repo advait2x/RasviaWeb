@@ -37,7 +37,7 @@ export default function StripeConnect() {
                     // 2. Check actual status from Stripe API
                     if (accountId) {
                         const { data: statusData, error: statusErr } = await supabase.functions.invoke('check-stripe-status', {
-                            body: { stripe_account_id: accountId }
+                            body: { restaurant_id: restaurantId }
                         });
                         
                         if (!statusErr && statusData) {
@@ -65,17 +65,13 @@ export default function StripeConnect() {
                 body: { restaurant_id: restaurantId }
             });
             
-            console.log("Stripe Setup response:", { data, error });
             if (error) {
-                alert(`Supabase Invoke Error: ${error.message}\nReview the browser console for details.`);
                 throw new Error(error.message);
             }
             if (data?.error) {
-                alert(`Stripe Edge Function Error: ${data.error}`);
                 throw new Error(data.error);
             }
             if (!data?.url) {
-                alert(`No URL returned! Data: ${JSON.stringify(data)}`);
                 throw new Error("Failed to generate onboarding link");
             }
             

@@ -5,18 +5,116 @@ import { createClient } from "npm:@supabase/supabase-js@^2.39.0"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function safePortalOrigin(originHeader: string | null): string {
+  if (!originHeader) return 'https://rasvia.com'
+
+  try {
+    const parsed = new URL(originHeader)
+    const host = parsed.hostname.toLowerCase()
+
+    if (
+      parsed.protocol === 'https:' &&
+      (host === 'rasvia.com' || host === 'www.rasvia.com')
+    ) {
+      return parsed.origin
+    }
+
+    if (
+      parsed.protocol === 'http:' &&
+      (host === 'localhost' || host === '127.0.0.1')
+    ) {
+      return parsed.origin
+    }
+  } catch {
+    // fall back to production origin
+  }
+
+  return 'https://rasvia.com'
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   try {
-    const { restaurant_id } = await req.json()
+    // Authenticate the caller
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(JSON.stringify({ error: 'Invalid authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    if (!restaurant_id) {
-      throw new Error('restaurant_id is required')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    const token = authHeader.slice(7).trim()
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Missing bearer token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { restaurant_id } = await req.json()
+    const restaurantId = Number(restaurant_id)
+
+    if (!Number.isFinite(restaurantId) || restaurantId <= 0) {
+      return new Response(JSON.stringify({ error: 'restaurant_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Verify the user has access to this restaurant (owner or admin)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const isAdmin = profile?.role?.toLowerCase().trim() === 'admin'
+
+    if (!isAdmin) {
+      // Check if user owns this restaurant
+      const { data: restaurant, error: ownerCheck } = await supabase
+        .from('restaurants')
+        .select('owner_id')
+        .eq('id', restaurantId)
+        .single()
+
+      if (ownerCheck || !restaurant || restaurant.owner_id !== user.id) {
+        return new Response(JSON.stringify({ error: 'Not authorized for this restaurant' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -24,26 +122,24 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // 1. Check if the restaurant already has a Stripe account
-    const { data: restaurant, error: fetchErr } = await supabase
+    // Check if the restaurant already has a Stripe account
+    const { data: restaurantData, error: fetchErr } = await supabase
       .from('restaurants')
       .select('stripe_account_id, name')
-      .eq('id', restaurant_id)
+      .eq('id', restaurantId)
       .single()
 
-    if (fetchErr || !restaurant) {
-      throw new Error('Restaurant not found')
+    if (fetchErr || !restaurantData) {
+      return new Response(JSON.stringify({ error: 'Restaurant not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    let accountId = restaurant.stripe_account_id
+    let accountId = restaurantData.stripe_account_id
 
-    // 2. Manage Express account
+    // Create new account if needed
     if (!accountId) {
-      // Create new account
       const account = await stripe.accounts.create({
         type: 'express',
         capabilities: {
@@ -51,27 +147,24 @@ serve(async (req) => {
           transfers: { requested: true },
         },
         business_profile: {
-          name: restaurant.name || 'Rasvia Partner',
+          name: restaurantData.name || 'Rasvia Partner',
         },
       })
       accountId = account.id
 
-      // Save to Supabase
-      const { error: updateErr } = await supabase
+      await supabase
         .from('restaurants')
         .update({ stripe_account_id: accountId })
-        .eq('id', restaurant_id)
-
+        .eq('id', restaurantId)
     }
 
-    const origin = req.headers.get('origin') || 'https://rasvia.com' // Fallback for testing
-    // In local dev this might be localhost:5173, so let's rely on the Request headers or environment
+    const origin = safePortalOrigin(req.headers.get('origin'))
 
-    // 3. Create an Account Link for onboarding
+    // Create an Account Link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${origin}/partner-portal`, // Where to send them if link expires
-      return_url: `${origin}/partner-portal`,  // Where to send them when done
+      refresh_url: `${origin}/partner-portal`,
+      return_url: `${origin}/partner-portal`,
       type: 'account_onboarding',
     })
 
@@ -79,10 +172,11 @@ serve(async (req) => {
       JSON.stringify({ url: accountLink.url }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
-  } catch (error: any) {
-    console.error(error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 200,
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('create-stripe-account error:', message)
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   }

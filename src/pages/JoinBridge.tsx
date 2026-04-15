@@ -102,7 +102,6 @@ export default function JoinBridge() {
   const [payingMyShare, setPayingMyShare] = useState(false);
   const [payingFullBill, setPayingFullBill] = useState(false);
   const [splitPaidMembers, setSplitPaidMembers] = useState<string[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const nameKeyRef = useRef(`rasvia:web:party-name:${sessionId}`);
 
   const fetchCart = async () => {
@@ -197,7 +196,6 @@ export default function JoinBridge() {
           supabase.auth.getSession(),
         ]);
         setMenu(menuData ?? []);
-        setCurrentUserId(authData.session?.user?.id ?? null);
         setIsHost(Boolean(authData.session?.user?.id && authData.session.user.id === sessionData.host_user_id));
 
         const fetchedCart = (await fetchCart()) ?? [];
@@ -543,13 +541,11 @@ export default function JoinBridge() {
       const returnBase = `${window.location.origin}/join?id=${encodeURIComponent(sessionId)}&split_paid=1&payer=${encodeURIComponent(guestName)}`;
       const checkoutUrl = await createCheckoutUrl({
         restaurant_id: restaurantId,
-        stripe_account_id: stripeAccountId,
         amount: myShareTotal,
         party_session_id: sessionId,
         cart_items: payerItems,
         restaurant_name: restaurantName,
         customer_name: guestName,
-        user_id: currentUserId,
         order_type: "dine_in",
         return_url_base: returnBase,
       });
@@ -580,7 +576,6 @@ export default function JoinBridge() {
 
       const checkoutUrl = await createCheckoutUrl({
         restaurant_id: restaurantId,
-        stripe_account_id: stripeAccountId,
         amount: total,
         party_session_id: sessionId,
         cart_items: cartItems.map((item) => ({
@@ -592,7 +587,6 @@ export default function JoinBridge() {
         })),
         restaurant_name: restaurantName,
         customer_name: guestName,
-        user_id: currentUserId,
         order_type: "dine_in",
         return_url_base: `${window.location.origin}/join?id=${encodeURIComponent(sessionId)}&full_paid=1&payer=${encodeURIComponent(guestName)}`,
       });

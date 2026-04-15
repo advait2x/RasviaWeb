@@ -8,30 +8,35 @@ serve(async (req) => {
     httpClient: Stripe.createFetchHttpClient(),
   })
 
-  // Verify Signature
+  // Verify Signature — always required to prevent forged webhook events
   const signature = req.headers.get('stripe-signature')
   const endpointSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
-  
+
+  if (!endpointSecret) {
+    console.error('⚠️ STRIPE_WEBHOOK_SECRET is not configured. Rejecting webhook.')
+    return new Response('Webhook secret not configured', { status: 500 })
+  }
+
+  if (!signature) {
+    return new Response('Missing stripe-signature header', { status: 400 })
+  }
+
   let event: Stripe.Event;
 
   try {
     const body = await req.text()
-    if (endpointSecret && signature) {
-      const cryptoProvider = Stripe.createSubtleCryptoProvider()
-      event = await stripe.webhooks.constructEventAsync(
-        body,
-        signature,
-        endpointSecret,
-        undefined,
-        cryptoProvider
-      )
-    } else {
-      // Fallback for local testing without signature verification
-      event = JSON.parse(body)
-    }
-  } catch (err: any) {
-    console.error(`⚠️ Webhook signature verification failed.`, err.message)
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 })
+    const cryptoProvider = Stripe.createSubtleCryptoProvider()
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      endpointSecret,
+      undefined,
+      cryptoProvider
+    )
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error(`⚠️ Webhook signature verification failed.`, message)
+    return new Response(`Webhook Error: ${message}`, { status: 400 })
   }
 
   // Process Event
@@ -79,11 +84,11 @@ serve(async (req) => {
 
             // Extract cart summary from metadata if it was passed
             const meta = session.metadata || {}
-            let cartItems: any[] = []
-            try { cartItems = JSON.parse(meta.cart_items || '[]') } catch { }
+            let cartItems: Array<{ name?: string; price?: number; quantity?: number; added_by?: string }> = []
+            try { cartItems = JSON.parse(meta.cart_items || '[]') } catch { /* noop */ }
             
             if (cartItems.length > 0) {
-              const orderSummary = cartItems.map((i: any) => ({
+              const orderSummary = cartItems.map((i) => ({
                 name: i.name || 'Unknown',
                 price: Number(i.price) || 0,
                 quantity: i.quantity ?? 1,
@@ -103,8 +108,9 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 })
-  } catch (err: any) {
-    console.error(`Webhook handler failed:`, err.message)
-    return new Response(`Webhook handler failed: ${err.message}`, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error(`Webhook handler failed:`, message)
+    return new Response(`Webhook handler failed: ${message}`, { status: 500 })
   }
 })

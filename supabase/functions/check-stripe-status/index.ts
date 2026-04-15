@@ -1,21 +1,104 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from "https://esm.sh/stripe@13.10.0?target=deno"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   try {
-    const { stripe_account_id } = await req.json()
+    // Authenticate the caller
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(JSON.stringify({ error: 'Invalid authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    if (!stripe_account_id) {
-      throw new Error('stripe_account_id is required')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
+
+    const token = authHeader.slice(7).trim()
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Missing bearer token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { restaurant_id } = await req.json()
+    const restaurantId = Number(restaurant_id)
+
+    if (!Number.isFinite(restaurantId) || restaurantId <= 0) {
+      return new Response(JSON.stringify({ error: 'restaurant_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const isAdmin = profile?.role?.toLowerCase().trim() === 'admin'
+
+    const { data: restaurant, error: restaurantError } = await supabaseClient
+      .from('restaurants')
+      .select('owner_id, stripe_account_id')
+      .eq('id', restaurantId)
+      .maybeSingle()
+
+    if (restaurantError || !restaurant) {
+      return new Response(JSON.stringify({ error: 'Restaurant not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!isAdmin && restaurant.owner_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Not authorized for this restaurant' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const stripeAccountId = String(restaurant.stripe_account_id ?? '').trim()
+    if (!stripeAccountId) {
+      return new Response(JSON.stringify({ error: 'Stripe account not connected' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -23,7 +106,7 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    const account = await stripe.accounts.retrieve(stripe_account_id)
+    const account = await stripe.accounts.retrieve(stripeAccountId)
 
     return new Response(
       JSON.stringify({ 
@@ -33,9 +116,10 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
-  } catch (error: any) {
-    console.error(error)
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('check-stripe-status error:', message)
+    return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })

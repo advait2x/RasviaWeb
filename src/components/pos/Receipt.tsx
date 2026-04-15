@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { motion } from "framer-motion";
 import { Printer, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -12,16 +11,61 @@ interface ReceiptProps {
   restaurantAddress?: string;
 }
 
-export default function Receipt({ order, open, onClose, restaurantName = "Restaurant", restaurantAddress }: ReceiptProps) {
-  const receiptRef = useRef<HTMLDivElement>(null);
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
+export default function Receipt({ order, open, onClose, restaurantName = "Restaurant", restaurantAddress }: ReceiptProps) {
   if (!order) return null;
 
+  const now = new Date();
+  const activeItems = order.items.filter((i) => !i.voided);
+  const discountTotal = order.discountTotal ?? 0;
+
   const handlePrint = () => {
-    const content = receiptRef.current;
-    if (!content) return;
-    const printWindow = window.open("", "_blank", "width=300,height=600");
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=300,height=600");
     if (!printWindow) return;
+
+    printWindow.opener = null;
+
+    const itemRows = activeItems
+      .map((item) => {
+        const lineName = `${item.quantity}x ${item.menuItemName}${item.comped ? " (COMP)" : ""}`;
+        const linePrice = item.comped ? "$0.00" : `$${(item.unitPrice * item.quantity).toFixed(2)}`;
+        return `
+          <div class="row">
+            <span class="item-name">${escapeHtml(lineName)}</span>
+            <span class="item-price">${escapeHtml(linePrice)}</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    const discountRow =
+      discountTotal > 0
+        ? `
+          <div class="row small">
+            <span>Discount</span>
+            <span>-$${escapeHtml(discountTotal.toFixed(2))}</span>
+          </div>
+        `
+        : "";
+
+    const tipRow =
+      order.tipAmount != null && order.tipAmount > 0
+        ? `
+          <div class="row small">
+            <span>Tip</span>
+            <span>$${escapeHtml(order.tipAmount.toFixed(2))}</span>
+          </div>
+        `
+        : "";
+
     printWindow.document.write(`
       <html>
         <head>
@@ -38,20 +82,64 @@ export default function Receipt({ order, open, onClose, restaurantName = "Restau
             .total-row { font-weight: bold; font-size: 14px; }
             .small { font-size: 10px; color: #666; }
             h1 { font-size: 16px; margin-bottom: 4px; }
+            .spacer { margin: 8px 0; }
             @media print { body { width: 80mm; } }
           </style>
         </head>
-        <body>${content.innerHTML}</body>
+        <body>
+          <div class="center">
+            <h1>${escapeHtml(restaurantName)}</h1>
+            ${restaurantAddress ? `<p class="small">${escapeHtml(restaurantAddress)}</p>` : ""}
+            <div class="line"></div>
+            <p class="small">${escapeHtml(now.toLocaleDateString())} ${escapeHtml(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}</p>
+          </div>
+
+          <div class="spacer"></div>
+          <div class="row small">
+            <span>Order #${escapeHtml(order.id.slice(-6))}</span>
+            <span>Table ${escapeHtml(order.tableNumber)}</span>
+          </div>
+          <div class="small">Guest: ${escapeHtml(order.guestName)} · Party of ${escapeHtml(order.partySize)}</div>
+          <div class="line"></div>
+
+          ${itemRows}
+
+          <div class="line"></div>
+          <div class="row">
+            <span>Subtotal</span>
+            <span>$${escapeHtml(order.subtotal.toFixed(2))}</span>
+          </div>
+          ${discountRow}
+          <div class="row">
+            <span>Tax (8.25%)</span>
+            <span>$${escapeHtml(order.tax.toFixed(2))}</span>
+          </div>
+          <div class="line"></div>
+          <div class="row total-row">
+            <span>TOTAL</span>
+            <span>$${escapeHtml(order.total.toFixed(2))}</span>
+          </div>
+          ${tipRow}
+          <div class="line"></div>
+
+          <div class="center small">
+            <p>Tip _______________</p>
+            <p>Total _______________</p>
+            <p>Signature _______________</p>
+          </div>
+
+          <div class="line"></div>
+          <div class="center small">
+            <p>Thank you for dining with us!</p>
+            <p>Powered by Rasvia</p>
+          </div>
+        </body>
       </html>
     `);
     printWindow.document.close();
     printWindow.print();
     printWindow.close();
   };
-
-  const now = new Date();
-  const activeItems = order.items.filter((i) => !i.voided);
-  const discountTotal = order.discountTotal ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -73,7 +161,7 @@ export default function Receipt({ order, open, onClose, restaurantName = "Restau
 
         {/* Receipt content - styled to look like thermal printer output */}
         <div className="p-5">
-          <div ref={receiptRef} className="bg-white text-black p-4 rounded-lg font-mono text-xs leading-relaxed">
+          <div className="bg-white text-black p-4 rounded-lg font-mono text-xs leading-relaxed">
             <div className="text-center mb-3">
               <h1 className="text-sm font-bold">{restaurantName}</h1>
               {restaurantAddress && <p className="text-[10px] text-gray-500">{restaurantAddress}</p>}

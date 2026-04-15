@@ -402,8 +402,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           status: "waiting",
         });
         if (error) {
-          console.error("Debug insert failed:", error.message, error.details);
-          alert(`Debug insert failed: ${error.message}\n\nCheck the browser console for details.`);
+          console.error("Debug insert failed:", error.message);
+          toast.error("Failed to insert debug entry. Check the browser console for details.");
           return;
         }
       }
