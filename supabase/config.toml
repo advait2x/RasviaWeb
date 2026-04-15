@@ -15,3 +15,18 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/payment-redirect/deno.json"
 entrypoint = "./functions/payment-redirect/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.check-stripe-status]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/check-stripe-status/index.ts"
+
+[functions.create-stripe-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-stripe-account/index.ts"

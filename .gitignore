@@ -41,3 +41,6 @@ core
 # Build outputs
 build
 coverage
+
+# Supabase CLI local metadata
+supabase/.temp/
