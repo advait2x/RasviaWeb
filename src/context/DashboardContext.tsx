@@ -530,13 +530,57 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteMenuItem = useCallback(async (id: string) => {
-    const { error } = await supabase.from("menu_items").delete().eq("id", id);
+    if (!restaurantId) throw new Error("Restaurant not selected.");
+
+    const parsed = Number(String(id).trim());
+    const itemId: number | string = Number.isFinite(parsed) ? parsed : id;
+
+    const tryDelete = async () =>
+      await supabase
+        .from("menu_items")
+        .delete()
+        .eq("id", itemId as any)
+        .eq("restaurant_id", restaurantId)
+        .select("id");
+
+    let { data, error } = await tryDelete();
+
+    // If FK constraints block hard delete, detach dependent references and retry.
+    if (error && (error.code === "23503" || /foreign key/i.test(error.message))) {
+      try {
+        await supabase
+          .from("restaurant_media_slides")
+          .delete()
+          .eq("restaurant_id", restaurantId)
+          .eq("menu_item_id", itemId as any);
+
+        await supabase
+          .from("party_items")
+          .delete()
+          .eq("menu_item_id", itemId as any);
+
+        await supabase
+          .from("order_items")
+          .update({ menu_item_id: null })
+          .eq("menu_item_id", itemId as any);
+      } catch {
+        // best-effort cleanup; retry delete below and surface real DB error if still blocked
+      }
+
+      ({ data, error } = await tryDelete());
+    }
+
     if (error) {
       console.error("deleteMenuItem failed:", error.message);
-    } else {
-      setMenuItems((prev) => prev.filter((m) => m.id !== id));
+      throw new Error(error.message);
     }
-  }, []);
+
+    if (!data || data.length === 0) {
+      throw new Error("No item was deleted. You may not have permission for this item.");
+    }
+
+    setMenuItems((prev) => prev.filter((m) => String(m.id) !== String(itemId)));
+  }, [restaurantId]);
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Notification helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 

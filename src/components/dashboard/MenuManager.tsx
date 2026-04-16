@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
-  Coffee, Sun, Moon, Star, Clock, ArrowUpDown, Settings2, Loader2,
+  ArrowUpDown, Settings2, Loader2, ChevronUp, ChevronDown, Lock,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { MenuItem, MealTime, ItemModifier } from "@/types/dashboard";
@@ -19,19 +19,15 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { getMenuItemFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
+import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, serializeMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
+import { toast } from "sonner";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
 
-const MEAL_TIMES: { value: MealTime; label: string; icon: typeof Coffee; color: string }[] = [
-  { value: "breakfast", label: "Breakfast", icon: Coffee, color: "bg-orange-500/10 border-orange-500/30 text-orange-400" },
-  { value: "lunch", label: "Lunch", icon: Sun, color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" },
-  { value: "dinner", label: "Dinner", icon: Moon, color: "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" },
-  { value: "specials", label: "Specials", icon: Star, color: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
-  { value: "all_day", label: "All Day", icon: Clock, color: "bg-sky-500/10 border-sky-500/30 text-sky-400" },
-];
-
-function getMealTimeConfig(value: MealTime) {
-  return MEAL_TIMES.find((m) => m.value === value) ?? MEAL_TIMES[4];
+function getMealTimeConfig(value: MealTime, menuTags: MenuTagConfig[]) {
+  const found = menuTags.find((m) => m.key === value);
+  if (found) return found;
+  return menuTags[0] ?? DEFAULT_MENU_TAGS[0];
 }
 
 // ── Form state ────────────────────────────────────────────────────────────────
@@ -45,17 +41,14 @@ interface FormState {
   inStock: boolean;
 }
 
-const emptyForm = (): FormState => ({
+const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
   name: "",
   description: "",
   price: "",
   imageUrl: "",
-  mealTimes: ["all_day"],
+  mealTimes: [menuTags.find((t) => t.enabled)?.key ?? menuTags[0]?.key ?? "main_course"],
   inStock: true,
 });
-
-// The three specific times that together equal "all day"
-const SPECIFIC_TIMES: MealTime[] = ["breakfast", "lunch", "dinner"];
 
 function itemToForm(item: MenuItem): FormState {
   return {
@@ -73,16 +66,22 @@ function itemToForm(item: MenuItem): FormState {
 function ItemFormDialog({
   open,
   item,
+  menuTags,
   onClose,
   onSave,
 }: {
   open: boolean;
   item: MenuItem | null;
+  menuTags: MenuTagConfig[];
   onClose: () => void;
   onSave: (data: Omit<MenuItem, "id">, force?: boolean) => Promise<void>;
 }) {
   const { restaurantId } = useAuth();
-  const [form, setForm] = useState<FormState>(() => item ? itemToForm(item) : emptyForm());
+  const [form, setForm] = useState<FormState>(() =>
+    item
+      ? { ...itemToForm(item), mealTimes: normalizeMenuItemTags(item.mealTimes, menuTags) }
+      : emptyForm(menuTags)
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [nameError, setNameError] = useState(false);
@@ -95,42 +94,25 @@ function ItemFormDialog({
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-
   const toggleMealTime = (mt: MealTime) => {
     setForm((f) => {
       const cur = f.mealTimes;
-
-      // "All Day" button clicked — just ensure all_day is set
-      if (mt === "all_day") return { ...f, mealTimes: ["all_day"] };
-
-      // Specials is exclusive — clicking it clears everything else
-      if (mt === "specials") {
-        if (cur.includes("specials")) return f; // already only specials, keep it (enforce at-least-one)
-        return { ...f, mealTimes: ["specials"] };
-      }
-
-      // Clicking a specific time while in all_day or specials mode → switch to specific mode
-      if (cur.includes("all_day") || cur.includes("specials")) {
-        return { ...f, mealTimes: [mt] };
-      }
-
-      // Already in specific mode — toggle the time
-      let next: MealTime[];
       if (cur.includes(mt)) {
-        next = cur.filter((x) => x !== mt);
-        if (next.length === 0) return f; // enforce at-least-one
-      } else {
-        next = [...cur, mt];
+        const next = cur.filter((x) => x !== mt);
+        if (next.length === 0) return f;
+        return { ...f, mealTimes: next };
       }
-
-      // If all three specific times selected → auto-switch back to all_day
-      if (SPECIFIC_TIMES.every((t) => next.includes(t))) {
-        return { ...f, mealTimes: ["all_day"] };
-      }
-
-      return { ...f, mealTimes: next };
+      return { ...f, mealTimes: [...cur, mt] };
     });
   };
+
+  useEffect(() => {
+    setForm(
+      item
+        ? { ...itemToForm(item), mealTimes: normalizeMenuItemTags(item.mealTimes, menuTags) }
+        : emptyForm(menuTags)
+    );
+  }, [item, open, menuTags]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -308,30 +290,26 @@ function ItemFormDialog({
             {/* Meal Times */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Served During <span className="text-red-400">*</span>
+                Meal Type <span className="text-red-400">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                {MEAL_TIMES.map(({ value, label, icon: Icon, color }) => {
-                  const active = form.mealTimes.includes(value);
-                  const isAllDay = value === "all_day";
-                  // Hide "All Day" button when user is in specific-times mode
-                  const inSpecificMode = !form.mealTimes.includes("all_day");
-                  if (isAllDay && inSpecificMode) return null;
+                {menuTags.filter((tag) => tag.enabled !== false).map((tag) => {
+                  const active = form.mealTimes.includes(tag.key);
                   return (
                     <motion.button
-                      key={value}
+                      key={tag.key}
                       layout
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => toggleMealTime(value)}
+                      onClick={() => toggleMealTime(tag.key)}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.15 }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${active ? color : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${active ? "" : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300"
                         }`}
+                      style={active ? { color: tag.color, backgroundColor: tag.bg, borderColor: tag.border } : undefined}
                     >
-                      <Icon size={12} strokeWidth={1.5} />
-                      {label}
+                      {tag.label}
                     </motion.button>
                   );
                 })}
@@ -591,9 +569,9 @@ function ModifiersManager() {
 
 export default function MenuManager() {
   const { menuItems, menuLoading, toggleMenuItem, addMenuItem, updateMenuItem, deleteMenuItem } = useDashboard();
-  const { hasPermission } = useAuth();
+  const { hasPermission, restaurantId } = useAuth();
   const canEdit = hasPermission("manage_menu");
-  const [menuTab, setMenuTab] = useState<"items" | "modifiers">("items");
+  const [menuTab, setMenuTab] = useState<"items" | "modifiers" | "tags">("items");
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
@@ -602,6 +580,80 @@ export default function MenuManager() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmStockItem, setConfirmStockItem] = useState<MenuItem | null>(null);
+  const [menuTags, setMenuTags] = useState<MenuTagConfig[]>(DEFAULT_MENU_TAGS);
+  const [tagDraft, setTagDraft] = useState("");
+  const [savingTags, setSavingTags] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [showTagComposer, setShowTagComposer] = useState(false);
+  const [pendingTagDelete, setPendingTagDelete] = useState<{ index: number; label: string } | null>(null);
+  const [editingTagKey, setEditingTagKey] = useState<string | null>(null);
+  const [editingTagLabel, setEditingTagLabel] = useState("");
+  const [editingTagColorIdx, setEditingTagColorIdx] = useState(0);
+  const fetchMenuTags = useCallback(async () => {
+    if (!restaurantId) return;
+    const { data, error } = await supabase
+      .from("restaurant_menu_tags")
+      .select("key, label, color, bg, border, enabled, position")
+      .eq("restaurant_id", Number(restaurantId))
+      .order("position", { ascending: true });
+    if (error) throw error;
+    const parsed = parseRestaurantMenuTags((data ?? []) as unknown[]);
+    setMenuTags(parsed.length > 0 ? parsed : DEFAULT_MENU_TAGS);
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    let mounted = true;
+    setTagError(null);
+    fetchMenuTags().catch((err: any) => {
+      if (!mounted) return;
+      setMenuTags(DEFAULT_MENU_TAGS);
+      setTagError(err?.message || "Unable to load menu tags right now.");
+    });
+
+    const tagSub = supabase
+      .channel(`restaurant-menu-tags:${restaurantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "restaurant_menu_tags", filter: `restaurant_id=eq.${restaurantId}` },
+        () => { void fetchMenuTags(); }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(tagSub);
+    };
+  }, [restaurantId, fetchMenuTags]);
+
+  const persistMenuTags = async (next: MenuTagConfig[]) => {
+    if (!restaurantId) return false;
+    if (!Array.isArray(next) || next.length === 0) {
+      setTagError("At least one menu tag is required.");
+      return false;
+    }
+    const serialized = serializeMenuTags(next);
+    const previous = menuTags;
+    setTagError(null);
+    setMenuTags(serialized);
+    setSavingTags(true);
+    try {
+      const { error } = await supabase
+        .rpc("set_restaurant_menu_tags", {
+          p_restaurant_id: Number(restaurantId),
+          p_tags: serialized as any,
+        });
+      if (error) throw error;
+      await fetchMenuTags();
+      return true;
+    } catch (err) {
+      setMenuTags(previous);
+      setTagError((err as any)?.message || "Unable to save tag changes. Please try again.");
+      return false;
+    } finally {
+      setSavingTags(false);
+    }
+  };
 
   const toggleFilter = (mt: MealTime) => {
     setActiveFilters((prev) =>
@@ -643,8 +695,13 @@ export default function MenuManager() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteMenuItem(id);
-    setConfirmDelete(null);
+    try {
+      await deleteMenuItem(id);
+      setConfirmDelete(null);
+      toast.success("Menu item deleted.");
+    } catch (err: any) {
+      toast.error(err?.message || "Unable to delete this menu item.");
+    }
   };
 
   const openAdd = () => {
@@ -657,29 +714,285 @@ export default function MenuManager() {
     setShowForm(true);
   };
 
+  const tabButtonClass = (tab: "items" | "modifiers" | "tags") =>
+    `px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${menuTab === tab ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`;
+
+  const renderTabBar = () => (
+    <div className="px-5 pt-4 pb-2">
+      <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
+        <button onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
+        <button onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
+        <button onClick={() => setMenuTab("tags")} className={tabButtonClass("tags")}>Menu Tags</button>
+      </div>
+    </div>
+  );
+
+  const TAG_COLOR_PRESETS = DEFAULT_MENU_TAGS.map((tag) => ({
+    color: tag.color,
+    bg: tag.bg,
+    border: tag.border,
+  }));
+
   if (menuTab === "modifiers") {
     return (
       <div className="flex flex-col h-full">
-        <div className="px-5 pt-4 pb-2">
-          <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
-            <button onClick={() => setMenuTab("items")} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-all">Menu Items</button>
-            <button onClick={() => setMenuTab("modifiers")} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-700 text-zinc-100">Modifiers</button>
-          </div>
-        </div>
+        {renderTabBar()}
         <ModifiersManager />
+      </div>
+    );
+  }
+
+  if (menuTab === "tags") {
+    return (
+      <div className="flex flex-col h-full">
+        {renderTabBar()}
+        <div className="px-5 pb-3">
+          <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Menu Tag Setup</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">Manage menu tags shown in item editors and customer filtering.</p>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="px-5 pb-5">
+            <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Menu Tag Setup</p>
+                {savingTags && <Loader2 size={13} className="text-amber-400 animate-spin" />}
+              </div>
+              {!canEdit && (
+                <p className="mb-2 text-[11px] text-zinc-500">You do not have permission to edit tags.</p>
+              )}
+              {tagError && (
+                <p className="mb-2 text-[11px] text-red-400">{tagError}</p>
+              )}
+              <p className="mb-2 text-[11px] text-zinc-500">Ordered top to bottom for display priority.</p>
+              <div className="space-y-2 mb-2">
+                <div
+                  className="rounded-xl border p-2.5"
+                  style={{ borderColor: "rgba(255,255,255,0.16)", background: "rgba(18,18,18,0.95)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
+                      *
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-zinc-100 truncate">All Menu Items</p>
+                      <p className="text-[11px] text-zinc-500">Pinned default filter • cannot be removed</p>
+                    </div>
+                    <div className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-500 grid place-items-center">
+                      <Lock size={12} />
+                    </div>
+                  </div>
+                </div>
+                {menuTags.map((tag, idx) => (
+                  <div
+                    key={tag.key}
+                    className="rounded-xl border p-2.5"
+                    style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(10,10,10,0.9)" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: tag.color }}>{tag.label}</p>
+                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            className="w-7 h-7 rounded-md border border-amber-500/35 bg-amber-500/10 text-amber-400 grid place-items-center hover:bg-amber-500/20"
+                            onClick={() => {
+                              if (editingTagKey === tag.key) {
+                                const label = editingTagLabel.trim();
+                                if (!label) {
+                                  setTagError("Tag name cannot be empty.");
+                                  return;
+                                }
+                                const selected = TAG_COLOR_PRESETS[editingTagColorIdx] ?? TAG_COLOR_PRESETS[0];
+                                const next = menuTags.map((current) =>
+                                  current.key === tag.key
+                                    ? { ...current, label, color: selected.color, bg: selected.bg, border: selected.border }
+                                    : current
+                                );
+                                void persistMenuTags(next);
+                                setEditingTagKey(null);
+                                setEditingTagLabel("");
+                                return;
+                              }
+                              const matched = TAG_COLOR_PRESETS.findIndex(
+                                (preset) => preset.color === tag.color && preset.bg === tag.bg && preset.border === tag.border
+                              );
+                              setEditingTagKey(tag.key);
+                              setEditingTagLabel(tag.label);
+                              setEditingTagColorIdx(matched >= 0 ? matched : 0);
+                            }}
+                          >
+                            {editingTagKey === tag.key ? <Check size={12} /> : <Pencil size={12} />}
+                          </button>
+                          <button
+                            className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-400 grid place-items-center disabled:opacity-40 hover:text-zinc-200"
+                            disabled={savingTags || idx === 0}
+                            onClick={() => {
+                              if (idx === 0) return;
+                              const next = [...menuTags];
+                              const temp = next[idx - 1];
+                              next[idx - 1] = next[idx];
+                              next[idx] = temp;
+                              void persistMenuTags(next);
+                            }}
+                          >
+                            <ChevronUp size={12} />
+                          </button>
+                          <button
+                            className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-400 grid place-items-center disabled:opacity-40 hover:text-zinc-200"
+                            disabled={savingTags || idx >= menuTags.length - 1}
+                            onClick={() => {
+                              if (idx >= menuTags.length - 1) return;
+                              const next = [...menuTags];
+                              const temp = next[idx + 1];
+                              next[idx + 1] = next[idx];
+                              next[idx] = temp;
+                              void persistMenuTags(next);
+                            }}
+                          >
+                            <ChevronDown size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="w-7 h-7 rounded-md border border-red-500/30 bg-red-500/10 text-red-300 grid place-items-center disabled:opacity-40 hover:bg-red-500/20"
+                            disabled={savingTags}
+                            onClick={() => setPendingTagDelete({ index: idx, label: tag.label })}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {editingTagKey === tag.key && canEdit && (
+                      <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
+                        <Input
+                          value={editingTagLabel}
+                          onChange={(e) => setEditingTagLabel(e.target.value)}
+                          placeholder="Tag name"
+                          className="h-8 bg-zinc-900/70 border-white/10 text-zinc-100 text-xs"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          {TAG_COLOR_PRESETS.map((preset, colorIdx) => (
+                            <button
+                              key={`${preset.color}-${colorIdx}`}
+                              onClick={() => setEditingTagColorIdx(colorIdx)}
+                              className="w-6 h-6 rounded-full border-2"
+                              style={{
+                                background: preset.color,
+                                borderColor: editingTagColorIdx === colorIdx ? "#f5f5f5" : "#27272a",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {canEdit && (!showTagComposer ? (
+                <button
+                  className="px-2.5 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold"
+                  onClick={() => {
+                    setTagError(null);
+                    setShowTagComposer(true);
+                  }}
+                >
+                  + Add Tag
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={tagDraft}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    placeholder="Add custom tag"
+                    className="h-8 bg-zinc-900/60 border-white/10 text-zinc-100 text-xs placeholder:text-zinc-600"
+                  />
+                  <button
+                    className="px-2.5 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold"
+                    onClick={() => {
+                      const label = tagDraft.trim();
+                      if (!label) {
+                        setTagError("Tag name cannot be empty.");
+                        return;
+                      }
+                      const key = slugifyTag(label);
+                      if (!key || menuTags.some((t) => t.key === key)) {
+                        setTagError("This tag already exists.");
+                        return;
+                      }
+                      const fallback = DEFAULT_MENU_TAGS[menuTags.length % DEFAULT_MENU_TAGS.length];
+                      void persistMenuTags([
+                        ...menuTags,
+                        { key, label, color: fallback.color, bg: fallback.bg, border: fallback.border, enabled: true, position: menuTags.length },
+                      ]);
+                      setTagDraft("");
+                      setShowTagComposer(false);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="px-2.5 py-1.5 rounded-md border border-white/15 bg-zinc-800 text-zinc-300 text-xs font-semibold"
+                    onClick={() => {
+                      setTagDraft("");
+                      setTagError(null);
+                      setShowTagComposer(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </ScrollArea>
+        <Dialog open={!!pendingTagDelete} onOpenChange={(open) => !open && setPendingTagDelete(null)}>
+          <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-base font-semibold text-zinc-100">Delete Menu Tag?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-zinc-300 mt-3">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-zinc-100">"{pendingTagDelete?.label}"</span>?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-4">
+              <button
+                className="px-3 py-1.5 rounded-md border border-white/15 bg-zinc-800 text-zinc-300 text-xs font-semibold"
+                onClick={() => setPendingTagDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-md border border-red-500/30 bg-red-500/10 text-red-300 text-xs font-semibold disabled:opacity-50"
+                disabled={savingTags}
+                onClick={() => {
+                  if (!pendingTagDelete) return;
+                  const next = menuTags.filter((_, i) => i !== pendingTagDelete.index);
+                  if (next.length === 0) {
+                    setTagError("At least one menu tag is required.");
+                    setPendingTagDelete(null);
+                    return;
+                  }
+                  void persistMenuTags(next);
+                  setPendingTagDelete(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab bar */}
-      <div className="px-5 pt-4 pb-2">
-        <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
-          <button onClick={() => setMenuTab("items")} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-700 text-zinc-100">Menu Items</button>
-          <button onClick={() => setMenuTab("modifiers")} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-all">Modifiers</button>
-        </div>
-      </div>
+      {renderTabBar()}
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <div>
@@ -742,20 +1055,20 @@ export default function MenuManager() {
         </div>
       </div>
 
-      {/* Meal time filters */}
+      {/* Menu tag filters */}
       <div className="px-5 pb-3 flex flex-wrap gap-1.5">
-        {MEAL_TIMES.map(({ value, label, icon: Icon, color }) => {
-          const active = activeFilters.includes(value);
+        {menuTags.filter((tag) => tag.enabled !== false).map((tag) => {
+          const active = activeFilters.includes(tag.key);
           return (
             <motion.button
-              key={value}
+              key={tag.key}
               whileTap={{ scale: 0.95 }}
-              onClick={() => toggleFilter(value)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${active ? color : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
+              onClick={() => toggleFilter(tag.key)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${active ? "" : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
                 }`}
+              style={active ? { color: tag.color, backgroundColor: tag.bg, borderColor: tag.border } : undefined}
             >
-              <Icon size={11} strokeWidth={1.5} />
-              {label}
+              {tag.label}
             </motion.button>
           );
         })}
@@ -846,6 +1159,7 @@ export default function MenuManager() {
                       {canEdit && (
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <motion.button
+                            type="button"
                             whileTap={{ scale: 0.9 }}
                             onClick={() => openEdit(item)}
                             className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
@@ -853,6 +1167,7 @@ export default function MenuManager() {
                             <Pencil size={13} strokeWidth={1.5} />
                           </motion.button>
                           <motion.button
+                            type="button"
                             whileTap={{ scale: 0.9 }}
                             onClick={() => setConfirmDelete(item.id)}
                             className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -879,14 +1194,13 @@ export default function MenuManager() {
                     {item.mealTimes.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {item.mealTimes.map((mt) => {
-                          const cfg = getMealTimeConfig(mt);
-                          const Icon = cfg.icon;
+                          const cfg = getMealTimeConfig(mt, menuTags);
                           return (
                             <span
                               key={mt}
-                              className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.color}`}
+                              className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.border}`}
+                              style={{ color: cfg.color }}
                             >
-                              <Icon size={9} strokeWidth={1.5} />
                               {cfg.label}
                             </span>
                           );
@@ -908,12 +1222,14 @@ export default function MenuManager() {
                       <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                         <p className="text-xs text-zinc-400 flex-1">Remove "{item.name}"?</p>
                         <button
+                          type="button"
                           onClick={() => setConfirmDelete(null)}
                           className="text-xs px-2.5 py-1 rounded-md bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
                         >
                           Cancel
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(item.id)}
                           className="text-xs px-2.5 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
                         >
@@ -934,6 +1250,7 @@ export default function MenuManager() {
         key={editingItem?.id ?? "new"}
         open={showForm}
         item={editingItem}
+        menuTags={menuTags}
         onClose={() => { setShowForm(false); setEditingItem(null); }}
         onSave={handleSave}
       />

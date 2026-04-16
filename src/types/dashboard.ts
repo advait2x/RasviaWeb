@@ -38,12 +38,7 @@ export interface TableInfo {
   isCombinedChild?: boolean;
 }
 
-export type MealTime =
-  | "breakfast"
-  | "lunch"
-  | "dinner"
-  | "specials"
-  | "all_day";
+export type MealTime = string;
 
 export type DietType = "veg" | "non_veg" | "halal";
 
