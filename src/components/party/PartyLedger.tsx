@@ -115,8 +115,20 @@ export function PartyLedger(props: {
                 onClick={tappable ? () => onMemberTap?.(m.id) : undefined}
               >
                 <div className="relative">
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-zinc-900", color)}>
-                    {memberInitials(m.display_name)}
+                  <div className={cn(
+                    "flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-zinc-900",
+                    m.avatar_url ? "bg-zinc-800" : color,
+                  )}>
+                    {m.avatar_url ? (
+                      <img
+                        src={m.avatar_url}
+                        alt={m.display_name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      memberInitials(m.display_name)
+                    )}
                   </div>
                   {m.role === "host" ? (
                     <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-zinc-900 bg-amber-500">

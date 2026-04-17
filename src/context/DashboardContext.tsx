@@ -86,7 +86,44 @@ interface DashboardState {
   addCashDrawerLog: (type: "pay_in" | "pay_out" | "tip_out", amount: number, reason: string, approvedBy?: string) => Promise<void>;
 
   fetchCompletedOrders: (dateFrom?: Date, dateTo?: Date) => Promise<Order[]>;
+
+  // Past Orders tab (historical archive, separate from live `orders`).
+  pastOrders: Order[];
+  pastOrdersLoading: boolean;
+  fetchPastOrders: (filter?: PastOrdersFilter) => Promise<Order[]>;
+  pastOrdersFilter: PastOrdersFilter;
+  setPastOrdersFilter: (filter: PastOrdersFilter) => void;
 }
+
+export type PastOrdersSort = "newest" | "oldest" | "amount_desc" | "amount_asc";
+export type PastOrdersStatus = "all" | "completed" | "cancelled";
+export type PastOrdersType = "all" | "dine_in" | "takeout" | "pre_order" | "group";
+export type PastOrdersRange =
+  | "today"
+  | "yesterday"
+  | "week"
+  | "month"
+  | "custom";
+
+export interface PastOrdersFilter {
+  range: PastOrdersRange;
+  /** Absolute start (inclusive) — used when range is custom, and pre-computed for presets. */
+  from?: string; // ISO
+  /** Absolute end (inclusive) — used when range is custom, and pre-computed for presets. */
+  to?: string; // ISO
+  type: PastOrdersType;
+  status: PastOrdersStatus;
+  search: string;
+  sort: PastOrdersSort;
+}
+
+export const DEFAULT_PAST_ORDERS_FILTER: PastOrdersFilter = {
+  range: "week",
+  type: "all",
+  status: "all",
+  search: "",
+  sort: "newest",
+};
 
 const DashboardContext = createContext<DashboardState | null>(null);
 
@@ -112,13 +149,24 @@ function mapRow(row: Record<string, unknown>): WaitlistEntry {
 }
 
 function mapMenuItem(row: Record<string, unknown>): MenuItem {
+  // Dedupe duplicate tag keys (e.g. legacy rows that stored "entree" twice
+  // or had both the old category and a matching menu tag).
+  const rawTags = ((row.meal_times as string[]) ?? []) as MealTime[];
+  const seen = new Set<string>();
+  const mealTimes: MealTime[] = [];
+  for (const t of rawTags) {
+    const key = String(t ?? "").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    mealTimes.push(t);
+  }
   return {
     id: row.id as string,
     name: row.name as string,
     description: (row.description as string) ?? "",
     price: row.price != null ? Number(row.price) : null,
     imageUrl: (row.image_url as string) ?? null,
-    mealTimes: ((row.meal_times as string[]) ?? []) as MealTime[],
+    mealTimes,
     inStock: (row.in_stock as boolean) ?? true,
   };
 }
@@ -181,6 +229,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [restaurantOpen, setRestaurantOpen] = useState<boolean | null>(null);
+  const [pastOrders, setPastOrders] = useState<Order[]>([]);
+  const [pastOrdersLoading, setPastOrdersLoading] = useState(false);
+  const [pastOrdersFilter, setPastOrdersFilter] = useState<PastOrdersFilter>(DEFAULT_PAST_ORDERS_FILTER);
 
   const TAX_RATE = 0.0825;
 
@@ -745,6 +796,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       notes: (meta.sessionNotes as string) || (meta.notes as string) || parsedOrderNotes.plainText || undefined,
       customerPhone: (row.customer_phone as string) || (meta.customerPhone as string) || undefined,
       customerNotifiedAt: meta.customerNotifiedAt ? new Date(meta.customerNotifiedAt as string) : undefined,
+      partySessionId: (row.party_session_id as string) || undefined,
+      stripePaymentIntentId: (row.stripe_payment_intent_id as string) || undefined,
+      refundedAmountCents: row.refunded_amount_cents != null ? Number(row.refunded_amount_cents) : undefined,
+      refundedAt: row.refunded_at ? new Date(row.refunded_at as string) : undefined,
     };
   }, []);
 
@@ -1464,6 +1519,107 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ POS: Fetch completed orders for reports Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
+  // ── Past Orders (historical archive with filters + refunds) ──────────────
+
+  const resolveRange = useCallback((filter: PastOrdersFilter): { from?: Date; to?: Date } => {
+    const now = new Date();
+    const startOfDay = (d: Date) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
+    const endOfDay = (d: Date) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
+
+    switch (filter.range) {
+      case "today":
+        return { from: startOfDay(now), to: endOfDay(now) };
+      case "yesterday": {
+        const y = new Date(now); y.setDate(y.getDate() - 1);
+        return { from: startOfDay(y), to: endOfDay(y) };
+      }
+      case "week": {
+        const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - 6);
+        return { from: startOfDay(weekStart), to: endOfDay(now) };
+      }
+      case "month": {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        return { from: startOfDay(monthStart), to: endOfDay(monthEnd) };
+      }
+      case "custom":
+        return {
+          from: filter.from ? new Date(filter.from) : undefined,
+          to: filter.to ? new Date(filter.to) : undefined,
+        };
+      default:
+        return {};
+    }
+  }, []);
+
+  const fetchPastOrders = useCallback(async (filterOverride?: PastOrdersFilter): Promise<Order[]> => {
+    if (!restaurantId) return [];
+    const filter = filterOverride ?? pastOrdersFilter;
+    setPastOrdersLoading(true);
+    try {
+      const { from, to } = resolveRange(filter);
+
+      let query = supabase
+        .from("orders")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .in("status", ["completed", "cancelled"]);
+
+      if (from) query = query.gte("created_at", from.toISOString());
+      if (to) query = query.lte("created_at", to.toISOString());
+      if (filter.status !== "all") query = query.eq("status", filter.status);
+
+      if (filter.type !== "all") {
+        if (filter.type === "group") {
+          query = query.not("party_session_id", "is", null);
+        } else {
+          query = query.eq("order_type", filter.type);
+        }
+      }
+
+      switch (filter.sort) {
+        case "newest":
+          query = query.order("created_at", { ascending: false });
+          break;
+        case "oldest":
+          query = query.order("created_at", { ascending: true });
+          break;
+        case "amount_desc":
+          query = query.order("subtotal", { ascending: false });
+          break;
+        case "amount_asc":
+          query = query.order("subtotal", { ascending: true });
+          break;
+      }
+
+      const { data: orderRows, error } = await query;
+      if (error) { console.error("fetchPastOrders failed:", error.message); setPastOrders([]); return []; }
+      if (!orderRows || orderRows.length === 0) { setPastOrders([]); return []; }
+
+      const ids = orderRows.map((r) => r.id as number);
+      const { data: itemData } = await supabase.from("order_items").select("*").in("order_id", ids);
+      const itemRows = (itemData ?? []) as Record<string, unknown>[];
+
+      let mapped = orderRows.map((row) =>
+        mapOrder(row as Record<string, unknown>, itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id))
+      );
+
+      if (filter.search.trim()) {
+        const q = filter.search.trim().toLowerCase();
+        mapped = mapped.filter((o) =>
+          o.id.toLowerCase().includes(q) ||
+          o.guestName.toLowerCase().includes(q) ||
+          (o.customerPhone ?? "").toLowerCase().includes(q)
+        );
+      }
+
+      setPastOrders(mapped);
+      return mapped;
+    } finally {
+      setPastOrdersLoading(false);
+    }
+  }, [restaurantId, pastOrdersFilter, resolveRange, mapOrder]);
+
   const fetchCompletedOrders = useCallback(async (dateFrom?: Date, dateTo?: Date): Promise<Order[]> => {
     if (!restaurantId) return [];
 
@@ -1568,6 +1724,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         addCashDrawerLog,
 
         fetchCompletedOrders,
+
+        pastOrders,
+        pastOrdersLoading,
+        fetchPastOrders,
+        pastOrdersFilter,
+        setPastOrdersFilter,
       }}
     >
       {children}

@@ -43,6 +43,15 @@ const MEAL_FILTERS: { value: MealTime; label: string; icon: typeof Coffee; color
 
 const TAX_RATE = 0.0825;
 
+// Same auto-formatting the kiosk walk-in modal uses so staff get consistent
+// digits-only, (xxx) xxx-xxxx formatted phone entry across the dashboard.
+function formatPhone(raw: string): string {
+    const digits = raw.replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 3) return digits.length ? `(${digits}` : "";
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 interface TakeOrderModalProps {
     open: boolean;
     onClose: () => void;
@@ -64,7 +73,6 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
     const [customerPhone, setCustomerPhone] = useState("");
 
     const occupiedTables = tables.filter((t) => t.status === "occupied" && !t.isCombinedChild);
-    const allTables = tables.filter((t) => !t.isCombinedChild);
     const selectedTable = tables.find((t) => t.id === selectedTableId);
 
     // Available menu items (in-stock only)
@@ -120,6 +128,23 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
         });
     };
 
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const digitsOnly = e.target.value.replace(/\D/g, "");
+        setCustomerPhone(formatPhone(digitsOnly));
+    };
+
+    const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Make backspace strip the last digit so format chars don't trap the
+        // caret between parentheses/dashes.
+        if (e.key === "Backspace") {
+            const digits = customerPhone.replace(/\D/g, "");
+            if (digits.length > 0) {
+                e.preventDefault();
+                setCustomerPhone(formatPhone(digits.slice(0, -1)));
+            }
+        }
+    };
+
     const updateCartInstructions = (menuItemId: string, instructions: string) => {
         setCart((prev) =>
             prev.map((c) =>
@@ -129,7 +154,11 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
     };
 
     const handleConfirm = async () => {
-        if (!selectedTableId || cart.length === 0) return;
+        if (cart.length === 0) return;
+        // Dine-in still requires a physical table; pre-order and takeout
+        // are purely customer-party driven, so we pass an empty tableId and
+        // let createOrder fall back to the default "0" table number.
+        if (orderType === "dine_in" && !selectedTableId) return;
 
         const effectiveGuestName = orderType === "dine_in"
             ? selectedTable?.guestName ?? "Guest"
@@ -138,7 +167,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
             ? selectedTable?.partySize ?? 1
             : parseInt(partySize) || 1;
 
-        const order = await createOrder(selectedTableId, orderType, effectiveGuestName, effectivePartySize,
+        const order = await createOrder(selectedTableId ?? "", orderType, effectiveGuestName, effectivePartySize,
             orderType !== "dine_in" ? customerPhone : undefined
         );
 
@@ -177,9 +206,11 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
         if (table?.partySize) setPartySize(String(table.partySize));
     };
 
-    const canProceedFromTable = selectedTableId && (
-        orderType === "dine_in" || (guestName.trim() && customerPhone.trim())
-    );
+    // Dine-in: must pick a table. Pre-order / takeout: no table required —
+    // guest name + phone + party size define the order instead.
+    const canProceedFromTable = orderType === "dine_in"
+        ? !!selectedTableId
+        : !!(guestName.trim() && customerPhone.trim() && (parseInt(partySize) || 0) > 0);
 
     return (
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -243,38 +274,57 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 </div>
                             </div>
 
-                            {/* Table Selection */}
-                            <div>
-                                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                                    {orderType === "dine_in" ? "Select Table" : "Assign to Table (optional)"}
-                                </p>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {(orderType === "dine_in" ? occupiedTables : allTables).map((table) => (
-                                        <motion.button
-                                            key={table.id}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => handleSelectTable(table.id)}
-                                            className={`p-3 rounded-xl border text-left transition-all ${selectedTableId === table.id
-                                                ? "bg-amber-500/10 border-amber-500/40"
-                                                : "bg-zinc-800/60 border-white/8 hover:border-white/15"
-                                                }`}
-                                        >
-                                            <span className="text-lg font-bold text-zinc-200 tabular-nums">T{table.tableNumber}</span>
-                                            <div className="text-[10px] text-zinc-500 mt-0.5">
-                                                {table.guestName ? table.guestName : `Seats ${table.capacity}`}
-                                            </div>
-                                            {table.partySize && (
-                                                <div className="flex items-center gap-0.5 mt-1">
-                                                    <Users size={9} strokeWidth={1.5} className="text-amber-500/60" />
-                                                    <span className="text-[10px] text-amber-500/60">{table.partySize}</span>
-                                                </div>
-                                            )}
-                                        </motion.button>
-                                    ))}
+                            {/* Party picker — dine-in only. We still store the
+                                table_id internally (dine-in orders live on a table),
+                                but the UI is organized around the seated party so
+                                staff pick a guest, not a table number. */}
+                            {orderType === "dine_in" && (
+                                <div>
+                                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                                        Select Party
+                                    </p>
+                                    {occupiedTables.length === 0 ? (
+                                        <div className="p-4 rounded-xl border border-dashed border-white/10 bg-zinc-800/30 text-xs text-zinc-500">
+                                            No parties seated yet — seat a guest from the Tables tab first.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {occupiedTables.map((table) => {
+                                                const isSelected = selectedTableId === table.id;
+                                                return (
+                                                    <motion.button
+                                                        key={table.id}
+                                                        whileTap={{ scale: 0.98 }}
+                                                        onClick={() => handleSelectTable(table.id)}
+                                                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${isSelected
+                                                            ? "bg-amber-500/10 border-amber-500/40"
+                                                            : "bg-zinc-800/60 border-white/8 hover:border-white/15"
+                                                            }`}
+                                                    >
+                                                        <div className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center border ${isSelected
+                                                            ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                                                            : "bg-zinc-700/60 border-white/10 text-zinc-300"
+                                                            }`}>
+                                                            <Users size={14} strokeWidth={1.75} />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className={`text-sm font-semibold truncate ${isSelected ? "text-amber-300" : "text-zinc-100"}`}>
+                                                                {table.guestName || "Guest"}
+                                                            </p>
+                                                            <div className="flex items-center gap-2 text-[10px] text-zinc-500 mt-0.5 tabular-nums">
+                                                                <span>Party of {table.partySize ?? table.capacity ?? 1}</span>
+                                                            </div>
+                                                        </div>
+                                                    </motion.button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Guest info for non-dine-in */}
+                            {/* Guest info for non-dine-in — party-only flow with
+                                no table assignment. */}
                             {orderType !== "dine_in" && (
                                 <div className="space-y-3">
                                     <div>
@@ -292,10 +342,13 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                         </label>
                                         <Input
                                             type="tel"
+                                            inputMode="numeric"
                                             value={customerPhone}
-                                            onChange={(e) => setCustomerPhone(e.target.value)}
-                                            placeholder="e.g. (555) 123-4567"
-                                            className="mt-1.5 h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
+                                            onChange={handlePhoneChange}
+                                            onKeyDown={handlePhoneKeyDown}
+                                            placeholder="(555) 000-0000"
+                                            maxLength={14}
+                                            className="mt-1.5 h-10 bg-zinc-800/60 border-white/10 text-zinc-100 font-mono placeholder:text-zinc-600 placeholder:font-sans focus:border-amber-500/50"
                                         />
                                         <p className="text-[10px] text-zinc-600 mt-1">Used to notify customer when order is ready</p>
                                     </div>
@@ -473,9 +526,11 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                             {/* Order summary */}
                             <div className="p-4 rounded-xl bg-zinc-800/40 border border-white/5 space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-zinc-500">Table</span>
-                                    <span className="text-sm font-semibold text-zinc-100">
-                                        T{selectedTable?.tableNumber ?? "?"}
+                                    <span className="text-xs text-zinc-500">Party Size</span>
+                                    <span className="text-sm font-semibold text-zinc-100 tabular-nums">
+                                        {orderType === "dine_in"
+                                            ? selectedTable?.partySize ?? selectedTable?.capacity ?? 1
+                                            : parseInt(partySize) || 1}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">

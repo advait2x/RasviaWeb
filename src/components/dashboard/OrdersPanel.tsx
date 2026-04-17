@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Plus, Clock, Users, ChefHat, CheckCircle2, XCircle,
@@ -10,6 +10,7 @@ import { Order, OrderStatus, DietType, MealTime } from "@/types/dashboard";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TakeOrderModal from "./TakeOrderModal";
+import PastOrdersView from "./PastOrdersView";
 import {
     Dialog,
     DialogContent,
@@ -40,7 +41,7 @@ const PREV_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
     completed: "served",
 };
 
-type TabKey = "active" | "preorders" | "completed";
+type TabKey = "active" | "preorders" | "completed" | "past";
 
 const DIET_FILTERS: { value: DietType; label: string; icon: typeof Leaf }[] = [
     { value: "veg", label: "Veg", icon: Leaf },
@@ -72,7 +73,24 @@ function getTimeColor(date: Date): string {
 
 export default function OrdersPanel() {
     const { orders, updateOrderStatus, notifyCustomer } = useDashboard();
-    const [tab, setTab] = useState<TabKey>("active");
+    const [tab, setTab] = useState<TabKey>(() => {
+        if (typeof window === "undefined") return "active";
+        const url = new URL(window.location.href);
+        const t = url.searchParams.get("ordersTab");
+        return t === "past" || t === "preorders" || t === "completed" ? (t as TabKey) : "active";
+    });
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        const t = url.searchParams.get("ordersTab");
+        if (t === "past" || t === "preorders" || t === "completed" || t === "active") {
+            setTab(t as TabKey);
+            url.searchParams.delete("ordersTab");
+            window.history.replaceState({}, "", url.toString());
+        }
+    }, []);
+
     const [search, setSearch] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [dietFilter, setDietFilter] = useState<DietType[]>([]);
@@ -168,20 +186,25 @@ export default function OrdersPanel() {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowFilters((v) => !v)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${showFilters || hasAnyFilter
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                            : "bg-zinc-800 border-white/10 text-zinc-400 hover:bg-zinc-700"
-                            }`}
-                    >
-                        <Filter size={13} strokeWidth={1.5} />
-                        Filters
-                        {hasAnyFilter && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        )}
-                    </motion.button>
+                    {/* The top Filters button controls diet/meal/status filters which only
+                        apply to Active / Pre-Orders / Completed. Past Orders has its own
+                        "More" button with the filters it actually supports, so hide this one. */}
+                    {tab !== "past" && (
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setShowFilters((v) => !v)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${showFilters || hasAnyFilter
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                : "bg-zinc-800 border-white/10 text-zinc-400 hover:bg-zinc-700"
+                                }`}
+                        >
+                            <Filter size={13} strokeWidth={1.5} />
+                            Filters
+                            {hasAnyFilter && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            )}
+                        </motion.button>
+                    )}
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setShowTakeOrder(true)}
@@ -200,6 +223,7 @@ export default function OrdersPanel() {
                         { key: "active" as TabKey, label: "Active Orders", count: activeCount },
                         { key: "preorders" as TabKey, label: "Pre-Orders", count: preorderCount },
                         { key: "completed" as TabKey, label: "Completed", count: completedCount },
+                        { key: "past" as TabKey, label: "Past Orders", count: 0 },
                     ]).map(({ key, label, count }) => (
                         <button
                             key={key}
@@ -226,6 +250,14 @@ export default function OrdersPanel() {
                 </div>
             </div>
 
+            {tab === "past" ? (
+                // min-h-0 is required so the inner ScrollArea can shrink and scroll
+                // instead of pushing the rest of the dashboard content off-screen.
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <PastOrdersView />
+                </div>
+            ) : (
+            <>
             {/* Filter bar */}
             <AnimatePresence>
                 {showFilters && (
@@ -546,6 +578,8 @@ export default function OrdersPanel() {
                     </AnimatePresence>
                 </div>
             </ScrollArea>
+            </>
+            )}
 
             {/* Take Order Modal */}
             <TakeOrderModal

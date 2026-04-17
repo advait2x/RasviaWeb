@@ -21,6 +21,7 @@ import { getMenuItemFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
 import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, serializeMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
 import { toast } from "sonner";
+import MenuTagDialog from "./MenuTagDialog";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
 
@@ -581,14 +582,11 @@ export default function MenuManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmStockItem, setConfirmStockItem] = useState<MenuItem | null>(null);
   const [menuTags, setMenuTags] = useState<MenuTagConfig[]>(DEFAULT_MENU_TAGS);
-  const [tagDraft, setTagDraft] = useState("");
   const [savingTags, setSavingTags] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
-  const [showTagComposer, setShowTagComposer] = useState(false);
   const [pendingTagDelete, setPendingTagDelete] = useState<{ index: number; label: string } | null>(null);
-  const [editingTagKey, setEditingTagKey] = useState<string | null>(null);
-  const [editingTagLabel, setEditingTagLabel] = useState("");
-  const [editingTagColorIdx, setEditingTagColorIdx] = useState(0);
+  const [tagDialogMode, setTagDialogMode] = useState<"create" | "edit" | null>(null);
+  const [tagDialogTarget, setTagDialogTarget] = useState<MenuTagConfig | null>(null);
   const fetchMenuTags = useCallback(async () => {
     if (!restaurantId) return;
     const { data, error } = await supabase
@@ -800,32 +798,13 @@ export default function MenuManager() {
                           <button
                             className="w-7 h-7 rounded-md border border-amber-500/35 bg-amber-500/10 text-amber-400 grid place-items-center hover:bg-amber-500/20"
                             onClick={() => {
-                              if (editingTagKey === tag.key) {
-                                const label = editingTagLabel.trim();
-                                if (!label) {
-                                  setTagError("Tag name cannot be empty.");
-                                  return;
-                                }
-                                const selected = TAG_COLOR_PRESETS[editingTagColorIdx] ?? TAG_COLOR_PRESETS[0];
-                                const next = menuTags.map((current) =>
-                                  current.key === tag.key
-                                    ? { ...current, label, color: selected.color, bg: selected.bg, border: selected.border }
-                                    : current
-                                );
-                                void persistMenuTags(next);
-                                setEditingTagKey(null);
-                                setEditingTagLabel("");
-                                return;
-                              }
-                              const matched = TAG_COLOR_PRESETS.findIndex(
-                                (preset) => preset.color === tag.color && preset.bg === tag.bg && preset.border === tag.border
-                              );
-                              setEditingTagKey(tag.key);
-                              setEditingTagLabel(tag.label);
-                              setEditingTagColorIdx(matched >= 0 ? matched : 0);
+                              setTagError(null);
+                              setTagDialogTarget(tag);
+                              setTagDialogMode("edit");
                             }}
+                            title="Edit tag"
                           >
-                            {editingTagKey === tag.key ? <Check size={12} /> : <Pencil size={12} />}
+                            <Pencil size={12} />
                           </button>
                           <button
                             className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-400 grid place-items-center disabled:opacity-40 hover:text-zinc-200"
@@ -866,86 +845,21 @@ export default function MenuManager() {
                         </div>
                       )}
                     </div>
-                    {editingTagKey === tag.key && canEdit && (
-                      <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
-                        <Input
-                          value={editingTagLabel}
-                          onChange={(e) => setEditingTagLabel(e.target.value)}
-                          placeholder="Tag name"
-                          className="h-8 bg-zinc-900/70 border-white/10 text-zinc-100 text-xs"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          {TAG_COLOR_PRESETS.map((preset, colorIdx) => (
-                            <button
-                              key={`${preset.color}-${colorIdx}`}
-                              onClick={() => setEditingTagColorIdx(colorIdx)}
-                              className="w-6 h-6 rounded-full border-2"
-                              style={{
-                                background: preset.color,
-                                borderColor: editingTagColorIdx === colorIdx ? "#f5f5f5" : "#27272a",
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
-              {canEdit && (!showTagComposer ? (
+              {canEdit && (
                 <button
                   className="px-2.5 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold"
                   onClick={() => {
                     setTagError(null);
-                    setShowTagComposer(true);
+                    setTagDialogTarget(null);
+                    setTagDialogMode("create");
                   }}
                 >
                   + Add Tag
                 </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={tagDraft}
-                    onChange={(e) => setTagDraft(e.target.value)}
-                    placeholder="Add custom tag"
-                    className="h-8 bg-zinc-900/60 border-white/10 text-zinc-100 text-xs placeholder:text-zinc-600"
-                  />
-                  <button
-                    className="px-2.5 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold"
-                    onClick={() => {
-                      const label = tagDraft.trim();
-                      if (!label) {
-                        setTagError("Tag name cannot be empty.");
-                        return;
-                      }
-                      const key = slugifyTag(label);
-                      if (!key || menuTags.some((t) => t.key === key)) {
-                        setTagError("This tag already exists.");
-                        return;
-                      }
-                      const fallback = DEFAULT_MENU_TAGS[menuTags.length % DEFAULT_MENU_TAGS.length];
-                      void persistMenuTags([
-                        ...menuTags,
-                        { key, label, color: fallback.color, bg: fallback.bg, border: fallback.border, enabled: true, position: menuTags.length },
-                      ]);
-                      setTagDraft("");
-                      setShowTagComposer(false);
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    className="px-2.5 py-1.5 rounded-md border border-white/15 bg-zinc-800 text-zinc-300 text-xs font-semibold"
-                    onClick={() => {
-                      setTagDraft("");
-                      setTagError(null);
-                      setShowTagComposer(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ))}
+              )}
             </div>
           </div>
         </ScrollArea>
@@ -986,6 +900,18 @@ export default function MenuManager() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <MenuTagDialog
+          open={tagDialogMode !== null}
+          mode={tagDialogMode ?? "create"}
+          tags={menuTags}
+          editingTag={tagDialogTarget ?? undefined}
+          onClose={() => { setTagDialogMode(null); setTagDialogTarget(null); }}
+          onSubmit={async (next) => {
+            const ok = await persistMenuTags(next);
+            return ok;
+          }}
+        />
       </div>
     );
   }
@@ -1190,12 +1116,23 @@ export default function MenuManager() {
                       <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{item.description}</p>
                     )}
 
-                    {/* Meal time badges */}
-                    {item.mealTimes.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {item.mealTimes.map((mt) => {
+                    {/* Meal time badges — dedupe by tag label so legacy rows
+                        that stored both "entree" and an equivalent tag key
+                        don't render the same chip twice. */}
+                    {item.mealTimes.length > 0 && (() => {
+                      const seenLabels = new Set<string>();
+                      const chips = item.mealTimes
+                        .map((mt) => {
                           const cfg = getMealTimeConfig(mt, menuTags);
-                          return (
+                          const labelKey = cfg.label.trim().toLowerCase();
+                          if (seenLabels.has(labelKey)) return null;
+                          seenLabels.add(labelKey);
+                          return { mt, cfg };
+                        })
+                        .filter((c): c is { mt: MealTime; cfg: ReturnType<typeof getMealTimeConfig> } => !!c);
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {chips.map(({ mt, cfg }) => (
                             <span
                               key={mt}
                               className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.border}`}
@@ -1203,10 +1140,10 @@ export default function MenuManager() {
                             >
                               {cfg.label}
                             </span>
-                          );
-                        })}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

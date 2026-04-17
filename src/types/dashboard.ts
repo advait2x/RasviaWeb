@@ -124,6 +124,10 @@ export interface Order {
   cashierId?: string;
   splitFromOrderId?: string;
   discounts?: OrderDiscount[];
+  partySessionId?: string;
+  stripePaymentIntentId?: string;
+  refundedAmountCents?: number;
+  refundedAt?: Date;
 }
 
 export interface CompletedTableSession {

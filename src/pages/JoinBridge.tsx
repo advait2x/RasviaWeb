@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Check, Copy, Crown, CreditCard, Lock, Minus, Plus, ShoppingCart, Smartphone,
-  Trash2, Users, X, Search, AlertCircle, PartyPopper, Unlock,
+  Trash2, Users, X, Search, AlertCircle, PartyPopper, Unlock, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -66,6 +66,11 @@ export default function JoinBridge() {
 
   const [nameInput, setNameInput] = useState("");
   const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  // Optimistic payment-mode selection so the "Host decides / Each pays their
+  // own" buttons feel instant. We clear this whenever the real server-side
+  // value catches up.
+  const [pendingMode, setPendingMode] = useState<PaymentMode | null>(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<"browse" | "review" | "pay" | "success">("browse");
   const [search, setSearch] = useState("");
@@ -76,6 +81,11 @@ export default function JoinBridge() {
     !(checkoutStatus === "success" || checkoutStatus === "cancel"),
   );
   const checkoutAckRef = useRef(false);
+  /** Pending Add-button presses, keyed by menu_item_id. We bump these as soon
+   *  as the user taps + and clear them when the party snapshot refreshes so
+   *  the cart badge reflects the click instantly, even before the round-trip
+   *  to Supabase completes. */
+  const [pendingAdds, setPendingAdds] = useState<Record<number, number>>({});
 
   const session = snapshot?.session ?? null;
   const members = snapshot?.members ?? [];
@@ -113,6 +123,8 @@ export default function JoinBridge() {
     try {
       const snap = await fetchSnapshot(supabase, sessionId);
       setSnapshot(snap);
+      setPendingAdds({});
+      setPendingMode(null);
       if (!restaurant || restaurant.id !== snap.session.restaurant_id) {
         const [{ data: rest }, { data: menuRows }] = await Promise.all([
           supabase.from("restaurants").select("id, name, image_url").eq("id", snap.session.restaurant_id).maybeSingle(),
@@ -144,7 +156,11 @@ export default function JoinBridge() {
     const handle = subscribeToParty(
       supabase,
       sessionId,
-      (snap) => setSnapshot(snap),
+      (snap) => {
+        setSnapshot(snap);
+        setPendingAdds({});
+        setPendingMode(null);
+      },
       (err) => console.warn("Party realtime error:", err.message),
     );
     return () => handle.unsubscribe();
@@ -181,7 +197,12 @@ export default function JoinBridge() {
   // ── Actions ────────────────────────────────────────────────────────────
   const handleJoin = async () => {
     const name = nameInput.trim();
-    if (!name) { toast.error("Enter your name to continue."); return; }
+    if (!name) {
+      setJoinError("Enter your name to continue.");
+      toast.error("Enter your name to continue.");
+      return;
+    }
+    setJoinError(null);
     setJoining(true);
     try {
       const result = await joinSession(supabase, sessionId, name);
@@ -191,7 +212,12 @@ export default function JoinBridge() {
       saveLastDisplayName(name);
       await loadAll();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to join.");
+      // Surface the error in-page too — a Sonner toast in the bottom-right
+      // is easy to miss on mobile when the virtual keyboard is up.
+      const message = err instanceof Error ? err.message : "Unable to join.";
+      console.error("party join failed", err);
+      setJoinError(message);
+      toast.error(message);
     } finally {
       setJoining(false);
     }
@@ -201,16 +227,44 @@ export default function JoinBridge() {
     try { await fn(); } catch (err) { toast.error(err instanceof Error ? err.message : errMsg); }
   };
 
-  const handleAddItem = (menuItemId: number) => wrapMutation(
-    () => addItem(supabase, creds!, menuItemId, 1).then(() => { /* noop */ }),
-    "Could not add item",
-  );
+  const handleAddItem = (menuItemId: number) => {
+    // Optimistically bump the badge so the UI responds instantly — Supabase's
+    // RPC round-trip can take a few hundred ms which feels laggy otherwise.
+    setPendingAdds((prev) => ({ ...prev, [menuItemId]: (prev[menuItemId] ?? 0) + 1 }));
+    return wrapMutation(
+      async () => {
+        try {
+          await addItem(supabase, creds!, menuItemId, 1);
+        } catch (err) {
+          // Roll back the optimistic bump if the server rejected it.
+          setPendingAdds((prev) => {
+            const next = { ...prev };
+            const current = next[menuItemId] ?? 0;
+            if (current <= 1) delete next[menuItemId]; else next[menuItemId] = current - 1;
+            return next;
+          });
+          throw err;
+        }
+      },
+      "Could not add item",
+    );
+  };
   const handleChangeQty = (item: PartyItem, delta: number) =>
     wrapMutation(() => updateItemQuantity(supabase, creds!, item.id, Math.max(0, item.quantity + delta)), "Could not update item");
   const handleRemoveItem = (item: PartyItem) =>
     wrapMutation(() => removeItem(supabase, creds!, item.id), "Could not remove item");
-  const handleSetMode = (mode: PaymentMode) =>
-    wrapMutation(() => setPaymentMode(supabase, creds!, mode), "Could not change payment mode");
+  const handleSetMode = async (mode: PaymentMode) => {
+    // Flip the selection instantly so the buttons feel responsive; roll back
+    // if the RPC rejects. The realtime snapshot will clear `pendingMode` when
+    // the server-side value catches up.
+    setPendingMode(mode);
+    try {
+      await setPaymentMode(supabase, creds!, mode);
+    } catch (err) {
+      setPendingMode(null);
+      toast.error(err instanceof Error ? err.message : "Could not change payment mode");
+    }
+  };
   const handleAssignPayer = (itemId: string, payerId: string) =>
     wrapMutation(() => assignItemPayer(supabase, creds!, itemId, payerId), "Could not assign payer");
   const handleSetSplit = (itemId: string, memberIds: string[]) =>
@@ -319,6 +373,7 @@ export default function JoinBridge() {
         nameInput={nameInput}
         setNameInput={setNameInput}
         joining={joining}
+        joinError={joinError}
         onJoin={handleJoin}
       />
     );
@@ -405,7 +460,8 @@ export default function JoinBridge() {
 
   // Review & Split (host only overlay on open)
   if (view === "review" && session.status === "open") {
-    const mode = (session.payment_mode === "split" ? "per_person" : session.payment_mode === "assign" ? "assigned" : session.payment_mode) as PaymentMode;
+    const serverMode = (session.payment_mode === "split" ? "per_person" : session.payment_mode === "assign" ? "assigned" : session.payment_mode) as PaymentMode;
+    const mode = pendingMode ?? serverMode;
     return (
       <Layout restaurantName="Review" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
@@ -414,8 +470,9 @@ export default function JoinBridge() {
             <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How should the bill be paid?</h3>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {PAYMENT_MODES.map((m) => (
-                <button
+                <motion.button
                   key={m.key} type="button" onClick={() => handleSetMode(m.key)}
+                  whileTap={{ scale: 0.98 }}
                   className={cn(
                     "flex items-start gap-3 rounded-2xl border p-4 text-left transition",
                     mode === m.key ? "border-amber-500 bg-amber-500/10" : "border-white/10 bg-zinc-900 hover:border-white/20",
@@ -426,7 +483,7 @@ export default function JoinBridge() {
                     <div className="mt-0.5 text-xs text-zinc-500">{m.subtitle}</div>
                   </div>
                   {mode === m.key ? <Check className="h-5 w-5 text-amber-400" strokeWidth={3} /> : null}
-                </button>
+                </motion.button>
               ))}
             </div>
           </section>
@@ -455,7 +512,7 @@ export default function JoinBridge() {
           ) : null}
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-zinc-950 px-4 pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
           <div className="mx-auto flex max-w-2xl gap-3">
             <button type="button" onClick={() => setView("browse")} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Back</button>
             <button
@@ -511,11 +568,13 @@ export default function JoinBridge() {
 
         <CategoryChips menu={menu} active={category} onChange={setCategory} />
 
-        <MenuList items={items} menu={menu} search={search} category={category} onAdd={handleAddItem} />
+        <MenuList items={items} menu={menu} search={search} category={category} pendingAdds={pendingAdds} onAdd={handleAddItem} />
       </div>
 
       <CartStrip
         items={items}
+        menu={menu}
+        pendingAdds={pendingAdds}
         members={members}
         selfMemberId={creds.memberId}
         isHost={isHost}
@@ -598,8 +657,20 @@ function MemberChip({
         isSelf ? "border-amber-500 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-900 text-zinc-200 hover:bg-zinc-800",
       )}
     >
-      <span className={cn("relative flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-zinc-900", colors[index % colors.length])}>
-        {memberInitials(member.display_name)}
+      <span className={cn(
+        "relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-zinc-900",
+        member.avatar_url ? "bg-zinc-800" : colors[index % colors.length],
+      )}>
+        {member.avatar_url ? (
+          <img
+            src={member.avatar_url}
+            alt={member.display_name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          memberInitials(member.display_name)
+        )}
         {member.role === "host" ? <Crown className="absolute -right-1 -top-1 h-3 w-3 text-amber-300" strokeWidth={3} /> : null}
       </span>
       <span className="max-w-[120px] truncate">
@@ -641,7 +712,7 @@ function CategoryPill({ label, active, onClick }: { label: string; active: boole
   );
 }
 
-function MenuList({ items, menu, search, category, onAdd }: { items: PartyItem[]; menu: MenuItemRow[]; search: string; category: string | null; onAdd: (id: number) => void }) {
+function MenuList({ items, menu, search, category, pendingAdds, onAdd }: { items: PartyItem[]; menu: MenuItemRow[]; search: string; category: string | null; pendingAdds: Record<number, number>; onAdd: (id: number) => void }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return menu.filter((m) => {
@@ -653,7 +724,7 @@ function MenuList({ items, menu, search, category, onAdd }: { items: PartyItem[]
   return (
     <ul className="mt-4 space-y-2">
       {filtered.map((m) => (
-        <MenuRow key={m.id} item={m} inCartCount={cartCountFor(items, m.id)} onAdd={() => onAdd(m.id)} />
+        <MenuRow key={m.id} item={m} inCartCount={cartCountFor(items, m.id) + (pendingAdds[m.id] ?? 0)} onAdd={() => onAdd(m.id)} />
       ))}
       {filtered.length === 0 ? (
         <li className="flex flex-col items-center gap-2 py-14 text-center text-sm text-zinc-500">
@@ -682,37 +753,68 @@ function MenuRow({ item, inCartCount, onAdd }: { item: MenuItemRow; inCartCount:
         {item.description ? <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{item.description}</div> : null}
         <div className="mt-1 text-sm font-bold text-amber-400">${Number(item.price).toFixed(2)}</div>
       </div>
-      <button
+      {/* Tap feedback: instant scale on press + bumping badge on count change
+          so the button feels as snappy as the native mobile button. */}
+      <motion.button
         type="button" onClick={onAdd}
-        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-zinc-900 shadow-lg transition hover:bg-amber-400"
+        whileTap={{ scale: 0.85 }}
+        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-zinc-900 shadow-lg transition-colors hover:bg-amber-400"
       >
         <Plus className="h-5 w-5" strokeWidth={3} />
-        {inCartCount > 0 ? (
-          <span className="absolute -right-1 -top-1 rounded-full border-2 border-zinc-900 bg-zinc-950 px-1.5 text-[10px] font-bold text-amber-400">
-            {inCartCount}
-          </span>
-        ) : null}
-      </button>
+        <AnimatePresence>
+          {inCartCount > 0 ? (
+            <motion.span
+              key={inCartCount}
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.6, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              className="absolute -right-1 -top-1 rounded-full border-2 border-zinc-900 bg-zinc-950 px-1.5 text-[10px] font-bold text-amber-400"
+            >
+              {inCartCount}
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
+      </motion.button>
     </motion.li>
   );
 }
 
 function CartStrip(props: {
-  items: PartyItem[]; members: PartyMember[]; selfMemberId: string; isHost: boolean;
+  items: PartyItem[]; menu: MenuItemRow[]; pendingAdds: Record<number, number>;
+  members: PartyMember[]; selfMemberId: string; isHost: boolean;
   onChangeQty: (item: PartyItem, delta: number) => void;
   onRemove: (item: PartyItem) => void;
   onReview: () => void;
   onLeave: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const total = totalCartCents(props.items);
+  // Optimistic overlay: count pending adds toward the strip totals so the
+  // bottom bar feels as instant as the + button badge above it.
+  const pendingCount = Object.values(props.pendingAdds).reduce((a, b) => a + b, 0);
+  const pendingCents = Object.entries(props.pendingAdds).reduce((acc, [id, qty]) => {
+    const menuItem = props.menu.find((m) => m.id === Number(id));
+    if (!menuItem) return acc;
+    return acc + Math.round(Number(menuItem.price) * 100) * qty;
+  }, 0);
+  const displayCount = props.items.length + pendingCount;
+  const total = totalCartCents(props.items) + pendingCents;
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/95 backdrop-blur">
       <div className="mx-auto max-w-3xl">
-        <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex w-full items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+        >
           <ShoppingCart className="h-5 w-5 text-amber-400" />
-          <span className="text-sm font-bold">{props.items.length} item{props.items.length === 1 ? "" : "s"}</span>
+          <span className="text-sm font-bold">{displayCount} item{displayCount === 1 ? "" : "s"}</span>
           <span className="ml-auto text-sm font-black text-amber-400">{formatCents(total)}</span>
+          <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/5 text-zinc-400">
+            {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+          </span>
         </button>
         <AnimatePresence initial={false}>
           {open ? (
@@ -779,21 +881,30 @@ function CartStrip(props: {
 }
 
 function AssignRow({ item, members, onAssign }: { item: PartyItem; members: PartyMember[]; onAssign: (pid: string) => void }) {
-  const current = memberById(members, item.assigned_payer_id) ?? memberById(members, item.added_by_member_id);
+  const serverCurrentId = (memberById(members, item.assigned_payer_id) ?? memberById(members, item.added_by_member_id))?.id ?? null;
+  // Optimistic selection so the chip highlights instantly on tap. Cleared
+  // when the incoming prop snapshot matches the pending value.
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  useEffect(() => {
+    if (pendingId && pendingId === serverCurrentId) setPendingId(null);
+  }, [pendingId, serverCurrentId]);
+  const currentId = pendingId ?? serverCurrentId;
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
       <div className="truncate text-sm font-semibold">{item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menu_item?.name ?? "Item"}</div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {members.map((m) => (
-          <button
-            key={m.id} type="button" onClick={() => onAssign(m.id)}
+          <motion.button
+            key={m.id} type="button"
+            whileTap={{ scale: 0.93 }}
+            onClick={() => { setPendingId(m.id); onAssign(m.id); }}
             className={cn(
-              "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
-              current?.id === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+              "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition",
+              currentId === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
             )}
           >
             {m.display_name.split(" ")[0]}
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>
@@ -801,11 +912,23 @@ function AssignRow({ item, members, onAssign }: { item: PartyItem; members: Part
 }
 
 function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: PartyMember[]; onSetSplit: (ids: string[]) => void }) {
-  const currentIds = item.split_member_ids ?? [];
+  const serverIds = useMemo(() => item.split_member_ids ?? [], [item.split_member_ids]);
+  // Optimistic overlay: show the typed selection immediately and clear once
+  // the server snapshot mirrors it.
+  const [pendingIds, setPendingIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!pendingIds) return;
+    const a = [...pendingIds].sort().join(",");
+    const b = [...serverIds].sort().join(",");
+    if (a === b) setPendingIds(null);
+  }, [pendingIds, serverIds]);
+  const currentIds = pendingIds ?? serverIds;
   const toggle = (id: string) => {
     const set = new Set(currentIds);
     if (set.has(id)) set.delete(id); else set.add(id);
-    onSetSplit(Array.from(set));
+    const next = Array.from(set);
+    setPendingIds(next);
+    onSetSplit(next);
   };
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
@@ -814,15 +937,17 @@ function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: Par
         {members.map((m) => {
           const active = currentIds.includes(m.id);
           return (
-            <button
-              key={m.id} type="button" onClick={() => toggle(m.id)}
+            <motion.button
+              key={m.id} type="button"
+              whileTap={{ scale: 0.93 }}
+              onClick={() => toggle(m.id)}
               className={cn(
-                "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
+                "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition",
                 active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
               )}
             >
               {m.display_name.split(" ")[0]}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -833,13 +958,21 @@ function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: Par
 function CancelDialog({ open, busy, onClose, onConfirm }: { open: boolean; busy: boolean; onClose: () => void; onConfirm: () => void }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[max(env(safe-area-inset-bottom),16px)] sm:items-center">
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
         <h3 className="text-lg font-bold">Cancel group order?</h3>
         <p className="mt-2 text-sm text-zinc-400">Any paid shares will be refunded via Stripe. This can't be undone.</p>
-        <div className="mt-5 flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-white/10 bg-zinc-800 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-700">Never mind</button>
-          <button type="button" disabled={busy} onClick={onConfirm} className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-60">{busy ? "Cancelling…" : "Cancel & refund"}</button>
+        <div className="mt-5 flex flex-col gap-3">
+          <button type="button" disabled={busy} onClick={onConfirm} className="w-full rounded-xl bg-red-500 px-4 py-3 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-60">
+            {busy ? "Cancelling…" : "Cancel & refund"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mx-auto rounded-lg border border-white/10 bg-zinc-800 px-5 py-2 text-xs font-extrabold text-zinc-200 hover:bg-zinc-700"
+          >
+            Never mind
+          </button>
         </div>
       </motion.div>
     </div>
@@ -882,8 +1015,20 @@ function MemberItemsModal({
           >
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className={cn("flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-zinc-900", colors[memberIdx % colors.length])}>
-                  {memberInitials(member.display_name)}
+                <div className={cn(
+                  "flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-zinc-900",
+                  member.avatar_url ? "bg-zinc-800" : colors[memberIdx % colors.length],
+                )}>
+                  {member.avatar_url ? (
+                    <img
+                      src={member.avatar_url}
+                      alt={member.display_name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    memberInitials(member.display_name)
+                  )}
                 </div>
                 {member.role === "host" ? (
                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-zinc-900 bg-amber-500">
@@ -939,8 +1084,8 @@ function MemberItemsModal({
 }
 
 function NameEntryScreen({
-  restaurantName, nameInput, setNameInput, joining, onJoin,
-}: { restaurantName: string; nameInput: string; setNameInput: (v: string) => void; joining: boolean; onJoin: () => void }) {
+  restaurantName, nameInput, setNameInput, joining, joinError, onJoin,
+}: { restaurantName: string; nameInput: string; setNameInput: (v: string) => void; joining: boolean; joinError?: string | null; onJoin: () => void }) {
   const hasPrefill = nameInput.trim().length > 0;
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
@@ -960,6 +1105,13 @@ function NameEntryScreen({
           className="mt-5 w-full rounded-xl border border-white/10 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
           maxLength={60}
         />
+        {/* Inline error — the Sonner toast can be easy to miss, especially on
+            mobile with the keyboard up, so show it right under the button. */}
+        {joinError && (
+          <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300">
+            {joinError}
+          </div>
+        )}
         <button
           type="button" disabled={joining} onClick={onJoin}
           className={cn("mt-4 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400", joining && "opacity-60")}

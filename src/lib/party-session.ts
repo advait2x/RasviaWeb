@@ -21,6 +21,8 @@ export type PartyMember = {
   joined_at: string;
   last_seen_at: string;
   left_at: string | null;
+  /** Profile avatar snapshot captured at join time (see `party_join_session`). */
+  avatar_url?: string | null;
 };
 
 export type PartyItem = {
@@ -372,12 +374,44 @@ export async function fetchSnapshot(
   if (memRes.error) throw new Error(memRes.error.message);
   if (itemRes.error) throw new Error(itemRes.error.message);
   if (payRes.error) throw new Error(payRes.error.message);
-  return {
-    session: sessRes.data as PartySession,
-    members: (memRes.data ?? []) as PartyMember[],
-    items: (itemRes.data ?? []) as PartyItem[],
-    payments: (payRes.data ?? []) as PartyPayment[],
-  };
+
+  // `party_members.avatar_url` is captured at join time by the
+  // `party_join_session` RPC — we can't JOIN `profiles` from the web because
+  // unauthenticated guests (and even authed members looking at each other)
+  // are blocked by RLS. For the caller themselves we still try to fetch
+  // from `profiles` as a fallback (e.g. a legacy row that joined before the
+  // snapshot column existed).
+  const rawMembers = (memRes.data ?? []) as PartyMember[];
+  let selfAvatar: string | null = null;
+  try {
+    const { data: me } = await supabase.auth.getUser();
+    const selfId = me?.user?.id;
+    if (selfId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', selfId)
+        .maybeSingle();
+      selfAvatar = (prof as { avatar_url?: string | null } | null)?.avatar_url ?? null;
+    }
+    const members: PartyMember[] = rawMembers.map((m) => ({
+      ...m,
+      avatar_url: m.avatar_url ?? (m.user_id && selfAvatar && m.user_id === selfId ? selfAvatar : null),
+    }));
+    return {
+      session: sessRes.data as PartySession,
+      members,
+      items: (itemRes.data ?? []) as PartyItem[],
+      payments: (payRes.data ?? []) as PartyPayment[],
+    };
+  } catch {
+    return {
+      session: sessRes.data as PartySession,
+      members: rawMembers,
+      items: (itemRes.data ?? []) as PartyItem[],
+      payments: (payRes.data ?? []) as PartyPayment[],
+    };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

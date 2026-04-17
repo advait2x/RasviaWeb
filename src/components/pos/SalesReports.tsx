@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useDashboard } from "@/context/DashboardContext";
-import { Order } from "@/types/dashboard";
+import type { PastOrdersFilter, PastOrdersRange } from "@/context/DashboardContext";
 
 type Range = "today" | "yesterday" | "week" | "month";
 
@@ -18,11 +18,12 @@ function getDateRange(range: Range): [Date, Date] {
   start.setHours(0, 0, 0, 0);
 
   switch (range) {
-    case "yesterday":
+    case "yesterday": {
       start.setDate(start.getDate() - 1);
       const endYesterday = new Date(start);
       endYesterday.setHours(23, 59, 59, 999);
       return [start, endYesterday];
+    }
     case "week": {
       const day = start.getDay();
       start.setDate(start.getDate() - day);
@@ -36,8 +37,20 @@ function getDateRange(range: Range): [Date, Date] {
   }
 }
 
+function toRangeKey(range: Range): PastOrdersRange {
+  switch (range) {
+    case "today": return "today";
+    case "yesterday": return "yesterday";
+    case "week": return "week";
+    case "month": return "month";
+  }
+}
+
 export default function SalesReports() {
-  const { fetchCompletedOrders, completedOrders } = useDashboard();
+  const {
+    fetchCompletedOrders, completedOrders,
+    setActiveView, setPastOrdersFilter, pastOrdersFilter,
+  } = useDashboard();
   const [range, setRange] = useState<Range>("today");
 
   useEffect(() => {
@@ -57,20 +70,90 @@ export default function SalesReports() {
     };
   }, [completedOrders]);
 
-  const hourlyData = useMemo(() => {
-    const buckets = Array.from({ length: 24 }, (_, i) => ({ hour: i, sales: 0 }));
+  // Chart shape depends on range.
+  // today/yesterday: hourly buckets
+  // week:             daily buckets (last 7 days including today)
+  // month:            weekly buckets (up to 5 ISO-weekish columns within the month)
+  type ChartMode = "hourly" | "daily" | "weekly";
+  const chartMode: ChartMode =
+    range === "today" || range === "yesterday" ? "hourly" :
+    range === "week" ? "daily" : "weekly";
+
+  const chart = useMemo(() => {
+    if (chartMode === "hourly") {
+      const buckets = Array.from({ length: 24 }, (_, i) => ({
+        label: `${i}:00`,
+        key: i,
+        sales: 0,
+        bucketStart: (() => { const d = new Date(); d.setHours(i, 0, 0, 0); if (range === "yesterday") d.setDate(d.getDate() - 1); return d; })(),
+        bucketEnd: (() => { const d = new Date(); d.setHours(i, 59, 59, 999); if (range === "yesterday") d.setDate(d.getDate() - 1); return d; })(),
+      }));
+      completedOrders.forEach((o) => {
+        const h = new Date(o.createdAt).getHours();
+        if (buckets[h]) buckets[h].sales += o.total;
+      });
+      return buckets;
+    }
+
+    if (chartMode === "daily") {
+      // Last 7 days (today inclusive)
+      const now = new Date();
+      const buckets: Array<{ label: string; key: number; sales: number; bucketStart: Date; bucketEnd: Date }> = [];
+      for (let i = 6; i >= 0; i--) {
+        const start = new Date(now); start.setDate(now.getDate() - i); start.setHours(0, 0, 0, 0);
+        const end = new Date(start); end.setHours(23, 59, 59, 999);
+        buckets.push({
+          label: start.toLocaleDateString(undefined, { weekday: "short" }),
+          key: start.getTime(),
+          sales: 0,
+          bucketStart: start,
+          bucketEnd: end,
+        });
+      }
+      completedOrders.forEach((o) => {
+        const t = new Date(o.createdAt).getTime();
+        const bucket = buckets.find((b) => t >= b.bucketStart.getTime() && t <= b.bucketEnd.getTime());
+        if (bucket) bucket.sales += o.total;
+      });
+      return buckets;
+    }
+
+    // weekly for current month
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const buckets: Array<{ label: string; key: number; sales: number; bucketStart: Date; bucketEnd: Date }> = [];
+    const cursor = new Date(monthStart);
+    let idx = 1;
+    while (cursor <= monthEnd) {
+      const weekStart = new Date(cursor);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59, 999);
+      if (weekEnd > monthEnd) { weekEnd.setTime(monthEnd.getTime()); weekEnd.setHours(23, 59, 59, 999); }
+      buckets.push({
+        label: `W${idx}`,
+        key: weekStart.getTime(),
+        sales: 0,
+        bucketStart: weekStart,
+        bucketEnd: weekEnd,
+      });
+      cursor.setDate(cursor.getDate() + 7);
+      idx++;
+    }
     completedOrders.forEach((o) => {
-      const h = new Date(o.createdAt).getHours();
-      buckets[h].sales += o.total;
+      const t = new Date(o.createdAt).getTime();
+      const bucket = buckets.find((b) => t >= b.bucketStart.getTime() && t <= b.bucketEnd.getTime());
+      if (bucket) bucket.sales += o.total;
     });
     return buckets;
-  }, [completedOrders]);
+  }, [chartMode, completedOrders, range]);
+
+  const chartTitle = chartMode === "hourly" ? "Hourly Sales" : chartMode === "daily" ? "Daily Sales" : "Weekly Sales";
 
   const topItems = useMemo(() => {
     const map = new Map<string, { qty: number; revenue: number }>();
     completedOrders.forEach((o) =>
       o.items.forEach((it) => {
-        if (it.voided) return;
         const prev = map.get(it.menuItemName) ?? { qty: 0, revenue: 0 };
         map.set(it.menuItemName, {
           qty: prev.qty + it.quantity,
@@ -84,8 +167,12 @@ export default function SalesReports() {
   }, [completedOrders]);
 
   const typeCounts = useMemo(() => {
-    const c = { dine_in: 0, takeout: 0, pre_order: 0 };
-    completedOrders.forEach((o) => { c[o.orderType] = (c[o.orderType] ?? 0) + 1; });
+    const c: { dine_in: number; takeout: number; pre_order: number } = { dine_in: 0, takeout: 0, pre_order: 0 };
+    completedOrders.forEach((o) => {
+      if (o.orderType === "dine_in" || o.orderType === "takeout" || o.orderType === "pre_order") {
+        c[o.orderType] = (c[o.orderType] ?? 0) + 1;
+      }
+    });
     return c;
   }, [completedOrders]);
 
@@ -97,12 +184,45 @@ export default function SalesReports() {
     { key: "month", label: "This Month" },
   ];
 
-  const cards = [
-    { label: "Total Sales", value: fmt(totalSales), icon: DollarSign },
-    { label: "Orders", value: orderCount, icon: ShoppingCart },
-    { label: "Avg Order", value: fmt(avgOrder), icon: TrendingUp },
-    { label: "Tips", value: fmt(tips), icon: Heart },
+  const cards: Array<{
+    label: string; value: string | number; icon: typeof DollarSign; clickable: boolean;
+  }> = [
+    { label: "Total Sales", value: fmt(totalSales), icon: DollarSign, clickable: true },
+    { label: "Orders", value: orderCount, icon: ShoppingCart, clickable: true },
+    { label: "Avg Order", value: fmt(avgOrder), icon: TrendingUp, clickable: false },
+    { label: "Tips", value: fmt(tips), icon: Heart, clickable: false },
   ];
+
+  const gotoPastOrders = (overrides: Partial<PastOrdersFilter>) => {
+    setPastOrdersFilter({
+      ...pastOrdersFilter,
+      range: toRangeKey(range),
+      type: "all",
+      status: "all",
+      search: "",
+      sort: "newest",
+      ...overrides,
+    });
+    setActiveView("orders");
+    // The OrdersPanel remembers the user's last tab; nudge it toward "past" via URL.
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "orders");
+    url.searchParams.set("ordersTab", "past");
+    window.history.replaceState({}, "", url.toString());
+  };
+
+  const handleCardClick = (label: string) => {
+    if (label !== "Total Sales" && label !== "Orders") return;
+    gotoPastOrders({});
+  };
+
+  const handleBarClick = (bucket: { bucketStart: Date; bucketEnd: Date }) => {
+    gotoPastOrders({
+      range: "custom",
+      from: bucket.bucketStart.toISOString(),
+      to: bucket.bucketEnd.toISOString(),
+    });
+  };
 
   return (
     <div className="space-y-6 p-4">
@@ -125,41 +245,66 @@ export default function SalesReports() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {cards.map((c, i) => (
-          <motion.div
-            key={c.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="rounded-xl border border-white/5 bg-zinc-900 p-5"
-          >
-            <div className="mb-2 flex items-center gap-2 text-zinc-400">
-              <c.icon size={16} />
-              <span className="text-xs uppercase tracking-wider">{c.label}</span>
-            </div>
-            <p className="text-2xl font-bold text-white">{c.value}</p>
-          </motion.div>
-        ))}
+        {cards.map((c, i) => {
+          const Wrapper: React.ElementType = c.clickable ? "button" : "div";
+          return (
+            <motion.div
+              key={c.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Wrapper
+                type={c.clickable ? "button" : undefined}
+                onClick={c.clickable ? () => handleCardClick(c.label) : undefined}
+                className={`w-full text-left rounded-xl border bg-zinc-900 p-5 transition-all ${
+                  c.clickable
+                    ? "border-white/5 hover:border-amber-500/50 hover:ring-1 hover:ring-amber-500/50 cursor-pointer"
+                    : "border-white/5"
+                }`}
+                title={c.clickable ? "View matching past orders" : undefined}
+              >
+                <div className="mb-2 flex items-center gap-2 text-zinc-400">
+                  <c.icon size={16} />
+                  <span className="text-xs uppercase tracking-wider">{c.label}</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{c.value}</p>
+              </Wrapper>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Hourly chart */}
+      {/* Chart */}
       <div className="rounded-xl border border-white/5 bg-zinc-900 p-5">
-        <h3 className="mb-4 text-sm font-medium text-zinc-400">Hourly Sales</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-zinc-400">{chartTitle}</h3>
+          <span className="text-[10px] text-zinc-600">Click a bar to filter Past Orders</span>
+        </div>
         <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={hourlyData}>
+          <BarChart data={chart}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis
-              dataKey="hour"
+              dataKey="label"
               tick={{ fill: "#71717a", fontSize: 11 }}
-              tickFormatter={(h) => `${h}:00`}
             />
             <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
               contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
-              labelFormatter={(h) => `${h}:00`}
               formatter={(v: number) => [`$${v.toFixed(2)}`, "Sales"]}
             />
-            <Bar dataKey="sales" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="sales"
+              fill="#f59e0b"
+              radius={[4, 4, 0, 0]}
+              cursor="pointer"
+              onClick={(data: unknown) => {
+                const payload = data as { bucketStart?: Date; bucketEnd?: Date } | undefined;
+                if (payload?.bucketStart && payload?.bucketEnd) {
+                  handleBarClick({ bucketStart: payload.bucketStart, bucketEnd: payload.bucketEnd });
+                }
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
