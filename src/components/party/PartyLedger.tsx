@@ -49,8 +49,9 @@ export function PartyLedger(props: {
   isHost?: boolean;
   onCoverMember?: (memberId: string) => void;
   onRetry?: () => void;
+  onMemberTap?: (memberId: string) => void;
 }) {
-  const { members, payments, selfMemberId, isHost = false, onCoverMember, onRetry } = props;
+  const { members, payments, selfMemberId, isHost = false, onCoverMember, onRetry, onMemberTap } = props;
 
   const paidCount = useMemo(
     () => payments.filter((p) => p.status === "paid" || p.status === "covered").length,
@@ -64,17 +65,17 @@ export function PartyLedger(props: {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-100">Group</h3>
-          <p className="text-xs text-zinc-400">Live payment progress</p>
+          <h3 className="text-sm font-bold text-zinc-100">Who's paid</h3>
+          <p className="text-[11px] text-zinc-500">Tap a name to see what they ordered</p>
         </div>
         <div className="text-right">
           <div className="text-lg font-bold text-zinc-100">
             <span className="text-green-400">{paidCount}</span>
-            <span className="text-zinc-500"> / {totalCount}</span>
+            <span className="text-zinc-500"> of {totalCount}</span>
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-500">paid</div>
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500">{progressPct}% there</div>
         </div>
       </div>
 
@@ -97,6 +98,7 @@ export function PartyLedger(props: {
             const isFailed = status === "failed" || status === "cancelled";
             const isSelf = selfMemberId === m.id;
             const color = MEMBER_COLORS[idx % MEMBER_COLORS.length];
+            const tappable = Boolean(onMemberTap);
 
             return (
               <motion.li
@@ -106,7 +108,11 @@ export function PartyLedger(props: {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2, delay: idx * 0.03 }}
-                className="flex items-center gap-3 rounded-xl bg-zinc-900/40 p-3"
+                className={cn(
+                  "flex items-center gap-3 rounded-xl bg-zinc-900/40 p-3 transition",
+                  tappable && "cursor-pointer hover:bg-zinc-800/60",
+                )}
+                onClick={tappable ? () => onMemberTap?.(m.id) : undefined}
               >
                 <div className="relative">
                   <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-zinc-900", color)}>
@@ -131,7 +137,7 @@ export function PartyLedger(props: {
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-1.5">
+                <div className="flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <span className={cn("text-sm font-bold", isPaid ? "text-green-400" : "text-zinc-100")}>
                     {formatCents(amount)}
                   </span>

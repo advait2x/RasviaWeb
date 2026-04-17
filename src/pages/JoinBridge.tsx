@@ -17,7 +17,10 @@ import {
   formatCents, totalCartCents, paymentForMember, memberById,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
-import { savePartyCreds, loadPartyCreds, clearPartyCreds } from "@/lib/party-credentials";
+import {
+  savePartyCreds, loadPartyCreds, clearPartyCreds,
+  saveLastDisplayName, loadLastDisplayName,
+} from "@/lib/party-credentials";
 import { subscribeToParty } from "@/lib/party-realtime";
 import { PartyLedger, memberInitials } from "@/components/party/PartyLedger";
 
@@ -40,10 +43,10 @@ type RestaurantInfo = {
 };
 
 const PAYMENT_MODES: { key: PaymentMode; title: string; subtitle: string }[] = [
-  { key: "host_pays", title: "Host pays", subtitle: "You cover the whole bill" },
-  { key: "equal_split", title: "Split equally", subtitle: "1 / N across everyone" },
-  { key: "per_person", title: "Each pays their items", subtitle: "Split per item / shares" },
-  { key: "assigned", title: "Host assigns", subtitle: "Pick who pays for each item" },
+  { key: "host_pays",   title: "Host covers everyone", subtitle: "You pay the whole bill." },
+  { key: "equal_split", title: "Split evenly",         subtitle: "Everyone pays the same share." },
+  { key: "per_person",  title: "Each pays their own",  subtitle: "You pay for the items you added." },
+  { key: "assigned",    title: "Host decides",         subtitle: "You choose who pays for each item." },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +60,7 @@ export default function JoinBridge() {
   const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
   const [menu, setMenu] = useState<MenuItemRow[]>([]);
   const [creds, setCreds] = useState<PartyCreds | null>(null);
+  const [credsLoaded, setCredsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +71,7 @@ export default function JoinBridge() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
   const [showAppOverlay, setShowAppOverlay] = useState(
     !(checkoutStatus === "success" || checkoutStatus === "cancel"),
   );
@@ -85,11 +90,23 @@ export default function JoinBridge() {
     if (!sessionId) {
       setError("Missing group order id.");
       setLoading(false);
+      setCredsLoaded(true);
       return;
     }
     const saved = loadPartyCreds(sessionId);
     if (saved) setCreds(saved);
+    setCredsLoaded(true);
   }, [sessionId]);
+
+  // Pre-fill nameInput with the last display name this browser used so a
+  // returning user doesn't have to retype their name for every new party.
+  useEffect(() => {
+    if (nameInput.trim().length > 0) return;
+    const last = loadLastDisplayName();
+    if (last) setNameInput(last);
+    // run once on mount — pre-fill is a best-effort initial value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadAll = useCallback(async () => {
     if (!sessionId) return;
@@ -164,13 +181,14 @@ export default function JoinBridge() {
   // ── Actions ────────────────────────────────────────────────────────────
   const handleJoin = async () => {
     const name = nameInput.trim();
-    if (!name) { toast.error("Enter your name."); return; }
+    if (!name) { toast.error("Enter your name to continue."); return; }
     setJoining(true);
     try {
       const result = await joinSession(supabase, sessionId, name);
       const next: PartyCreds = { sessionId, memberId: result.member_id, memberToken: result.member_token };
       setCreds(next);
       savePartyCreds(next);
+      saveLastDisplayName(name);
       await loadAll();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to join.");
@@ -271,9 +289,22 @@ export default function JoinBridge() {
 
   // ── Early returns ──────────────────────────────────────────────────────
   if (!sessionId) return <FullScreenMessage title="Missing id" body="This link is invalid." />;
-  if (loading) return <LoadingScreen />;
+  // Wait for BOTH the initial snapshot load AND the saved-creds read before
+  // deciding whether to show the name-entry screen. Avoids a brief flicker of
+  // the name prompt for returning users whose creds load a tick later.
+  if (loading || !credsLoaded) return <LoadingScreen />;
   if (error) return <FullScreenMessage title="Can't open group order" body={error} />;
   if (!session) return <FullScreenMessage title="Not found" body="This group order no longer exists." />;
+
+  // Cancelled session kicks everyone out, regardless of whether they'd joined.
+  if (session.status === "cancelled") {
+    return (
+      <CancelledScreen
+        restaurantName={restaurant?.name ?? null}
+        onHome={() => { clearPartyCreds(sessionId); window.location.href = "/"; }}
+      />
+    );
+  }
 
   // App interstitial (only before joining & before any checkout return)
   if (showAppOverlay && !creds && !checkoutStatus) {
@@ -343,6 +374,7 @@ export default function JoinBridge() {
             isHost={isHost}
             onCoverMember={handleCoverMember}
             onRetry={handlePayMyShare}
+            onMemberTap={(id) => setViewingMemberId(id)}
           />
 
           {isHost ? (
@@ -360,6 +392,13 @@ export default function JoinBridge() {
         </div>
 
         <CancelDialog open={cancelOpen} busy={busy} onClose={() => setCancelOpen(false)} onConfirm={handleCancelSession} />
+        <MemberItemsModal
+          memberId={viewingMemberId}
+          members={members}
+          items={items}
+          selfMemberId={creds.memberId}
+          onClose={() => setViewingMemberId(null)}
+        />
       </Layout>
     );
   }
@@ -368,11 +407,11 @@ export default function JoinBridge() {
   if (view === "review" && session.status === "open") {
     const mode = (session.payment_mode === "split" ? "per_person" : session.payment_mode === "assign" ? "assigned" : session.payment_mode) as PaymentMode;
     return (
-      <Layout restaurantName="Review & split" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
+      <Layout restaurantName="Review" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
           <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={members.length} subtitle="Ready to checkout" />
           <section>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How will you split?</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How should the bill be paid?</h3>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {PAYMENT_MODES.map((m) => (
                 <button
@@ -394,7 +433,7 @@ export default function JoinBridge() {
 
           {mode === "assigned" ? (
             <section>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Assign each item</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Choose a payer for each item</h3>
               <div className="mt-3 space-y-2">
                 {items.map((it) => (
                   <AssignRow key={it.id} item={it} members={members} onAssign={(pid) => handleAssignPayer(it.id, pid)} />
@@ -405,8 +444,8 @@ export default function JoinBridge() {
 
           {mode === "per_person" ? (
             <section>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Per-item shares</h3>
-              <p className="mt-1 text-xs text-zinc-500">By default each item is billed to whoever added it. Tap to split across multiple members.</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Fine-tune who pays for what</h3>
+              <p className="mt-1 text-xs text-zinc-500">By default each person pays for the items they added. Tap names below to share an item between multiple people.</p>
               <div className="mt-3 space-y-2">
                 {items.map((it) => (
                   <SplitRow key={it.id} item={it} members={members} onSetSplit={(ids) => handleSetSplit(it.id, ids)} />
@@ -423,7 +462,7 @@ export default function JoinBridge() {
               type="button" disabled={busy} onClick={handleLock}
               className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-zinc-900 hover:bg-amber-400", busy && "opacity-60")}
             >
-              <Lock className="h-4 w-4" /> {busy ? "Locking…" : "Lock cart & collect"}
+              <Lock className="h-4 w-4" /> {busy ? "Locking…" : "Lock cart & start collecting"}
             </button>
           </div>
         </div>
@@ -444,10 +483,22 @@ export default function JoinBridge() {
       }
     >
       <div className="mx-auto max-w-3xl px-4 pb-64">
-        <div className="flex gap-2 overflow-x-auto py-3">
-          {members.map((m, idx) => (
-            <MemberChip key={m.id} member={m} index={idx} isSelf={m.id === creds.memberId} />
-          ))}
+        <div className="flex items-center gap-2 overflow-x-auto py-3">
+          {members.map((m, idx) => {
+            const count = items
+              .filter((it) => it.added_by_member_id === m.id)
+              .reduce((sum, it) => sum + (it.quantity ?? 1), 0);
+            return (
+              <MemberChip
+                key={m.id}
+                member={m}
+                index={idx}
+                isSelf={m.id === creds.memberId}
+                itemCount={count}
+                onClick={() => setViewingMemberId(m.id)}
+              />
+            );
+          })}
         </div>
 
         <div className="sticky top-0 z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/95 px-3 py-2 backdrop-blur">
@@ -472,6 +523,13 @@ export default function JoinBridge() {
         onRemove={handleRemoveItem}
         onReview={() => setView("review")}
         onLeave={handleLeave}
+      />
+      <MemberItemsModal
+        memberId={viewingMemberId}
+        members={members}
+        items={items}
+        selfMemberId={creds.memberId}
+        onClose={() => setViewingMemberId(null)}
       />
     </Layout>
   );
@@ -510,12 +568,12 @@ function SummaryCard({ total, itemCount, memberCount, subtitle, locked }: { tota
     <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Total</div>
+          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Group total</div>
           <div className="mt-1 text-3xl font-black">{formatCents(total)}</div>
         </div>
-        <div className="text-right text-xs text-zinc-500">
-          <div>{memberCount} member{memberCount === 1 ? "" : "s"}</div>
-          <div>{itemCount} item{itemCount === 1 ? "" : "s"}</div>
+        <div className="text-right text-xs text-zinc-500 font-semibold">
+          <div>{memberCount} {memberCount === 1 ? "member" : "members"}</div>
+          <div>{itemCount} {itemCount === 1 ? "item" : "items"}</div>
         </div>
       </div>
       {subtitle ? (
@@ -528,16 +586,31 @@ function SummaryCard({ total, itemCount, memberCount, subtitle, locked }: { tota
   );
 }
 
-function MemberChip({ member, index, isSelf }: { member: PartyMember; index: number; isSelf: boolean }) {
+function MemberChip({
+  member, index, isSelf, itemCount = 0, onClick,
+}: { member: PartyMember; index: number; isSelf: boolean; itemCount?: number; onClick?: () => void }) {
   const colors = ["bg-amber-500", "bg-green-500", "bg-blue-500", "bg-purple-500", "bg-pink-500", "bg-yellow-500", "bg-cyan-500", "bg-red-500"];
   return (
-    <div className={cn("flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition", isSelf ? "border-amber-500 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-900 text-zinc-200")}>
+    <button
+      type="button" onClick={onClick}
+      className={cn(
+        "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:brightness-110",
+        isSelf ? "border-amber-500 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-900 text-zinc-200 hover:bg-zinc-800",
+      )}
+    >
       <span className={cn("relative flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-zinc-900", colors[index % colors.length])}>
         {memberInitials(member.display_name)}
         {member.role === "host" ? <Crown className="absolute -right-1 -top-1 h-3 w-3 text-amber-300" strokeWidth={3} /> : null}
       </span>
-      <span className="max-w-[120px] truncate">{member.display_name}{isSelf ? " · You" : ""}</span>
-    </div>
+      <span className="max-w-[120px] truncate">
+        {isSelf ? `${member.display_name} · You` : member.display_name}
+      </span>
+      {itemCount > 0 ? (
+        <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-400">
+          {itemCount}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -545,7 +618,7 @@ function CategoryChips({ menu, active, onChange }: { menu: MenuItemRow[]; active
   const categories = useMemo(() => Array.from(new Set(menu.map((m) => m.category).filter(Boolean))) as string[], [menu]);
   if (categories.length === 0) return null;
   return (
-    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+    <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
       <CategoryPill label="All" active={!active} onClick={() => onChange(null)} />
       {categories.map((c) => (
         <CategoryPill key={c} label={c} active={active === c} onClick={() => onChange(c === active ? null : c)} />
@@ -559,7 +632,7 @@ function CategoryPill({ label, active, onClick }: { label: string; active: boole
     <button
       type="button" onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition",
+        "inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold leading-none transition",
         active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
       )}
     >
@@ -583,7 +656,11 @@ function MenuList({ items, menu, search, category, onAdd }: { items: PartyItem[]
         <MenuRow key={m.id} item={m} inCartCount={cartCountFor(items, m.id)} onAdd={() => onAdd(m.id)} />
       ))}
       {filtered.length === 0 ? (
-        <li className="py-10 text-center text-sm text-zinc-500">No menu items match.</li>
+        <li className="flex flex-col items-center gap-2 py-14 text-center text-sm text-zinc-500">
+          <Search className="h-6 w-6 text-zinc-700" />
+          <span>Nothing matches that filter.</span>
+          <span className="text-[11px] text-zinc-600">Try clearing the search or category.</span>
+        </li>
       ) : null}
     </ul>
   );
@@ -673,14 +750,24 @@ function CartStrip(props: {
         </AnimatePresence>
         <div className="flex gap-2 px-4 pb-3">
           <button type="button" onClick={props.onLeave} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Leave</button>
-          {props.isHost ? (
-            <button
-              type="button" disabled={props.items.length === 0} onClick={props.onReview}
-              className={cn("flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400", props.items.length === 0 && "opacity-50")}
-            >
-              Review & checkout
-            </button>
-          ) : (
+          {props.isHost ? (() => {
+            const needsGuests = props.members.length < 2;
+            const noItems = props.items.length === 0;
+            const disabled = needsGuests || noItems;
+            const label = needsGuests ? "Waiting for guests to join…" : "Review & checkout";
+            return (
+              <button
+                type="button" disabled={disabled} onClick={props.onReview}
+                className={cn(
+                  "flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400",
+                  disabled && "cursor-not-allowed opacity-50 hover:bg-amber-500",
+                )}
+                title={needsGuests ? "Share the link so others can join before checking out." : undefined}
+              >
+                {label}
+              </button>
+            );
+          })() : (
             <div className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-center text-sm font-semibold text-zinc-500">
               Waiting on host…
             </div>
@@ -696,11 +783,14 @@ function AssignRow({ item, members, onAssign }: { item: PartyItem; members: Part
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
       <div className="truncate text-sm font-semibold">{item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menu_item?.name ?? "Item"}</div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {members.map((m) => (
           <button
             key={m.id} type="button" onClick={() => onAssign(m.id)}
-            className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", current?.id === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700")}
+            className={cn(
+              "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
+              current?.id === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+            )}
           >
             {m.display_name.split(" ")[0]}
           </button>
@@ -720,13 +810,16 @@ function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: Par
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
       <div className="truncate text-sm font-semibold">{item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menu_item?.name ?? "Item"}</div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {members.map((m) => {
           const active = currentIds.includes(m.id);
           return (
             <button
               key={m.id} type="button" onClick={() => toggle(m.id)}
-              className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700")}
+              className={cn(
+                "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
+                active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+              )}
             >
               {m.display_name.split(" ")[0]}
             </button>
@@ -753,20 +846,115 @@ function CancelDialog({ open, busy, onClose, onConfirm }: { open: boolean; busy:
   );
 }
 
+function MemberItemsModal({
+  memberId, members, items, selfMemberId, onClose,
+}: {
+  memberId: string | null;
+  members: PartyMember[];
+  items: PartyItem[];
+  selfMemberId: string;
+  onClose: () => void;
+}) {
+  const member = memberId ? members.find((m) => m.id === memberId) ?? null : null;
+  const memberIdx = memberId ? Math.max(0, members.findIndex((m) => m.id === memberId)) : 0;
+  const colors = ["bg-amber-500", "bg-green-500", "bg-blue-500", "bg-purple-500", "bg-pink-500", "bg-yellow-500", "bg-cyan-500", "bg-red-500"];
+  const theirItems = memberId ? items.filter((it) => it.added_by_member_id === memberId) : [];
+  const isSelf = memberId === selfMemberId;
+  const totalCents = theirItems.reduce((sum, it) => {
+    const price = Math.round(Number((it.menu_item?.price ?? 0)) * 100);
+    return sum + price * (it.quantity ?? 1);
+  }, 0);
+  const itemCount = theirItems.reduce((sum, it) => sum + (it.quantity ?? 1), 0);
+
+  return (
+    <AnimatePresence>
+      {member ? (
+        <motion.div
+          key="member-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-t-3xl border border-white/10 bg-zinc-900 p-6 shadow-2xl sm:rounded-2xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-zinc-900", colors[memberIdx % colors.length])}>
+                  {memberInitials(member.display_name)}
+                </div>
+                {member.role === "host" ? (
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-zinc-900 bg-amber-500">
+                    <Crown className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                  </span>
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-base font-bold text-zinc-100">
+                  {isSelf ? `${member.display_name} · You` : member.display_name}
+                </div>
+                <div className="text-xs text-zinc-500">
+                  {itemCount === 0 ? "No items yet" : `${itemCount} ${itemCount === 1 ? "item" : "items"} · ${formatCents(totalCents)}`}
+                </div>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-full bg-white/5 p-1.5 text-zinc-400 hover:bg-white/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-[60vh] overflow-y-auto">
+              {theirItems.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-zinc-500">
+                  <ShoppingCart className="h-6 w-6 text-zinc-700" />
+                  <span>{isSelf ? "You haven't added anything yet." : `${member.display_name.split(" ")[0]} hasn't added anything yet.`}</span>
+                </div>
+              ) : (
+                <ul className="divide-y divide-white/5">
+                  {theirItems.map((it) => {
+                    const priceCents = Math.round(Number(it.menu_item?.price ?? 0) * 100);
+                    return (
+                      <li key={it.id} className="flex items-start gap-3 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-zinc-100">
+                            {it.quantity > 1 ? `${it.quantity}× ` : ""}{it.menu_item?.name ?? "Item"}
+                          </div>
+                          {it.special_requests ? (
+                            <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{it.special_requests}</div>
+                          ) : null}
+                        </div>
+                        <div className="text-sm font-bold text-amber-400">{formatCents(priceCents * (it.quantity ?? 1))}</div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 function NameEntryScreen({
   restaurantName, nameInput, setNameInput, joining, onJoin,
 }: { restaurantName: string; nameInput: string; setNameInput: (v: string) => void; joining: boolean; onJoin: () => void }) {
+  const hasPrefill = nameInput.trim().length > 0;
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-8 shadow-2xl">
-        <div className="flex items-center gap-2 text-amber-400">
-          <Users className="h-5 w-5" />
-          <span className="text-xs font-bold uppercase tracking-wider">Group order</span>
+        <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-amber-400">
+          <Users className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-bold uppercase tracking-wider">Group order</span>
         </div>
-        <h1 className="mt-2 text-2xl font-black text-zinc-100">Join at {restaurantName}</h1>
-        <p className="mt-2 text-sm text-zinc-400">Enter your name so everyone knows who added what.</p>
+        <h1 className="mt-3 text-2xl font-black text-zinc-100">Join at {restaurantName}</h1>
+        <p className="mt-2 text-sm text-zinc-400">Your name shows up on the order so everyone knows who added what.</p>
         <input
-          autoFocus value={nameInput} onChange={(e) => setNameInput(e.target.value)}
+          autoFocus={!hasPrefill}
+          value={nameInput} onChange={(e) => setNameInput(e.target.value)}
+          onFocus={(e) => { if (hasPrefill) e.currentTarget.select(); }}
           placeholder="Your name"
           onKeyDown={(e) => { if (e.key === "Enter" && !joining) onJoin(); }}
           className="mt-5 w-full rounded-xl border border-white/10 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
@@ -776,7 +964,7 @@ function NameEntryScreen({
           type="button" disabled={joining} onClick={onJoin}
           className={cn("mt-4 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400", joining && "opacity-60")}
         >
-          {joining ? "Joining…" : "Join"}
+          {joining ? "Joining…" : hasPrefill ? `Continue as ${nameInput.trim()}` : "Join"}
         </button>
       </motion.div>
     </div>
@@ -865,6 +1053,24 @@ function ConfettiBurst() {
           transition={{ duration: 1.8, ease: "easeOut", delay: p.delay }}
         />
       ))}
+    </div>
+  );
+}
+
+function CancelledScreen({ restaurantName, onHome }: { restaurantName: string | null; onHome: () => void }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-6 text-center">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500/15">
+        <X className="h-9 w-9 text-red-400" strokeWidth={3} />
+      </motion.div>
+      <h2 className="mt-5 text-2xl font-black text-zinc-100">Group order ended</h2>
+      <p className="mt-2 max-w-md text-sm text-zinc-400">
+        {restaurantName ? `The host cancelled the group order at ${restaurantName}.` : "The host cancelled this group order."}
+        {" "}Any paid shares have been refunded.
+      </p>
+      <button type="button" onClick={onHome} className="mt-6 rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">
+        Back to home
+      </button>
     </div>
   );
 }
