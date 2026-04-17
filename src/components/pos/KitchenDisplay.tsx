@@ -97,7 +97,7 @@ export default function KitchenDisplay() {
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-4 flex flex-col gap-4">
+    <div className="h-full min-h-0 bg-zinc-950 text-white p-3 flex flex-col gap-3 overflow-hidden">
       {/* Stats */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
@@ -130,7 +130,7 @@ export default function KitchenDisplay() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 flex-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-2.5 flex-1 overflow-y-auto pr-1 pb-2">
         <AnimatePresence mode="popLayout">
           {filtered.map((order) => {
             const min = elapsedMin(order.createdAt);
@@ -153,7 +153,7 @@ export default function KitchenDisplay() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2 }}
-                className={`bg-zinc-900/80 border border-white/5 border-l-4 ${borderColor} rounded-xl p-4 flex flex-col gap-3`}
+                className={`bg-zinc-900/80 border border-white/5 border-l-4 ${borderColor} rounded-xl p-3 flex flex-col gap-2.5 max-h-[72vh]`}
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -169,9 +169,20 @@ export default function KitchenDisplay() {
                   </span>
                 </div>
 
-                <p className="text-sm text-zinc-400">{order.guestName}</p>
+                <p className="text-sm text-zinc-400 truncate">{order.guestName}</p>
 
-                <div className="flex flex-col gap-1.5 flex-1">
+                {order.notes && (
+                  <div className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-1.5">
+                    <p className="text-[10px] uppercase tracking-wide text-violet-300/90 font-semibold mb-0.5">
+                      Special Instructions
+                    </p>
+                    <p className="text-[11px] text-violet-100 break-words max-h-10 overflow-hidden">
+                      {order.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
                   {order.items
                     .filter((i) => !i.voided)
                     .map((item) => (
@@ -186,7 +197,7 @@ export default function KitchenDisplay() {
                             {item.quantity}× {item.menuItemName}
                           </span>
                           {item.specialInstructions && (
-                            <p className="text-xs text-zinc-500 truncate">
+                            <p className="text-xs text-zinc-500 break-words max-h-10 overflow-hidden">
                               {item.specialInstructions}
                             </p>
                           )}
@@ -197,7 +208,7 @@ export default function KitchenDisplay() {
 
                 <button
                   onClick={() => bump(order)}
-                  className="h-12 w-full rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-sm uppercase tracking-wider hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2"
+                  className="h-10 w-full rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-xs uppercase tracking-wider hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2 shrink-0"
                 >
                   {order.status === "pending" ? (
                     <ChefHat className="w-4 h-4" />

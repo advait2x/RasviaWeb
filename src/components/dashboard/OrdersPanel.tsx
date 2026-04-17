@@ -372,13 +372,13 @@ export default function OrdersPanel() {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.97 }}
                                     transition={{ duration: 0.15, delay: index * 0.02 }}
-                                    className={`rounded-xl border bg-zinc-800/40 hover:border-white/10 transition-all duration-200 p-4 ${order.orderType !== "dine_in"
+                                    className={`rounded-xl border bg-zinc-800/40 hover:border-white/10 transition-all duration-200 p-3 ${order.orderType !== "dine_in"
                                         ? "border-purple-500/20 border-l-2 border-l-purple-500/50"
                                         : "border-white/5"
                                         }`}
                                 >
                                     {/* Header row */}
-                                    <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-start justify-between mb-2">
                                         <div className="flex items-center gap-2.5">
                                             <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-700/50 border border-white/5">
                                                 <span className="text-xs font-bold text-zinc-200 tabular-nums">T{order.tableNumber}</span>
@@ -433,7 +433,7 @@ export default function OrdersPanel() {
 
                                     {/* Phone & notification info for takeout/pre-orders */}
                                     {order.orderType !== "dine_in" && order.customerPhone && (
-                                        <div className="flex items-center justify-between mb-2 py-1.5 px-2 rounded-md bg-purple-500/5 border border-purple-500/15">
+                                        <div className="flex items-center justify-between mb-1.5 py-1 px-2 rounded-md bg-purple-500/5 border border-purple-500/15">
                                             <div className="flex items-center gap-1.5">
                                                 <Phone size={10} strokeWidth={1.5} className="text-purple-400" />
                                                 <span className="text-xs text-purple-300 font-medium tabular-nums">{order.customerPhone}</span>
@@ -448,28 +448,45 @@ export default function OrdersPanel() {
 
                                     {/* Items */}
                                     {order.items.length > 0 && (
-                                        <div className="mb-3 space-y-1">
-                                            {order.items.slice(0, 3).map((item) => (
-                                                <div key={item.id} className="flex items-center justify-between text-xs">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-zinc-500 tabular-nums">{item.quantity}×</span>
-                                                        <span className="text-zinc-300">{item.menuItemName}</span>
-                                                        {item.dietType && (
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
-                                                                }`} />
-                                                        )}
+                                        <div className="mb-2 space-y-1">
+                                            {order.items.slice(0, 2).map((item) => (
+                                                <div key={item.id} className="text-xs">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span className="text-zinc-500 tabular-nums">{item.quantity}×</span>
+                                                            <span className="text-zinc-300 truncate">{item.menuItemName}</span>
+                                                            {item.dietType && (
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
+                                                                    }`} />
+                                                            )}
+                                                        </div>
+                                                        <span className="text-zinc-500 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
                                                     </div>
-                                                    <span className="text-zinc-500 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
+                                                    {item.specialInstructions && (
+                                                        <p className="text-[10px] text-violet-300 mt-0.5 pl-5 break-words max-h-8 overflow-y-auto pr-1">
+                                                            Note: {item.specialInstructions}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ))}
-                                            {order.items.length > 3 && (
-                                                <p className="text-[10px] text-zinc-600">+{order.items.length - 3} more items</p>
+                                            {order.items.length > 2 && (
+                                                <p className="text-[10px] text-zinc-600">+{order.items.length - 2} more items</p>
                                             )}
+                                        </div>
+                                    )}
+                                    {order.notes && (
+                                        <div className="mb-2 rounded-md border border-violet-500/20 bg-violet-500/5 px-2.5 py-2">
+                                            <p className="text-[10px] uppercase tracking-wide text-violet-300/90 font-semibold mb-0.5">
+                                                Special Instructions
+                                            </p>
+                                            <p className="text-[11px] text-violet-100 break-words max-h-14 overflow-y-auto pr-1">
+                                                {order.notes}
+                                            </p>
                                         </div>
                                     )}
 
                                     {/* Footer */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                    <div className="flex items-center justify-between pt-1.5 border-t border-white/5">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-bold text-amber-400 tabular-nums">
                                                 ${order.total.toFixed(2)}
@@ -486,7 +503,7 @@ export default function OrdersPanel() {
                                                 <motion.button
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => handleReverseStatus(order.id, order.status)}
-                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-700/60 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-700/60 border border-white/10 text-zinc-400 text-[11px] font-medium hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
                                                     title={`Revert to ${STATUS_CONFIG[PREV_STATUS[order.status]!].label}`}
                                                 >
                                                     <ArrowLeft size={11} strokeWidth={2} />
@@ -498,7 +515,7 @@ export default function OrdersPanel() {
                                                 <motion.button
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors"
+                                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/20 transition-colors"
                                                 >
                                                     <ArrowRight size={11} strokeWidth={2} />
                                                     {STATUS_CONFIG[NEXT_STATUS[order.status]!].label}
@@ -509,7 +526,7 @@ export default function OrdersPanel() {
                                                 <motion.button
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => setCancelConfirmId(order.id)}
-                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-medium hover:bg-red-500/20 transition-colors"
                                                     title="Cancel this order"
                                                 >
                                                     <X size={11} strokeWidth={2} />
@@ -538,7 +555,7 @@ export default function OrdersPanel() {
 
             {/* Cancel Order Confirmation Dialog */}
             <Dialog open={cancelConfirmId !== null} onOpenChange={(o) => !o && setCancelConfirmId(null)}>
-                <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+                <DialogContent className="glass-modal max-w-sm max-h-[80vh] overflow-y-auto border-white/10 bg-zinc-900/95 backdrop-blur-xl p-5">
                     <div className="flex flex-col items-center text-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
                             <AlertTriangle size={22} strokeWidth={1.5} className="text-red-400" />

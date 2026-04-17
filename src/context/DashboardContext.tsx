@@ -691,26 +691,34 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // DB and app now both use 'pending' Ã¢â‚¬â€ no mapping needed
 
-  // Parse metadata stored in the notes field as JSON
-  const parseMeta = (notes: string | null): Record<string, unknown> => {
-    if (!notes) return {};
-    try { return JSON.parse(notes); } catch { return {}; }
+  // Parse metadata stored in the notes field as JSON.
+  // If notes is plain text, preserve it as `plainText`.
+  const parseMeta = (notes: string | null): { meta: Record<string, unknown>; plainText?: string } => {
+    if (!notes) return { meta: {} };
+    try { return { meta: JSON.parse(notes) as Record<string, unknown> }; } catch {
+      return { meta: {}, plainText: String(notes) };
+    }
   };
 
   const mapOrder = useCallback((
     row: Record<string, unknown>,
     itemRows: Record<string, unknown>[]
   ): Order => {
-    const meta = parseMeta(row.notes as string | null);
+    const parsedOrderNotes = parseMeta(row.notes as string | null);
+    const meta = parsedOrderNotes.meta;
     const items: OrderItem[] = itemRows.map((ir) => {
-      const itemMeta = parseMeta(ir.notes as string | null);
+      const parsedItemNotes = parseMeta(ir.notes as string | null);
+      const itemMeta = parsedItemNotes.meta;
       return {
         id: String(ir.id),
         menuItemId: String(ir.menu_item_id ?? ""),
         menuItemName: ir.name as string,
         quantity: ir.quantity as number,
         unitPrice: Number(ir.price),
-        specialInstructions: (itemMeta.specialInstructions as string) || undefined,
+        specialInstructions:
+          (itemMeta.specialInstructions as string) ||
+          parsedItemNotes.plainText ||
+          undefined,
         dietType: (itemMeta.dietType as DietType) || ((ir.is_vegetarian as boolean) ? "veg" : undefined),
       };
     });
@@ -734,6 +742,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       tipAmount: row.tip_amount ? Number(row.tip_amount) : undefined,
       tipPercent: row.tip_percent ? Number(row.tip_percent) : undefined,
       paymentMethod: (row.payment_method as "cash" | "card" | "other") ?? "cash",
+      notes: (meta.sessionNotes as string) || (meta.notes as string) || parsedOrderNotes.plainText || undefined,
       customerPhone: (row.customer_phone as string) || (meta.customerPhone as string) || undefined,
       customerNotifiedAt: meta.customerNotifiedAt ? new Date(meta.customerNotifiedAt as string) : undefined,
     };
@@ -788,7 +797,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           // Toast on new takeout / pre-order coming in
           if (payload.eventType === "INSERT") {
             const row = payload.new as Record<string, unknown>;
-            const meta = parseMeta(row.notes as string | null);
+            const meta = parseMeta(row.notes as string | null).meta;
             const orderType = row.order_type as string;
             const guestName = (row.customer_name as string) ?? (meta.guestName as string) ?? "Guest";
             if (orderType === "takeout" || orderType === "pre_order") {
@@ -1008,7 +1017,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const notifiedAt = new Date().toISOString();
     // Update the meta in notes to include notification timestamp
     const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
-    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, customerNotifiedAt: notifiedAt });
     await supabase.from("orders").update({ notes: newMeta }).eq("id", Number(orderId));
     setOrders((prev) => prev.map((o) =>
@@ -1026,7 +1035,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Bulk update all active orders to completed with tip info
     for (const o of tableOrders) {
       const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(o.id)).single();
-      const existingMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+      const existingMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
       await supabase.from("orders").update({
         status: "completed",
         closed_at: new Date().toISOString(),
@@ -1297,7 +1306,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!newTable) return;
 
     const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
-    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null) : {};
+    const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, tableId: newTableId });
     await supabase.from("orders").update({
       table_number: String(newTable.tableNumber),
