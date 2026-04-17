@@ -32,3 +32,15 @@ enabled = true
 verify_jwt = false
 # JWT is verified manually in-function via supabase.auth.getUser(token)
 entrypoint = "./functions/create-stripe-account/index.ts"
+
+[functions.cancel-party-session]
+enabled = true
+verify_jwt = false
+# Verifies party member_token manually in-function.
+entrypoint = "./functions/cancel-party-session/index.ts"
+
+[functions.party-reap]
+enabled = true
+verify_jwt = false
+# Scheduled sweeper; verifies x-reap-secret header or service-role bearer.
+entrypoint = "./functions/party-reap/index.ts"

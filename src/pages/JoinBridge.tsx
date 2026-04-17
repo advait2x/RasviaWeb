@@ -1,1151 +1,897 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+// src/pages/JoinBridge.tsx
+// Group Order Bridge — web (schema_version = 2).
+// Four stages: Name entry → Browse & Add → Review & Split / Pay & Wait → Success.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft, Check, Copy, Crown, CreditCard, Lock, Minus, Plus, ShoppingCart, Smartphone,
+  Trash2, Users, X, Search, AlertCircle, PartyPopper, Unlock,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { X, Users, ShoppingCart, Plus, Minus, Crown, Smartphone, ExternalLink } from "lucide-react";
+import {
+  fetchSnapshot, joinSession, addItem, updateItemQuantity, removeItem,
+  setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
+  startCheckout, cancelSession, leaveSession,
+  formatCents, totalCartCents, paymentForMember, memberById,
+  type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
+} from "@/lib/party-session";
+import { savePartyCreds, loadPartyCreds, clearPartyCreds } from "@/lib/party-credentials";
+import { subscribeToParty } from "@/lib/party-realtime";
+import { PartyLedger, memberInitials } from "@/components/party/PartyLedger";
 
-type PartyItemRow = {
-  id: string;
-  menu_item_id: number;
-  added_by_name: string;
-  added_by_user_id?: string | null;
-  quantity: number;
-  special_requests?: string | null;
-  menu_items: { name: string; price: number; description: string | null; image_url: string | null } | null;
+type MenuItemRow = {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  category: string | null;
+  is_vegetarian: boolean | null;
+  is_available?: boolean | null;
+  in_stock?: boolean | null;
 };
-type PaymentMode = "host_pays" | "split" | "assign";
-const SPLIT_META_PREFIX = "__rasvia_split:";
-type ItemSplitMeta = { type: "equal"; members: string[] };
 
-function normalizePaymentMode(mode: unknown): PaymentMode {
-  return mode === "split" || mode === "assign" || mode === "host_pays" ? mode : "host_pays";
-}
+type RestaurantInfo = {
+  id: number;
+  name: string;
+  image_url: string | null;
+};
 
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase();
-}
+const PAYMENT_MODES: { key: PaymentMode; title: string; subtitle: string }[] = [
+  { key: "host_pays", title: "Host pays", subtitle: "You cover the whole bill" },
+  { key: "equal_split", title: "Split equally", subtitle: "1 / N across everyone" },
+  { key: "per_person", title: "Each pays their items", subtitle: "Split per item / shares" },
+  { key: "assigned", title: "Host assigns", subtitle: "Pick who pays for each item" },
+];
 
-function getMembersFromItems(items: PartyItemRow[]): string[] {
-  return Array.from(new Set(items.map((i) => String(i.added_by_name || "").trim()).filter(Boolean)));
-}
-
-function getCartTotalFromItems(items: PartyItemRow[]): number {
-  return items.reduce(
-    (sum, item) => sum + Number(item.menu_items?.price ?? 0) * Math.max(1, Number(item.quantity ?? 1)),
-    0
-  );
-}
-
-function parseItemSplitMeta(raw: unknown): ItemSplitMeta | null {
-  if (typeof raw !== "string" || !raw.startsWith(SPLIT_META_PREFIX)) return null;
-  try {
-    const parsed = JSON.parse(raw.slice(SPLIT_META_PREFIX.length));
-    if (!parsed || parsed.type !== "equal" || !Array.isArray(parsed.members)) return null;
-    const members = parsed.members
-      .map((m: unknown) => String(m || "").trim())
-      .filter(Boolean);
-    if (members.length === 0) return null;
-    return { type: "equal", members: Array.from(new Set(members)) };
-  } catch {
-    return null;
-  }
-}
-
-function checkoutUrlFromResponse(payload: unknown): string {
-  const data = (payload ?? {}) as Record<string, any>;
-  const candidate =
-    data?.url ??
-    data?.checkout_url ??
-    data?.data?.url ??
-    data?.data?.checkout_url;
-  if (typeof candidate === "string" && candidate.trim().length > 0) {
-    return candidate.trim();
-  }
-  const err = data?.error ?? data?.message ?? data?.data?.error ?? data?.data?.message;
-  if (typeof err === "string" && err.trim().length > 0) {
-    throw new Error(err.trim());
-  }
-  throw new Error("Checkout service did not return a URL.");
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
 export default function JoinBridge() {
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get("id") ?? "";
-  const splitPaid = params.get("split_paid") === "1";
-  const splitPaidPayer = params.get("payer") ?? "";
-  const fullPaid = params.get("full_paid") === "1";
   const checkoutStatus = params.get("checkout_status") ?? "";
+  const checkoutReason = params.get("reason") ?? "";
 
+  const [snapshot, setSnapshot] = useState<PartySnapshot | null>(null);
+  const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
+  const [menu, setMenu] = useState<MenuItemRow[]>([]);
+  const [creds, setCreds] = useState<PartyCreds | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [restaurantName, setRestaurantName] = useState("");
-  const [restaurantImage, setRestaurantImage] = useState<string | null>(null);
-  const [restaurantId, setRestaurantId] = useState<number | null>(null);
-  const [isHost, setIsHost] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [ended, setEnded] = useState(false);
-  const [endedMessage, setEndedMessage] = useState("This group order has ended.");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("host_pays");
-  const [assignedPayer, setAssignedPayer] = useState<string | null>(null);
-  const [paymentModeSyncing, setPaymentModeSyncing] = useState(false);
-  const [menu, setMenu] = useState<any[]>([]);
-  const [cartItems, setCartItems] = useState<PartyItemRow[]>([]);
-  const [guestName, setGuestName] = useState("");
-  const [isJoined, setIsJoined] = useState(false);
+
+  const [nameInput, setNameInput] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<"browse" | "review" | "pay" | "success">("browse");
   const [search, setSearch] = useState("");
-  const [showBanner, setShowBanner] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  // App interstitial: show "Open in Rasvia" overlay before the web fallback
-  const [appOverlay, setAppOverlay] = useState(!(splitPaid || fullPaid || checkoutStatus === "success"));
-  const [appLinkFired, setAppLinkFired] = useState(false);
-  const [qtyByItem, setQtyByItem] = useState<Record<string, number>>({});
-  const [selectedMenuItem, setSelectedMenuItem] = useState<any | null>(null);
-  const [payingMyShare, setPayingMyShare] = useState(false);
-  const [payingFullBill, setPayingFullBill] = useState(false);
-  const [splitPaidMembers, setSplitPaidMembers] = useState<string[]>([]);
-  const nameKeyRef = useRef(`rasvia:web:party-name:${sessionId}`);
+  const [category, setCategory] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [showAppOverlay, setShowAppOverlay] = useState(
+    !(checkoutStatus === "success" || checkoutStatus === "cancel"),
+  );
+  const checkoutAckRef = useRef(false);
 
-  const fetchCart = async () => {
-    if (!sessionId) return;
-    const { data } = await supabase
-      .from("party_items")
-      .select("*, menu_items(name, price, description, image_url)")
-      .eq("session_id", sessionId)
-      .order("created_at", { ascending: true });
-    const nextItems = (data ?? []) as unknown as PartyItemRow[];
-    setCartItems(nextItems);
-    return nextItems;
-  };
+  const session = snapshot?.session ?? null;
+  const members = snapshot?.members ?? [];
+  const items = snapshot?.items ?? [];
+  const payments = snapshot?.payments ?? [];
+  const me = creds ? members.find((m) => m.id === creds.memberId) ?? null : null;
+  const isHost = me?.role === "host";
+  const myPayment = creds ? paymentForMember(payments, creds.memberId) : null;
 
-  const fetchSplitPaidMembers = async (cartTotalOverride?: number, memberListOverride?: string[]) => {
-    if (!sessionId) return;
-    try {
-      const { data } = await supabase
-        .from("orders")
-        .select("customer_name,subtotal")
-        .eq("party_session_id", sessionId)
-        .in("status", ["pending", "preparing", "ready", "served", "completed"]);
-
-      const effectiveMembers = memberListOverride ?? members;
-      const effectiveCartTotal = cartTotalOverride ?? total;
-
-      const paidRows = (data ?? []) as Array<{ customer_name: string | null; subtotal: number | null }>;
-      const paidTotal = paidRows.reduce((sum, row) => sum + Number(row?.subtotal ?? 0), 0);
-
-      const paid = Array.from(
-        new Set(
-          paidRows
-            .map((row: any) => String(row?.customer_name ?? "").trim())
-            .filter(Boolean)
-        )
-      );
-
-      if (effectiveCartTotal > 0 && paidTotal + 0.005 >= effectiveCartTotal) {
-        setSplitPaidMembers(effectiveMembers);
-        return;
-      }
-
-      setSplitPaidMembers(paid);
-    } catch {
-      // ignore for anonymous browsers
-    }
-  };
-
+  // ── Boot: load creds, initial snapshot, restaurant + menu ──────────────
   useEffect(() => {
     if (!sessionId) {
       setError("Missing group order id.");
       setLoading(false);
       return;
     }
+    const saved = loadPartyCreds(sessionId);
+    if (saved) setCreds(saved);
+  }, [sessionId]);
 
-    const init = async () => {
-      try {
-        const storedName = localStorage.getItem(nameKeyRef.current);
-        if (storedName) {
-          setGuestName(storedName);
-          setIsJoined(true);
-        }
-
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("party_sessions")
-          .select("id, restaurant_id, host_user_id, status, payment_mode, assigned_payer_name, restaurants(name, image_url)")
-          .eq("id", sessionId)
-          .single();
-        if (sessionError || !sessionData) throw new Error("Session not found.");
-
-        setRestaurantId(sessionData.restaurant_id);
-        setRestaurantName((sessionData.restaurants as any)?.name ?? "Restaurant");
-        setRestaurantImage((sessionData.restaurants as any)?.image_url ?? null);
-
-        if (sessionData.status === "submitted") {
-          setSubmitted(true);
-          setEnded(true);
-          setEndedMessage("This group order has already been submitted.");
-          return;
-        }
-        if (sessionData.status === "cancelled") {
-          setEnded(true);
-          setEndedMessage("This group order has ended.");
-          return;
-        }
-
-        setPaymentMode(normalizePaymentMode((sessionData as any).payment_mode));
-        setAssignedPayer((sessionData as any).assigned_payer_name ?? null);
-
-        const [{ data: menuData }, { data: authData }] = await Promise.all([
-          supabase.from("menu_items").select("*").eq("restaurant_id", sessionData.restaurant_id).neq("is_available", false),
-          supabase.auth.getSession(),
+  const loadAll = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const snap = await fetchSnapshot(supabase, sessionId);
+      setSnapshot(snap);
+      if (!restaurant || restaurant.id !== snap.session.restaurant_id) {
+        const [{ data: rest }, { data: menuRows }] = await Promise.all([
+          supabase.from("restaurants").select("id, name, image_url").eq("id", snap.session.restaurant_id).maybeSingle(),
+          supabase
+            .from("menu_items")
+            .select("id, name, description, price, image_url, category, is_vegetarian, in_stock, is_available")
+            .eq("restaurant_id", snap.session.restaurant_id)
+            .order("category", { ascending: true })
+            .order("name", { ascending: true }),
         ]);
-        setMenu(menuData ?? []);
-        setIsHost(Boolean(authData.session?.user?.id && authData.session.user.id === sessionData.host_user_id));
-
-        const fetchedCart = (await fetchCart()) ?? [];
-        const fetchedMembers = getMembersFromItems(fetchedCart);
-        const fetchedTotal = getCartTotalFromItems(fetchedCart);
-        await fetchSplitPaidMembers(fetchedTotal, fetchedMembers);
-      } catch (err: any) {
-        setError(err.message ?? "Could not load group order.");
-      } finally {
-        setLoading(false);
+        if (rest) setRestaurant(rest as RestaurantInfo);
+        const available = (menuRows ?? []).filter(
+          (r: MenuItemRow) => (r.is_available ?? true) && (r.in_stock ?? true),
+        );
+        setMenu(available as MenuItemRow[]);
       }
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load group order.");
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId, restaurant]);
 
-    init();
-  }, [sessionId]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Realtime
   useEffect(() => {
     if (!sessionId) return;
-    const refreshCartAndPayments = async () => {
-      const latestCart = (await fetchCart()) ?? [];
-      await fetchSplitPaidMembers(getCartTotalFromItems(latestCart), getMembersFromItems(latestCart));
-    };
-
-    const channel = supabase
-      .channel(`web-party-live-${sessionId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "party_items", filter: `session_id=eq.${sessionId}` }, () => {
-        refreshCartAndPayments().catch(() => {});
-      })
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "party_sessions", filter: `id=eq.${sessionId}` },
-        (payload) => {
-          const nextSession = payload.new as Record<string, unknown>;
-          const nextStatus = nextSession?.status;
-          if (nextStatus === "submitted") {
-            setSubmitted(true);
-            setEnded(true);
-            setEndedMessage("This group order has already been submitted.");
-          } else if (nextStatus === "cancelled") {
-            setEnded(true);
-            setEndedMessage("This group order has ended.");
-          }
-          setPaymentMode(normalizePaymentMode(nextSession?.payment_mode));
-          setAssignedPayer(typeof nextSession?.assigned_payer_name === "string" ? nextSession.assigned_payer_name : null);
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (!sessionId) return;
-    const paymentsChannel = supabase
-      .channel(`web-party-payments-${sessionId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `party_session_id=eq.${sessionId}` },
-        async () => {
-          const latestCart = (await fetchCart()) ?? [];
-          fetchSplitPaidMembers(getCartTotalFromItems(latestCart), getMembersFromItems(latestCart)).catch(() => {});
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(paymentsChannel);
-    };
-  }, [sessionId]);
-
-  // Build deep link — include guest name so the app can skip the name prompt
-  const buildAppScheme = (name?: string) => {
-    const storedName = name ?? localStorage.getItem(nameKeyRef.current) ?? "";
-    const base = import.meta.env.PROD
-      ? `rasvia://join/${sessionId}`
-      : `exp://192.168.1.96:8081/--/join/${sessionId}`;
-    return storedName ? `${base}?name=${encodeURIComponent(storedName)}` : base;
-  };
-
-  const appScheme = buildAppScheme();
-
-  const filteredMenu = useMemo(() => {
-    if (!search.trim()) return menu;
-    const q = search.toLowerCase().trim();
-    return menu.filter((m) => m.name?.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q));
-  }, [menu, search]);
-
-  const members = useMemo(() => Array.from(new Set(cartItems.map((i) => i.added_by_name).filter(Boolean))), [cartItems]);
-  const totalItems = cartItems.reduce((s, i) => s + (i.quantity ?? 1), 0);
-  const total = cartItems.reduce((s, i) => s + Number(i.menu_items?.price ?? 0) * (i.quantity ?? 1), 0);
-  const memberTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    members.forEach((name) => {
-      totals[name] = 0;
-    });
-    for (const item of cartItems) {
-      const owner = String(item.added_by_name || "");
-      const splitMeta = parseItemSplitMeta(item.special_requests);
-      const splitMembers = splitMeta?.members?.filter((name) => members.includes(name)) ?? [];
-      const payers = splitMembers.length >= 2 ? splitMembers : [owner];
-      const totalCents = Math.max(0, Math.round(Number(item.menu_items?.price ?? 0) * Math.max(1, Number(item.quantity ?? 1)) * 100));
-      const base = Math.floor(totalCents / payers.length);
-      let remainder = totalCents - base * payers.length;
-      payers.forEach((name) => {
-        if (!totals[name]) totals[name] = 0;
-        const cents = base + (remainder > 0 ? 1 : 0);
-        if (remainder > 0) remainder -= 1;
-        totals[name] += cents / 100;
-      });
-    }
-    return totals;
-  }, [cartItems, members]);
-  const myShareTotal = guestName ? (memberTotals[guestName] ?? 0) : 0;
-  const splitPaidMemberSet = useMemo(
-    () => new Set(splitPaidMembers.map((name) => normalizeName(name))),
-    [splitPaidMembers]
-  );
-  const splitRequiredMembers = useMemo(
-    () => members.filter((name) => (memberTotals[name] ?? 0) > 0),
-    [memberTotals, members]
-  );
-  const splitAllPaid = useMemo(
-    () => splitRequiredMembers.every((name) => splitPaidMemberSet.has(normalizeName(name))),
-    [splitRequiredMembers, splitPaidMemberSet]
-  );
-  const unpaidSplitMembers = useMemo(
-    () => splitRequiredMembers.filter((name) => !splitPaidMemberSet.has(normalizeName(name))),
-    [splitRequiredMembers, splitPaidMemberSet]
-  );
-  const mySharePaid = guestName ? splitPaidMemberSet.has(normalizeName(guestName)) : false;
-  const paidMemberCount = useMemo(
-    () => members.filter((name) => splitPaidMemberSet.has(normalizeName(name))).length,
-    [members, splitPaidMemberSet]
-  );
-  const membersWithAppIdentity = useMemo(
-    () =>
-      members.filter((name) =>
-        cartItems.some((item) => item.added_by_name === name && Boolean(item.added_by_user_id))
-      ),
-    [cartItems, members]
-  );
-  const assignableMembers = useMemo(() => Array.from(new Set<string>(membersWithAppIdentity)), [membersWithAppIdentity]);
-  const canAssignPayer = assignableMembers.length > 0;
-  const canUseMultiPayerModes = members.length > 1;
-  const isAssignedPayerValid =
-    paymentMode !== "assign" || (!!assignedPayer && assignableMembers.includes(assignedPayer));
-  const lineTotal = (price: number, qty: number) => Number(price ?? 0) * Math.max(1, qty);
-
-  const buildPayerCheckoutItems = (payerName?: string) => {
-    if (!payerName) {
-      return cartItems.map((item) => ({
-        name: item.menu_items?.name ?? "Unknown",
-        price: Number(item.menu_items?.price ?? 0),
-        quantity: item.quantity ?? 1,
-        menu_item_id: item.menu_item_id,
-        added_by: item.added_by_name || guestName,
-      }));
-    }
-
-    const payerItems = cartItems.flatMap((item) => {
-      const owner = String(item.added_by_name || "");
-      const splitMeta = parseItemSplitMeta(item.special_requests);
-      const splitMembers = splitMeta?.members?.filter((name) => members.includes(name)) ?? [];
-      const payers = splitMembers.length >= 2 ? splitMembers : [owner];
-      if (!payers.includes(payerName)) return [];
-
-      const totalCents = Math.max(0, Math.round(Number(item.menu_items?.price ?? 0) * Math.max(1, Number(item.quantity ?? 1)) * 100));
-      const base = Math.floor(totalCents / payers.length);
-      let remainder = totalCents - base * payers.length;
-      let payerCents = 0;
-      payers.forEach((name) => {
-        const cents = base + (remainder > 0 ? 1 : 0);
-        if (remainder > 0) remainder -= 1;
-        if (name === payerName) payerCents = cents;
-      });
-
-      return [{
-        name: payers.length >= 2 ? `${item.menu_items?.name ?? "Unknown"} (split)` : (item.menu_items?.name ?? "Unknown"),
-        price: payerCents / 100,
-        quantity: 1,
-        menu_item_id: item.menu_item_id,
-        added_by: payerName,
-      }];
-    });
-
-    return payerItems.filter((item) => item.price > 0);
-  };
-
-  const addItem = async (item: any) => {
-    const qty = Math.max(1, qtyByItem[String(item.id)] ?? 1);
-    const existing = cartItems.find(
-      (ci) => ci.menu_item_id === item.id && (ci.added_by_name || "").trim() === guestName.trim()
+    const handle = subscribeToParty(
+      supabase,
+      sessionId,
+      (snap) => setSnapshot(snap),
+      (err) => console.warn("Party realtime error:", err.message),
     );
+    return () => handle.unsubscribe();
+  }, [sessionId]);
 
-    if (existing && !String(existing.id).startsWith("tmp-")) {
-      const nextQty = (existing.quantity ?? 1) + qty;
-      setCartItems((prev) =>
-        prev.map((ci) => (ci.id === existing.id ? { ...ci, quantity: nextQty } : ci))
-      );
-      const { error } = await supabase
-        .from("party_items")
-        .update({ quantity: nextQty })
-        .eq("id", existing.id);
-      if (error) {
-        await fetchCart();
-        return;
-      }
-    } else {
-      const optimistic: PartyItemRow = {
-        id: `tmp-${Date.now()}`,
-        menu_item_id: item.id,
-        added_by_name: guestName,
-        quantity: qty,
-        menu_items: { name: item.name, price: Number(item.price ?? 0), description: item.description ?? null, image_url: item.image_url ?? null },
-      };
-      setCartItems((prev) => [...prev, optimistic]);
-
-      const insertPayload: Record<string, any> = {
-        session_id: sessionId,
-        menu_item_id: item.id,
-        added_by_name: guestName,
-        quantity: qty,
-      };
-      const { error } = await supabase.from("party_items").insert(insertPayload);
-      if (error) {
-        setCartItems((prev) => prev.filter((x) => x.id !== optimistic.id));
-        return;
-      }
-    }
-    setQtyByItem((prev) => {
-      const next = { ...prev };
-      delete next[String(item.id)];
-      return next;
-    });
-  };
-
-  const removeItem = async (itemId: string) => {
-    setCartItems((prev) => prev.filter((x) => x.id !== itemId));
-    if (!itemId.startsWith("tmp-")) {
-      await supabase.from("party_items").delete().eq("id", itemId);
-    }
-  };
-
-  const submitGroupOrder = async () => {
-    if (!isHost || totalItems === 0 || submitting) return;
-    setSubmitting(true);
-    try {
-      const { error: updateErr } = await supabase
-        .from("party_sessions")
-        .update({ status: "submitted", submitted_at: new Date().toISOString() })
-        .eq("id", sessionId);
-      if (updateErr) throw updateErr;
-
-      await supabase.from("group_orders").insert({
-        party_session_id: sessionId,
-        restaurant_id: restaurantId,
-        total,
-        submitted_at: new Date().toISOString(),
-        items: cartItems.map((c) => ({
-          name: c.menu_items?.name ?? "Item",
-          price: Number(c.menu_items?.price ?? 0),
-          quantity: c.quantity ?? 1,
-          added_by: c.added_by_name,
-        })),
-      });
-      setSubmitted(true);
-    } catch {
-      setError("Could not submit group order.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const syncPaymentMode = async (nextMode: PaymentMode, nextAssignedPayer: string | null) => {
-    if (paymentModeSyncing) return;
-    if ((nextMode === "split" || nextMode === "assign") && !canUseMultiPayerModes) return;
-    setPaymentModeSyncing(true);
-    setPaymentMode(nextMode);
-    setAssignedPayer(nextAssignedPayer);
-    if (!isHost) {
-      setPaymentModeSyncing(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("party_sessions")
-      .update({
-        payment_mode: nextMode,
-        assigned_payer_name: nextMode === "assign" ? nextAssignedPayer : null,
-      })
-      .eq("id", sessionId);
-    if (error) {
-      setPaymentModeSyncing(false);
-      throw error;
-    }
-    setPaymentModeSyncing(false);
-  };
-
+  // Auto-switch view by status
   useEffect(() => {
-    if (canUseMultiPayerModes) return;
-    if (paymentMode === "host_pays") return;
-    setPaymentMode("host_pays");
-    setAssignedPayer(null);
-    if (isHost) {
-      supabase
-        .from("party_sessions")
-        .update({ payment_mode: "host_pays", assigned_payer_name: null })
-        .eq("id", sessionId)
-        .then(() => {});
-    }
-  }, [canUseMultiPayerModes, isHost, paymentMode, sessionId]);
+    if (!session) return;
+    if (session.status === "submitted" || session.status === "completed") { setView("success"); return; }
+    if (session.status === "cancelled") { setView("browse"); return; }
+    if (session.status === "locked" || session.status === "paying") { setView("pay"); return; }
+    setView((prev) => (prev === "review" ? "review" : "browse"));
+  }, [session?.status]);
 
-  const createCheckoutUrl = async (body: Record<string, unknown>) => {
-    const { data, error: checkoutError } = await supabase.functions.invoke("create-checkout", {
-      body,
-    });
-    if (checkoutError) throw checkoutError;
-    return checkoutUrlFromResponse(data);
-  };
-
-  const payMyShare = async () => {
-    if (!restaurantId || !sessionId || !guestName || myShareTotal <= 0 || payingMyShare) return;
-    setPayingMyShare(true);
-    try {
-      const { data: restData, error: restError } = await supabase
-        .from("restaurants")
-        .select("stripe_account_id")
-        .eq("id", restaurantId)
-        .single();
-      if (restError) throw restError;
-      const stripeAccountId = restData?.stripe_account_id;
-      if (!stripeAccountId) {
-        throw new Error("Online payments are not enabled for this restaurant yet.");
-      }
-
-      const payerItems = buildPayerCheckoutItems(guestName);
-
-      if (payerItems.length === 0) {
-        throw new Error("No items found for your share.");
-      }
-
-      const returnBase = `${window.location.origin}/join?id=${encodeURIComponent(sessionId)}&split_paid=1&payer=${encodeURIComponent(guestName)}`;
-      const checkoutUrl = await createCheckoutUrl({
-        restaurant_id: restaurantId,
-        amount: myShareTotal,
-        party_session_id: sessionId,
-        cart_items: payerItems,
-        restaurant_name: restaurantName,
-        customer_name: guestName,
-        order_type: "dine_in",
-        return_url_base: returnBase,
-      });
-
-      window.location.href = checkoutUrl;
-    } catch (err: any) {
-      setError(err?.message ?? "Could not initiate payment.");
-    } finally {
-      setPayingMyShare(false);
-    }
-  };
-
-  const payAndSubmitFullOrder = async () => {
-    if (!isHost || totalItems === 0 || submitting || payingFullBill || !restaurantId) return;
-    setPayingFullBill(true);
-    try {
-      const { data: restData, error: restError } = await supabase
-        .from("restaurants")
-        .select("stripe_account_id")
-        .eq("id", restaurantId)
-        .single();
-      if (restError) throw restError;
-      const stripeAccountId = restData?.stripe_account_id;
-      if (!stripeAccountId) {
-        await submitGroupOrder();
-        return;
-      }
-
-      const checkoutUrl = await createCheckoutUrl({
-        restaurant_id: restaurantId,
-        amount: total,
-        party_session_id: sessionId,
-        cart_items: cartItems.map((item) => ({
-          name: item.menu_items?.name ?? "Unknown",
-          price: Number(item.menu_items?.price ?? 0),
-          quantity: item.quantity ?? 1,
-          menu_item_id: item.menu_item_id,
-          added_by: item.added_by_name || guestName,
-        })),
-        restaurant_name: restaurantName,
-        customer_name: guestName,
-        order_type: "dine_in",
-        return_url_base: `${window.location.origin}/join?id=${encodeURIComponent(sessionId)}&full_paid=1&payer=${encodeURIComponent(guestName)}`,
-      });
-
-      window.location.href = checkoutUrl;
-    } catch (err: any) {
-      setError(err?.message ?? "Could not start checkout.");
-    } finally {
-      setPayingFullBill(false);
-    }
-  };
-
+  // Acknowledge Stripe redirect
   useEffect(() => {
-    if (!fullPaid || checkoutStatus !== "success" || submitted || loading || !isHost) return;
-    submitGroupOrder().catch(() => {});
-  }, [checkoutStatus, fullPaid, isHost, loading, submitted]);
+    if (!checkoutStatus || checkoutAckRef.current) return;
+    checkoutAckRef.current = true;
+    if (checkoutStatus === "success") {
+      toast.success("Payment received — hang tight!");
+    } else if (checkoutStatus === "cancel") {
+      toast("Payment cancelled.");
+    } else if (checkoutStatus === "error") {
+      toast.error(checkoutReason === "payment_mismatch" ? "Payment amount mismatch." : "We could not verify the payment.");
+    }
+    // Strip params
+    try {
+      const url = new URL(window.location.href);
+      ["checkout_status", "reason", "order_id", "party_payment_id", "restaurant_name", "session_status", "return_url_base"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.toString());
+    } catch { /* ignore */ }
+  }, [checkoutStatus, checkoutReason]);
 
-  if (ended) {
+  // ── Actions ────────────────────────────────────────────────────────────
+  const handleJoin = async () => {
+    const name = nameInput.trim();
+    if (!name) { toast.error("Enter your name."); return; }
+    setJoining(true);
+    try {
+      const result = await joinSession(supabase, sessionId, name);
+      const next: PartyCreds = { sessionId, memberId: result.member_id, memberToken: result.member_token };
+      setCreds(next);
+      savePartyCreds(next);
+      await loadAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to join.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const wrapMutation = async (fn: () => Promise<void>, errMsg = "Action failed") => {
+    try { await fn(); } catch (err) { toast.error(err instanceof Error ? err.message : errMsg); }
+  };
+
+  const handleAddItem = (menuItemId: number) => wrapMutation(
+    () => addItem(supabase, creds!, menuItemId, 1).then(() => { /* noop */ }),
+    "Could not add item",
+  );
+  const handleChangeQty = (item: PartyItem, delta: number) =>
+    wrapMutation(() => updateItemQuantity(supabase, creds!, item.id, Math.max(0, item.quantity + delta)), "Could not update item");
+  const handleRemoveItem = (item: PartyItem) =>
+    wrapMutation(() => removeItem(supabase, creds!, item.id), "Could not remove item");
+  const handleSetMode = (mode: PaymentMode) =>
+    wrapMutation(() => setPaymentMode(supabase, creds!, mode), "Could not change payment mode");
+  const handleAssignPayer = (itemId: string, payerId: string) =>
+    wrapMutation(() => assignItemPayer(supabase, creds!, itemId, payerId), "Could not assign payer");
+  const handleSetSplit = (itemId: string, memberIds: string[]) =>
+    wrapMutation(() => setItemSplit(supabase, creds!, itemId, memberIds), "Could not set split");
+
+  const handleLock = async () => {
+    if (items.length === 0) { toast.error("Add at least one item before checkout."); return; }
+    setBusy(true);
+    try { await lockSession(supabase, creds!); toast.success("Cart locked — collecting payments."); }
+    catch (err) { toast.error(err instanceof Error ? err.message : "Could not lock cart"); }
+    finally { setBusy(false); }
+  };
+  const handleUnlock = async () => {
+    setBusy(true);
+    try { await unlockSession(supabase, creds!); }
+    catch (err) { toast.error(err instanceof Error ? err.message : "Could not unlock"); }
+    finally { setBusy(false); }
+  };
+
+  const handlePayMyShare = async () => {
+    if (!myPayment || myPayment.amount_cents <= 0) return;
+    setBusy(true);
+    try {
+      const { url } = await startCheckout(supabase, creds!, {
+        returnUrlBase: window.location.origin + "/join?id=" + sessionId,
+      });
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Checkout failed");
+      setBusy(false);
+    }
+  };
+
+  const handleCoverMember = async (memberId: string) => {
+    const target = members.find((m) => m.id === memberId);
+    if (!target) return;
+    if (!window.confirm(`Pay for ${target.display_name}? You'll be charged their share.`)) return;
+    setBusy(true);
+    try {
+      const { url } = await startCheckout(supabase, creds!, {
+        coverMemberId: memberId,
+        returnUrlBase: window.location.origin + "/join?id=" + sessionId,
+      });
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Checkout failed");
+      setBusy(false);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    setBusy(true);
+    try {
+      const result = await cancelSession(supabase, creds!);
+      toast.success(`Cancelled — ${result.refunded} payment${result.refunded === 1 ? "" : "s"} refunded.`);
+      clearPartyCreds(sessionId);
+      window.location.href = "/";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cancel failed");
+    } finally { setBusy(false); setCancelOpen(false); }
+  };
+
+  const handleLeave = async () => {
+    if (!creds) return;
+    if (!window.confirm("Leave this group order?")) return;
+    try { await leaveSession(supabase, creds); } catch { /* ignore */ }
+    clearPartyCreds(sessionId);
+    window.location.href = "/";
+  };
+
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/join?id=${sessionId}`;
+    try { await navigator.clipboard.writeText(url); toast.success("Link copied!"); }
+    catch { toast.error("Could not copy link."); }
+  };
+
+  // ── Early returns ──────────────────────────────────────────────────────
+  if (!sessionId) return <FullScreenMessage title="Missing id" body="This link is invalid." />;
+  if (loading) return <LoadingScreen />;
+  if (error) return <FullScreenMessage title="Can't open group order" body={error} />;
+  if (!session) return <FullScreenMessage title="Not found" body="This group order no longer exists." />;
+
+  // App interstitial (only before joining & before any checkout return)
+  if (showAppOverlay && !creds && !checkoutStatus) {
+    return <OpenInAppOverlay restaurantName={restaurant?.name ?? "this restaurant"} sessionId={sessionId} onContinueWeb={() => setShowAppOverlay(false)} />;
+  }
+
+  // Name entry
+  if (!creds || !me) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-6 py-10">
-        <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-zinc-900/80 p-8 sm:p-10 text-center">
-          <div className="mx-auto mb-6 inline-flex items-center justify-center h-16 w-16 bg-zinc-900 border border-white/10">
-            <img src="/rasvia-icon.png" alt="Rasvia" className="h-12 w-12 object-contain" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
-            Group Order Ended
-          </h1>
-          <p className="text-zinc-300 text-base sm:text-lg mb-2">
-            This group order has ended, but there are still great restaurants to be found on Rasvia.
-          </p>
-          <p className="text-zinc-500 text-sm mb-8">{endedMessage}</p>
+      <NameEntryScreen
+        restaurantName={restaurant?.name ?? "this restaurant"}
+        nameInput={nameInput}
+        setNameInput={setNameInput}
+        joining={joining}
+        onJoin={handleJoin}
+      />
+    );
+  }
 
-          <div className="grid grid-cols-1 gap-3">
-            <a
-              href={appScheme}
-              onClick={() => setAppLinkFired(true)}
-              className="rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-3.5 px-4 transition-colors"
+  // Success
+  if (view === "success" && (session.status === "submitted" || session.status === "completed")) {
+    return (
+      <SuccessScreen
+        snapshot={snapshot!}
+        restaurant={restaurant}
+        creds={creds}
+        onDone={() => { clearPartyCreds(sessionId); window.location.href = "/"; }}
+      />
+    );
+  }
+
+  // Pay & Wait
+  if (view === "pay" && (session.status === "locked" || session.status === "paying")) {
+    return (
+      <Layout restaurantName={restaurant?.name ?? "Group order"} subtitle="Collecting payments" onBack={() => window.history.back()}>
+        <div className="mx-auto max-w-2xl space-y-5 px-4 pb-24 pt-6">
+          <SummaryCard total={session.total_cents} itemCount={items.length} memberCount={members.length} subtitle="Cart locked" locked />
+          {myPayment && myPayment.amount_cents > 0 && myPayment.status !== "paid" && myPayment.status !== "covered" ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-500/5 p-5 shadow-lg"
             >
-              Open Rasvia App
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show overlay immediately — don't wait for data to load
-  if (appOverlay) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#09090b] px-6">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="mb-8"
-        >
-          <img
-            src="/rasvia-logo-transparent.png"
-            alt="Rasvia"
-            className="h-14 w-auto"
-            style={{ objectFit: "contain" }}
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="text-center space-y-2 mb-8"
-        >
-          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">
-            {restaurantName || "Group Order"}
-          </h1>
-          <p className="text-zinc-400 text-sm">You've been invited to a group order.</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="w-full max-w-xs space-y-3"
-        >
-          <button
-            onClick={() => {
-              setAppLinkFired(true);
-              window.location.href = appScheme;
-            }}
-            className="flex items-center justify-center gap-3 w-full rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold py-4 text-lg transition-colors shadow-xl shadow-amber-500/20"
-          >
-            <Smartphone size={22} strokeWidth={2} />
-            Open in Rasvia
-          </button>
-          <button
-            onClick={() => setAppOverlay(false)}
-            className="w-full text-zinc-500 text-sm hover:text-zinc-300 transition-colors py-2"
-          >
-            Continue in browser instead
-          </button>
-        </motion.div>
-
-        {appLinkFired && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-6 text-center space-y-2"
-          >
-            <p className="text-xs text-zinc-600">Don't have the app?</p>
-            <div className="flex items-center justify-center gap-4">
-              <a
-                href="https://apps.apple.com/app/rasvia/id123456789"
-                className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
-                target="_blank"
-                rel="noopener noreferrer"
+              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Your share</div>
+              <div className="mt-1 text-3xl font-black text-amber-400">{formatCents(myPayment.amount_cents)}</div>
+              <button
+                type="button" disabled={busy} onClick={handlePayMyShare}
+                className={cn(
+                  "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400",
+                  busy && "opacity-60",
+                )}
               >
-                <ExternalLink size={11} />
-                App Store
-              </a>
-              <a
-                href="https://play.google.com/store/apps/details?id=com.rasvia"
-                className="text-xs text-amber-500/80 hover:text-amber-400 flex items-center gap-1"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink size={11} />
-                Google Play
-              </a>
+                <CreditCard className="h-5 w-5" /> {busy ? "Opening…" : "Pay now"}
+              </button>
+            </motion.div>
+          ) : myPayment && (myPayment.status === "paid" || myPayment.status === "covered") ? (
+            <div className="rounded-2xl border border-green-500/35 bg-green-500/10 p-5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-green-400">
+                <Check className="h-5 w-5" strokeWidth={3} /> Your share is paid
+              </div>
             </div>
-          </motion.div>
-        )}
-      </div>
-    );
-  }
+          ) : null}
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
-          <span className="text-amber-500/70 text-sm font-medium tracking-wide">Loading group order...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="min-h-screen bg-[#09090b] text-red-300 flex items-center justify-center">{error}</div>;
-  }
-
-  if (!isJoined) {
-    return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900/90 p-6 space-y-4">
-          <h1 className="text-2xl font-bold tracking-tight">Join Group Order</h1>
-          <p className="text-zinc-400 text-sm">{restaurantName}</p>
-          <input
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder="Your name"
-            className="w-full rounded-xl bg-zinc-800 border border-white/10 px-4 py-3 text-zinc-100 focus:outline-none focus:border-amber-500/50"
+          <PartyLedger
+            members={members}
+            payments={payments}
+            selfMemberId={creds.memberId}
+            isHost={isHost}
+            onCoverMember={handleCoverMember}
+            onRetry={handlePayMyShare}
           />
-          <button
-            onClick={() => {
-              if (!guestName.trim()) return;
-              localStorage.setItem(nameKeyRef.current, guestName.trim());
-              setGuestName(guestName.trim());
-              setIsJoined(true);
-            }}
-            className="w-full rounded-xl bg-amber-500 text-black font-semibold py-3 hover:bg-amber-400 transition-colors"
-          >
-            Start Ordering
-          </button>
-        </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100">
-      {/* Sticky "Open in App" button — visible after overlay dismisses */}
-      {!appOverlay && showBanner && (
-        <div className="sticky top-0 z-50 w-full border-b border-white/8 bg-zinc-950/95 backdrop-blur-md">
-          <div className="mx-auto max-w-6xl px-4 py-2.5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-5 w-auto" />
-              <span className="text-sm text-zinc-300 font-medium">Better in the app — faster checkout & group controls.</span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <a
-                href={appScheme}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors"
-              >
-                Open App
-              </a>
-              <button onClick={() => setShowBanner(false)} className="text-zinc-500 hover:text-zinc-300 p-1">
-                <X size={14} />
+          {isHost ? (
+            <div className="flex flex-col gap-2 pt-2">
+              {session.status === "locked" && !payments.some((p) => p.status === "paid" || p.status === "covered") ? (
+                <button type="button" disabled={busy} onClick={handleUnlock} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">
+                  <Unlock className="h-4 w-4" /> Back to editing
+                </button>
+              ) : null}
+              <button type="button" disabled={busy} onClick={() => setCancelOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/20">
+                <X className="h-4 w-4" /> Cancel group order
               </button>
             </div>
-          </div>
+          ) : null}
         </div>
-      )}
 
-      {splitPaid && (
-        <div className="mx-auto max-w-6xl px-4 pt-4">
-          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-200">
-            {splitAllPaid
-              ? "All Paid — Order Submitted"
-              : splitPaidPayer && splitPaidMemberSet.has(normalizeName(splitPaidPayer))
-                ? `${splitPaidPayer} completed payment successfully.`
-                : "Payment completed successfully."}
-          </div>
-        </div>
-      )}
-      {fullPaid && checkoutStatus === "success" && (
-        <div className="mx-auto max-w-6xl px-4 pt-4">
-          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-200">
-            Full payment completed. Submitting group order...
-          </div>
-        </div>
-      )}
+        <CancelDialog open={cancelOpen} busy={busy} onClose={() => setCancelOpen(false)} onConfirm={handleCancelSession} />
+      </Layout>
+    );
+  }
 
-      <div className="mx-auto max-w-6xl px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-zinc-900/80 overflow-hidden">
-          <div className="p-4 border-b border-white/10">
-            <h1 className="text-2xl font-bold tracking-tight">{restaurantName}</h1>
-            {restaurantImage && (
-              <img
-                src={restaurantImage}
-                alt={restaurantName}
-                className="mt-2 h-24 w-full rounded-xl object-contain bg-zinc-950 border border-white/10"
-              />
-            )}
-            <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2">
-              <Users size={13} />
-              <span>{members.length || 1} members</span>
-              {isHost && <><Crown size={12} className="text-amber-400" /><span className="text-amber-300">Host</span></>}
-            </div>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search menu..."
-              className="w-full mt-3 rounded-xl bg-zinc-800 border border-white/10 px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-500/50"
-            />
-          </div>
-
-          <div className="p-4 space-y-3 max-h-[68vh] overflow-y-auto">
-            {filteredMenu.length > 0 && (
-              <div className="text-[11px] text-zinc-500 -mt-1 mb-1">Tap any item card for details</div>
-            )}
-            {filteredMenu.map((item) => {
-              const qty = qtyByItem[String(item.id)] ?? 1;
-              const itemPrice = Number(item.price ?? 0);
-              return (
+  // Review & Split (host only overlay on open)
+  if (view === "review" && session.status === "open") {
+    const mode = (session.payment_mode === "split" ? "per_person" : session.payment_mode === "assign" ? "assigned" : session.payment_mode) as PaymentMode;
+    return (
+      <Layout restaurantName="Review & split" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
+        <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
+          <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={members.length} subtitle="Ready to checkout" />
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How will you split?</h3>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {PAYMENT_MODES.map((m) => (
                 <button
-                  key={item.id}
-                  onClick={() => setSelectedMenuItem(item)}
-                  className="w-full text-left rounded-xl border border-white/10 bg-zinc-800/40 p-3 hover:border-amber-500/35 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold truncate">{item.name}</div>
-                        <div className="text-xs text-zinc-400 mt-1 line-clamp-2">
-                          {item.description || "No description available for this item."}
-                        </div>
-                        <div className="text-sm text-amber-400 mt-2">${itemPrice.toFixed(2)} each</div>
-                      </div>
-                      <div className="text-xs text-zinc-500 mt-2">
-                        {qty} {qty === 1 ? "item" : "items"} · ${lineTotal(itemPrice, qty).toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setQtyByItem((p) => ({ ...p, [String(item.id)]: Math.max(1, qty - 1) }));
-                        }}
-                        className="w-8 h-8 rounded-full bg-zinc-700 border border-white/10 flex items-center justify-center"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="w-6 text-center text-sm">{qty}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setQtyByItem((p) => ({ ...p, [String(item.id)]: qty + 1 }));
-                        }}
-                        className="w-8 h-8 rounded-full bg-zinc-700 border border-white/10 flex items-center justify-center"
-                      >
-                        <Plus size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addItem(item);
-                        }}
-                        className="ml-1 rounded-lg bg-amber-500 text-black px-3 py-2 text-sm font-semibold hover:bg-amber-400"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-            {filteredMenu.length === 0 && <div className="text-zinc-500 text-sm">No menu items found.</div>}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/80 overflow-hidden">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
-            <div className="font-bold flex items-center gap-2"><ShoppingCart size={16} /> Group Cart</div>
-            <div className="text-xs text-zinc-400">{totalItems} items</div>
-          </div>
-          <div className="p-4 space-y-2 max-h-[52vh] overflow-y-auto">
-            {cartItems.map((c) => (
-              <div key={c.id} className="rounded-lg border border-white/10 bg-zinc-800/40 p-2.5 flex items-center justify-between gap-2">
-                {(() => {
-                  const splitMeta = parseItemSplitMeta(c.special_requests);
-                  const splitCount = (splitMeta?.members?.filter((name) => members.includes(name)).length ?? 0);
-                  return (
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                    <span className="truncate">{c.menu_items?.name ?? "Item"} {c.quantity > 1 ? `x${c.quantity}` : ""}</span>
-                    {splitCount >= 2 && (
-                      <span className="shrink-0 rounded-md border border-indigo-400/40 bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-200">
-                        Split {splitCount} ways
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-zinc-400 truncate">{c.added_by_name}</div>
-                </div>
-                  );
-                })()}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-amber-300">${(Number(c.menu_items?.price ?? 0) * (c.quantity ?? 1)).toFixed(2)}</span>
-                  {(isHost || c.added_by_name === guestName) && (
-                    <button
-                      onClick={() => {
-                        const confirmed = window.confirm("Are you sure you want to remove this item from the group cart?");
-                        if (!confirmed) return;
-                        removeItem(c.id);
-                      }}
-                      className="text-[11px] px-2 py-1 rounded-md bg-red-500/15 text-red-300 border border-red-500/30"
-                    >
-                      Remove
-                    </button>
+                  key={m.key} type="button" onClick={() => handleSetMode(m.key)}
+                  className={cn(
+                    "flex items-start gap-3 rounded-2xl border p-4 text-left transition",
+                    mode === m.key ? "border-amber-500 bg-amber-500/10" : "border-white/10 bg-zinc-900 hover:border-white/20",
                   )}
-                </div>
-              </div>
-            ))}
-            {cartItems.length === 0 && <div className="text-zinc-500 text-sm">No items yet.</div>}
-          </div>
-          <div className="p-4 border-t border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-400 text-sm">Total</span>
-              <span className="font-bold text-lg">${total.toFixed(2)}</span>
+                >
+                  <div className="flex-1">
+                    <div className={cn("text-sm font-bold", mode === m.key ? "text-amber-400" : "text-zinc-100")}>{m.title}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">{m.subtitle}</div>
+                  </div>
+                  {mode === m.key ? <Check className="h-5 w-5 text-amber-400" strokeWidth={3} /> : null}
+                </button>
+              ))}
             </div>
+          </section>
 
-            {members.length > 0 && (
-              <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3">
-                <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-2">Per-person totals</div>
-                <div className="space-y-1.5">
-                  {members.map((name) => (
-                    <div key={name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-300">{name}</span>
-                        {splitPaidMemberSet.has(normalizeName(name)) && (
-                          <span className="rounded-full border border-emerald-500/35 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                            Paid
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-semibold text-indigo-300">${(memberTotals[name] ?? 0).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 text-[11px] text-zinc-400">
-                  {paidMemberCount} of {members.length} members paid
-                </div>
+          {mode === "assigned" ? (
+            <section>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Assign each item</h3>
+              <div className="mt-3 space-y-2">
+                {items.map((it) => (
+                  <AssignRow key={it.id} item={it} members={members} onAssign={(pid) => handleAssignPayer(it.id, pid)} />
+                ))}
               </div>
-            )}
+            </section>
+          ) : null}
 
-            {isHost && totalItems > 0 && (
-              <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3 space-y-2">
-                <div className="text-[11px] uppercase tracking-wide text-zinc-500">Payment mode</div>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => {
-                      syncPaymentMode("host_pays", null).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
-                    }}
-                    disabled={paymentModeSyncing}
-                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "host_pays" ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
-                  >
-                    I'll Pay
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!canUseMultiPayerModes) return;
-                      syncPaymentMode("split", null).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
-                    }}
-                    disabled={paymentModeSyncing || !canUseMultiPayerModes}
-                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "split" ? "bg-indigo-500/15 border-indigo-500/50 text-indigo-300" : "bg-zinc-900 border-white/10 text-zinc-300"} ${(!canUseMultiPayerModes || paymentModeSyncing) ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    Split by Person
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!canUseMultiPayerModes) return;
-                      const fallbackPayer = assignedPayer || guestName || assignableMembers[0] || null;
-                      syncPaymentMode("assign", fallbackPayer).catch((err: any) => setError(err?.message ?? "Could not update payment mode."));
-                    }}
-                    disabled={!canAssignPayer || paymentModeSyncing || !canUseMultiPayerModes}
-                    className={`rounded-lg px-2 py-2 text-xs font-semibold border ${paymentMode === "assign" ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-zinc-900 border-white/10 text-zinc-300"} ${(!canUseMultiPayerModes || paymentModeSyncing) ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    Assign
-                  </button>
-                </div>
-                {!canUseMultiPayerModes && (
-                  <div className="text-[11px] text-zinc-500">
-                    Split and Assign unlock when at least 2 members are in the group.
-                  </div>
-                )}
-                {paymentMode === "assign" && (
-                  <div className="space-y-1.5 pt-1">
-                    {assignableMembers.map((name) => (
-                      <button
-                        key={name}
-                        onClick={() => {
-                          if (paymentModeSyncing) return;
-                          syncPaymentMode("assign", name).catch((err: any) => setError(err?.message ?? "Could not update assigned payer."));
-                        }}
-                        disabled={paymentModeSyncing}
-                        className={`w-full text-left rounded-lg px-2.5 py-2 text-xs border ${assignedPayer === name ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-zinc-900 border-white/10 text-zinc-300"}`}
-                      >
-                        {name}
-                      </button>
-                    ))}
-                    {assignableMembers.length < members.length && (
-                      <div className="text-[11px] text-amber-300/90 pt-1">
-                        Web-only participants cannot be assigned as payer yet.
-                      </div>
-                    )}
-                  </div>
-                )}
+          {mode === "per_person" ? (
+            <section>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Per-item shares</h3>
+              <p className="mt-1 text-xs text-zinc-500">By default each item is billed to whoever added it. Tap to split across multiple members.</p>
+              <div className="mt-3 space-y-2">
+                {items.map((it) => (
+                  <SplitRow key={it.id} item={it} members={members} onSetSplit={(ids) => handleSetSplit(it.id, ids)} />
+                ))}
               </div>
-            )}
+            </section>
+          ) : null}
+        </div>
 
-            {submitted ? (
-              <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-semibold py-2.5 text-center">
-                Order Submitted
-              </div>
-            ) : paymentMode === "split" ? (
-              <>
-                {myShareTotal > 0 && (
-                  mySharePaid ? (
-                    <div className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-200 font-semibold py-2.5 text-center">
-                      Your Share Paid
-                    </div>
-                  ) : (
-                    <button
-                      onClick={payMyShare}
-                      disabled={payingMyShare}
-                      className="w-full rounded-xl bg-indigo-500 text-white font-semibold py-2.5 hover:bg-indigo-400 disabled:opacity-60"
-                    >
-                      {payingMyShare ? "Opening checkout..." : `Pay My Share · $${myShareTotal.toFixed(2)}`}
-                    </button>
-                  )
-                )}
-                <div className="rounded-xl bg-indigo-500/12 border border-indigo-500/30 text-indigo-200 text-xs py-2.5 px-3 text-center">
-                  {isHost
-                    ? splitAllPaid
-                      ? "All Paid — Order Submitted"
-                      : `Split mode is active. Waiting on: ${unpaidSplitMembers.join(", ")}`
-                    : myShareTotal > 0
-                      ? mySharePaid
-                        ? "Your split payment is complete."
-                        : "Host enabled split checkout. Pay your amount above."
-                      : "Host enabled split checkout. Add items to see your amount."}
-                </div>
-                {isHost && (
-                  <button
-                    onClick={submitGroupOrder}
-                    disabled={submitting || !splitAllPaid || totalItems === 0}
-                    className="w-full rounded-xl bg-emerald-500 text-white font-semibold py-2.5 hover:bg-emerald-400 disabled:opacity-50"
-                  >
-                    {submitting ? "Submitting..." : splitAllPaid ? "Submit Paid Group Order" : "Waiting for all split payments"}
-                  </button>
-                )}
-              </>
-            ) : isHost ? (
-              <button
-                onClick={payAndSubmitFullOrder}
-                disabled={submitting || payingFullBill || totalItems === 0 || !isAssignedPayerValid}
-                className="w-full rounded-xl bg-emerald-500 text-white font-semibold py-2.5 hover:bg-emerald-400 disabled:opacity-50"
-              >
-                {payingFullBill ? "Opening checkout..." : submitting ? "Submitting..." : `Pay & Submit · $${total.toFixed(2)}`}
-              </button>
-            ) : (
-              <div className="rounded-xl bg-zinc-800 border border-white/10 text-zinc-400 text-sm py-2.5 text-center">
-                Waiting for host to submit
-              </div>
-            )}
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+          <div className="mx-auto flex max-w-2xl gap-3">
+            <button type="button" onClick={() => setView("browse")} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Back</button>
+            <button
+              type="button" disabled={busy} onClick={handleLock}
+              className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-zinc-900 hover:bg-amber-400", busy && "opacity-60")}
+            >
+              <Lock className="h-4 w-4" /> {busy ? "Locking…" : "Lock cart & collect"}
+            </button>
           </div>
         </div>
+      </Layout>
+    );
+  }
+
+  // Default: Browse & Add
+  return (
+    <Layout
+      restaurantName={restaurant?.name ?? "Group order"}
+      subtitle={`${members.length} member${members.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`}
+      onBack={() => window.history.back()}
+      rightAction={
+        <button type="button" onClick={handleCopyLink} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800">
+          <Copy className="h-3.5 w-3.5" /> Share
+        </button>
+      }
+    >
+      <div className="mx-auto max-w-3xl px-4 pb-64">
+        <div className="flex gap-2 overflow-x-auto py-3">
+          {members.map((m, idx) => (
+            <MemberChip key={m.id} member={m} index={idx} isSelf={m.id === creds.memberId} />
+          ))}
+        </div>
+
+        <div className="sticky top-0 z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/95 px-3 py-2 backdrop-blur">
+          <Search className="h-4 w-4 text-zinc-500" />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search menu" className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none"
+          />
+        </div>
+
+        <CategoryChips menu={menu} active={category} onChange={setCategory} />
+
+        <MenuList items={items} menu={menu} search={search} category={category} onAdd={handleAddItem} />
       </div>
 
-      {selectedMenuItem && (
-        <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-[1px] flex items-end sm:items-center justify-center p-3 sm:p-6">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900 overflow-hidden">
-            <div className="relative">
-              <img
-                src={selectedMenuItem.image_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1000&q=75"}
-                alt={selectedMenuItem.name || "Menu item"}
-                className="w-full h-56 sm:h-64 object-cover"
-              />
-              <button
-                onClick={() => setSelectedMenuItem(null)}
-                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-zinc-950/70 border border-white/20 flex items-center justify-center text-zinc-100 hover:bg-zinc-900"
-                aria-label="Close item details"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-5">
-              <h3 className="text-xl font-bold tracking-tight">{selectedMenuItem.name}</h3>
-              <div className="text-amber-400 font-semibold mt-1">${Number(selectedMenuItem.price ?? 0).toFixed(2)}</div>
-              <p className="text-sm text-zinc-300 mt-3 leading-relaxed">
-                {selectedMenuItem.description || "No description available for this item."}
-              </p>
-              <div className="mt-4 text-xs text-zinc-500">
-                Category: <span className="text-zinc-400">{selectedMenuItem.category || "Menu item"}</span>
-              </div>
-              {selectedMenuItem.meal_period && (
-                <div className="mt-1 text-xs text-zinc-500">
-                  Meal period: <span className="text-zinc-400">{selectedMenuItem.meal_period}</span>
-                </div>
-              )}
-              <div className="mt-5 flex gap-2">
-                <button
-                  onClick={() => setSelectedMenuItem(null)}
-                  className="flex-1 rounded-xl border border-white/10 bg-zinc-800 text-zinc-200 py-2.5 text-sm font-medium hover:bg-zinc-700/80"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    addItem(selectedMenuItem);
-                    setSelectedMenuItem(null);
-                  }}
-                  className="flex-1 rounded-xl bg-amber-500 text-black py-2.5 text-sm font-semibold hover:bg-amber-400"
-                >
-                  Add to cart
-                </button>
-              </div>
-            </div>
+      <CartStrip
+        items={items}
+        members={members}
+        selfMemberId={creds.memberId}
+        isHost={isHost}
+        onChangeQty={handleChangeQty}
+        onRemove={handleRemoveItem}
+        onReview={() => setView("review")}
+        onLeave={handleLeave}
+      />
+    </Layout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Presentational components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Layout({
+  children, restaurantName, subtitle, onBack, rightAction,
+}: { children: React.ReactNode; restaurantName: string; subtitle?: string; onBack?: () => void; rightAction?: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
+          {onBack ? (
+            <button type="button" onClick={onBack} className="rounded-lg p-2 text-zinc-300 hover:bg-white/5">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold">{restaurantName}</div>
+            {subtitle ? <div className="truncate text-xs text-zinc-500">{subtitle}</div> : null}
           </div>
+          {rightAction}
         </div>
-      )}
+      </header>
+      {children}
     </div>
   );
+}
+
+function SummaryCard({ total, itemCount, memberCount, subtitle, locked }: { total: number; itemCount: number; memberCount: number; subtitle?: string; locked?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Total</div>
+          <div className="mt-1 text-3xl font-black">{formatCents(total)}</div>
+        </div>
+        <div className="text-right text-xs text-zinc-500">
+          <div>{memberCount} member{memberCount === 1 ? "" : "s"}</div>
+          <div>{itemCount} item{itemCount === 1 ? "" : "s"}</div>
+        </div>
+      </div>
+      {subtitle ? (
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-zinc-500">
+          {locked ? <Lock className="h-3 w-3" /> : null}
+          {subtitle}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MemberChip({ member, index, isSelf }: { member: PartyMember; index: number; isSelf: boolean }) {
+  const colors = ["bg-amber-500", "bg-green-500", "bg-blue-500", "bg-purple-500", "bg-pink-500", "bg-yellow-500", "bg-cyan-500", "bg-red-500"];
+  return (
+    <div className={cn("flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition", isSelf ? "border-amber-500 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-900 text-zinc-200")}>
+      <span className={cn("relative flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-zinc-900", colors[index % colors.length])}>
+        {memberInitials(member.display_name)}
+        {member.role === "host" ? <Crown className="absolute -right-1 -top-1 h-3 w-3 text-amber-300" strokeWidth={3} /> : null}
+      </span>
+      <span className="max-w-[120px] truncate">{member.display_name}{isSelf ? " · You" : ""}</span>
+    </div>
+  );
+}
+
+function CategoryChips({ menu, active, onChange }: { menu: MenuItemRow[]; active: string | null; onChange: (v: string | null) => void }) {
+  const categories = useMemo(() => Array.from(new Set(menu.map((m) => m.category).filter(Boolean))) as string[], [menu]);
+  if (categories.length === 0) return null;
+  return (
+    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+      <CategoryPill label="All" active={!active} onClick={() => onChange(null)} />
+      {categories.map((c) => (
+        <CategoryPill key={c} label={c} active={active === c} onClick={() => onChange(c === active ? null : c)} />
+      ))}
+    </div>
+  );
+}
+
+function CategoryPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition",
+        active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MenuList({ items, menu, search, category, onAdd }: { items: PartyItem[]; menu: MenuItemRow[]; search: string; category: string | null; onAdd: (id: number) => void }) {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return menu.filter((m) => {
+      if (category && m.category !== category) return false;
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q) || (m.description ?? "").toLowerCase().includes(q);
+    });
+  }, [menu, search, category]);
+  return (
+    <ul className="mt-4 space-y-2">
+      {filtered.map((m) => (
+        <MenuRow key={m.id} item={m} inCartCount={cartCountFor(items, m.id)} onAdd={() => onAdd(m.id)} />
+      ))}
+      {filtered.length === 0 ? (
+        <li className="py-10 text-center text-sm text-zinc-500">No menu items match.</li>
+      ) : null}
+    </ul>
+  );
+}
+
+function MenuRow({ item, inCartCount, onAdd }: { item: MenuItemRow; inCartCount: number; onAdd: () => void }) {
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-3 rounded-2xl border border-white/5 bg-zinc-900/70 p-3"
+    >
+      {item.image_url ? (
+        <img src={item.image_url} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />
+      ) : (
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">—</div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-bold">{item.name}</div>
+        {item.description ? <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{item.description}</div> : null}
+        <div className="mt-1 text-sm font-bold text-amber-400">${Number(item.price).toFixed(2)}</div>
+      </div>
+      <button
+        type="button" onClick={onAdd}
+        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-zinc-900 shadow-lg transition hover:bg-amber-400"
+      >
+        <Plus className="h-5 w-5" strokeWidth={3} />
+        {inCartCount > 0 ? (
+          <span className="absolute -right-1 -top-1 rounded-full border-2 border-zinc-900 bg-zinc-950 px-1.5 text-[10px] font-bold text-amber-400">
+            {inCartCount}
+          </span>
+        ) : null}
+      </button>
+    </motion.li>
+  );
+}
+
+function CartStrip(props: {
+  items: PartyItem[]; members: PartyMember[]; selfMemberId: string; isHost: boolean;
+  onChangeQty: (item: PartyItem, delta: number) => void;
+  onRemove: (item: PartyItem) => void;
+  onReview: () => void;
+  onLeave: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const total = totalCartCents(props.items);
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/95 backdrop-blur">
+      <div className="mx-auto max-w-3xl">
+        <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 px-4 py-3">
+          <ShoppingCart className="h-5 w-5 text-amber-400" />
+          <span className="text-sm font-bold">{props.items.length} item{props.items.length === 1 ? "" : "s"}</span>
+          <span className="ml-auto text-sm font-black text-amber-400">{formatCents(total)}</span>
+        </button>
+        <AnimatePresence initial={false}>
+          {open ? (
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+              <ul className="max-h-[40vh] overflow-y-auto px-4 pb-2">
+                {props.items.length === 0 ? (
+                  <li className="py-6 text-center text-sm text-zinc-500">No items yet — add something from the menu.</li>
+                ) : (
+                  props.items.map((it) => {
+                    const canEdit = it.added_by_member_id === props.selfMemberId || props.isHost;
+                    const owner = memberById(props.members, it.added_by_member_id);
+                    return (
+                      <li key={it.id} className="flex items-center gap-2 border-b border-white/5 py-2 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold">{it.menu_item?.name ?? "Item"}</div>
+                          <div className="text-[11px] text-zinc-500">added by <span className="text-zinc-300">{owner?.display_name ?? it.added_by_name ?? "Guest"}</span></div>
+                        </div>
+                        {canEdit ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => props.onChangeQty(it, -1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700"><Minus className="h-3 w-3" /></button>
+                            <span className="w-5 text-center text-sm font-bold">{it.quantity}</span>
+                            <button onClick={() => props.onChangeQty(it, 1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700"><Plus className="h-3 w-3" /></button>
+                            <button onClick={() => props.onRemove(it)} className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-red-400 hover:bg-red-500/20"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-zinc-400">x{it.quantity}</span>
+                        )}
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <div className="flex gap-2 px-4 pb-3">
+          <button type="button" onClick={props.onLeave} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Leave</button>
+          {props.isHost ? (
+            <button
+              type="button" disabled={props.items.length === 0} onClick={props.onReview}
+              className={cn("flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400", props.items.length === 0 && "opacity-50")}
+            >
+              Review & checkout
+            </button>
+          ) : (
+            <div className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-center text-sm font-semibold text-zinc-500">
+              Waiting on host…
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssignRow({ item, members, onAssign }: { item: PartyItem; members: PartyMember[]; onAssign: (pid: string) => void }) {
+  const current = memberById(members, item.assigned_payer_id) ?? memberById(members, item.added_by_member_id);
+  return (
+    <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
+      <div className="truncate text-sm font-semibold">{item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menu_item?.name ?? "Item"}</div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {members.map((m) => (
+          <button
+            key={m.id} type="button" onClick={() => onAssign(m.id)}
+            className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", current?.id === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700")}
+          >
+            {m.display_name.split(" ")[0]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: PartyMember[]; onSetSplit: (ids: string[]) => void }) {
+  const currentIds = item.split_member_ids ?? [];
+  const toggle = (id: string) => {
+    const set = new Set(currentIds);
+    if (set.has(id)) set.delete(id); else set.add(id);
+    onSetSplit(Array.from(set));
+  };
+  return (
+    <div className="rounded-xl border border-white/5 bg-zinc-900/70 p-3">
+      <div className="truncate text-sm font-semibold">{item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menu_item?.name ?? "Item"}</div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {members.map((m) => {
+          const active = currentIds.includes(m.id);
+          return (
+            <button
+              key={m.id} type="button" onClick={() => toggle(m.id)}
+              className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700")}
+            >
+              {m.display_name.split(" ")[0]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CancelDialog({ open, busy, onClose, onConfirm }: { open: boolean; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-bold">Cancel group order?</h3>
+        <p className="mt-2 text-sm text-zinc-400">Any paid shares will be refunded via Stripe. This can't be undone.</p>
+        <div className="mt-5 flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-white/10 bg-zinc-800 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-700">Never mind</button>
+          <button type="button" disabled={busy} onClick={onConfirm} className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-60">{busy ? "Cancelling…" : "Cancel & refund"}</button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function NameEntryScreen({
+  restaurantName, nameInput, setNameInput, joining, onJoin,
+}: { restaurantName: string; nameInput: string; setNameInput: (v: string) => void; joining: boolean; onJoin: () => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-8 shadow-2xl">
+        <div className="flex items-center gap-2 text-amber-400">
+          <Users className="h-5 w-5" />
+          <span className="text-xs font-bold uppercase tracking-wider">Group order</span>
+        </div>
+        <h1 className="mt-2 text-2xl font-black text-zinc-100">Join at {restaurantName}</h1>
+        <p className="mt-2 text-sm text-zinc-400">Enter your name so everyone knows who added what.</p>
+        <input
+          autoFocus value={nameInput} onChange={(e) => setNameInput(e.target.value)}
+          placeholder="Your name"
+          onKeyDown={(e) => { if (e.key === "Enter" && !joining) onJoin(); }}
+          className="mt-5 w-full rounded-xl border border-white/10 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
+          maxLength={60}
+        />
+        <button
+          type="button" disabled={joining} onClick={onJoin}
+          className={cn("mt-4 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400", joining && "opacity-60")}
+        >
+          {joining ? "Joining…" : "Join"}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+function OpenInAppOverlay({ restaurantName, sessionId, onContinueWeb }: { restaurantName: string; sessionId: string; onContinueWeb: () => void }) {
+  const deepLink = `rasvia://join/${sessionId}`;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-4">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-8 text-center shadow-2xl">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15">
+          <Smartphone className="h-7 w-7 text-amber-400" />
+        </div>
+        <h2 className="mt-4 text-xl font-black">Open in the Rasvia app?</h2>
+        <p className="mt-2 text-sm text-zinc-400">You're joining a group order at {restaurantName}. The full experience is on mobile.</p>
+        <a href={deepLink} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">Open app</a>
+        <button type="button" onClick={onContinueWeb} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Continue in browser</button>
+      </motion.div>
+    </div>
+  );
+}
+
+function SuccessScreen({ snapshot, restaurant, creds, onDone }: { snapshot: PartySnapshot; restaurant: RestaurantInfo | null; creds: PartyCreds; onDone: () => void }) {
+  const me = snapshot.members.find((m) => m.id === creds.memberId);
+  const myPayment = paymentForMember(snapshot.payments, creds.memberId);
+  return (
+    <Layout restaurantName="All paid up!">
+      <div className="relative mx-auto max-w-2xl px-4 pb-24 pt-6 text-center">
+        <ConfettiBurst />
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.05, type: "spring", stiffness: 260, damping: 18 }}
+          className="relative z-10 mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-amber-500/15"
+        >
+          <motion.span
+            className="absolute inset-0 rounded-full border-2 border-amber-500/40"
+            animate={{ scale: [1, 1.5, 2], opacity: [0.8, 0.2, 0] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+          />
+          <PartyPopper className="relative h-9 w-9 text-amber-400" />
+        </motion.div>
+        <h2 className="mt-5 text-3xl font-black">All paid up!</h2>
+        <p className="mt-2 text-sm text-zinc-400">Your group order at {restaurant?.name ?? "the restaurant"} is in. The kitchen is on it.</p>
+        <div className="mt-6 space-y-4 text-left">
+          <SummaryCard total={snapshot.session.total_cents} itemCount={snapshot.items.length} memberCount={snapshot.members.length} />
+          {myPayment && me ? (
+            <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Your receipt</div>
+              <div className="mt-1 text-lg font-bold">{me.display_name}</div>
+              <div className="mt-1 text-sm font-semibold text-amber-400">
+                {formatCents(myPayment.amount_cents)} · {myPayment.status === "covered" ? "covered by host" : "paid"}
+              </div>
+            </div>
+          ) : null}
+          <PartyLedger members={snapshot.members} payments={snapshot.payments} selfMemberId={creds.memberId} isHost={me?.role === "host"} />
+        </div>
+        <button type="button" onClick={onDone} className="mt-8 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">Done</button>
+      </div>
+    </Layout>
+  );
+}
+
+function ConfettiBurst() {
+  const pieces = useMemo(() => {
+    const colors = ["#FF9933", "#22C55E", "#3B82F6", "#A855F7", "#EC4899", "#F59E0B"];
+    return Array.from({ length: 28 }, (_, i) => ({
+      id: i,
+      x: (Math.random() - 0.5) * 240,
+      y: 40 + Math.random() * 260,
+      rotate: Math.random() * 720 - 360,
+      color: colors[i % colors.length],
+      delay: Math.random() * 0.25,
+      size: 6 + Math.random() * 6,
+    }));
+  }, []);
+  return (
+    <div aria-hidden className="pointer-events-none absolute left-1/2 top-6 z-0 h-[280px] w-0">
+      {pieces.map((p) => (
+        <motion.span
+          key={p.id}
+          className="absolute block rounded-sm"
+          style={{ left: 0, top: 0, width: p.size, height: p.size * 0.4, backgroundColor: p.color }}
+          initial={{ x: 0, y: 0, rotate: 0, opacity: 0 }}
+          animate={{ x: p.x, y: p.y, rotate: p.rotate, opacity: [0, 1, 1, 0] }}
+          transition={{ duration: 1.8, ease: "easeOut", delay: p.delay }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+    </div>
+  );
+}
+
+function FullScreenMessage({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-zinc-950 p-6 text-center">
+      <AlertCircle className="h-8 w-8 text-red-400" />
+      <h2 className="text-xl font-bold text-zinc-100">{title}</h2>
+      <p className="max-w-sm text-sm text-zinc-400">{body}</p>
+      <a href="/" className="mt-3 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400">Back to home</a>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function cartCountFor(items: PartyItem[], menuItemId: number): number {
+  return items.filter((i) => i.menu_item_id === menuItemId).reduce((sum, i) => sum + (i.quantity ?? 1), 0);
 }
