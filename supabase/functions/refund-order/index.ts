@@ -85,7 +85,9 @@ serve(async (req: Request) => {
     .maybeSingle()
   if (orderErr || !order) return json({ error: 'Order not found.' }, 404)
 
-  // Authorize: caller must belong to the restaurant (owner/manager/staff via restaurant_members or restaurants.owner_id).
+  // Authorize against the repo's current RBAC model:
+  // - restaurant owners via restaurants.owner_id
+  // - staff via restaurant_staff.role / role_id
   const { data: restaurant } = await supabase
     .from('restaurants')
     .select('id, owner_id')
@@ -94,12 +96,20 @@ serve(async (req: Request) => {
   let authorized = restaurant?.owner_id === userId
   if (!authorized) {
     const { data: membership } = await supabase
-      .from('restaurant_members')
-      .select('user_id, role')
+      .from('restaurant_staff')
+      .select('user_id, role, role_id')
       .eq('restaurant_id', order.restaurant_id)
       .eq('user_id', userId)
       .maybeSingle()
     if (membership) authorized = ['owner', 'manager', 'staff'].includes(String(membership.role ?? ''))
+    if (!authorized && membership?.role_id) {
+      const { data: roleRow } = await supabase
+        .from('restaurant_roles')
+        .select('name, is_owner')
+        .eq('id', membership.role_id)
+        .maybeSingle()
+      authorized = Boolean(roleRow && (roleRow.is_owner || ['owner', 'manager', 'staff'].includes(String(roleRow.name ?? ''))))
+    }
   }
   if (!authorized) return json({ error: 'Forbidden.' }, 403)
 
