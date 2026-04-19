@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import QRCode from "react-qr-code";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -29,6 +28,7 @@ import {
 } from "@/lib/party-session";
 import { subscribeToParty } from "@/lib/party-realtime";
 import { loadPartyCreds } from "@/lib/party-credentials";
+import { QRCode } from "@/lib/resolve-react-qr-code";
 
 /**
  * Tableside QR
@@ -53,6 +53,13 @@ import { loadPartyCreds } from "@/lib/party-credentials";
 const APP_DEEP_LINK_PREFIX = "rasvia://join/";
 
 const STORAGE_PREFIX = "rasvia.tableside.session.";
+
+/** Guest scan / share links must use the public site, not `localhost` or a LAN IP. */
+function guestJoinOrigin(): string {
+  const raw = import.meta.env.VITE_PUBLIC_JOIN_ORIGIN?.trim();
+  if (raw) return raw.replace(/\/$/, "");
+  return "https://rasvia.com";
+}
 
 type StoredHostSession = {
   sessionId: string;
@@ -237,7 +244,7 @@ export default function TablesidePanel() {
 
   const joinUrl = useMemo(() => {
     if (!activeSession) return "";
-    return `${window.location.origin}/join?id=${activeSession.id}`;
+    return `${guestJoinOrigin()}/join?id=${activeSession.id}`;
   }, [activeSession]);
 
   const deepLink = useMemo(() => {
@@ -344,29 +351,29 @@ function StartCard({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-white/8 bg-zinc-950/60 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-2">
-          <label htmlFor="tablesideLabel" className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Table or note (optional)
-          </label>
+      <div className="space-y-2">
+        <label htmlFor="tablesideLabel" className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          Table or note (optional)
+        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             id="tablesideLabel"
             value={tableLabel}
             onChange={(e) => onTableLabelChange(e.target.value)}
             placeholder="e.g. Table 12 — Jamie's birthday"
-            className="w-full rounded-lg border border-white/8 bg-zinc-900/80 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/40 focus:outline-none"
+            className="min-w-0 flex-1 rounded-lg border border-white/8 bg-zinc-900/80 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/40 focus:outline-none"
           />
-          <p className="text-[11px] text-zinc-600">Saved locally so you can recognise the table on this screen.</p>
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={busy}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-black shadow-[0_8px_28px_rgba(245,158,11,0.35)] transition-colors hover:bg-amber-400 disabled:opacity-60 sm:whitespace-nowrap"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+            Start tableside session
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={busy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-black shadow-[0_8px_28px_rgba(245,158,11,0.35)] transition-colors hover:bg-amber-400 disabled:opacity-60"
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
-          Start tableside session
-        </button>
+        <p className="text-[11px] text-zinc-600">Saved locally so you can recognize the table on this screen.</p>
       </div>
 
       {error ? (

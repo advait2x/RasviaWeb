@@ -1,15 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
 
-if (!supabaseUrl || !supabaseKey) {
+/** True when real project credentials are present (see `main.tsx` BootDiagnostics for user-facing UI). */
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+
+if (!isSupabaseConfigured) {
   console.error(
-    "Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment environment.",
+    "Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env (local) or your host.",
   );
-}
-
-if (supabaseUrl) {
+} else if (supabaseUrl) {
   try {
     const url = new URL(supabaseUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -20,11 +21,9 @@ if (supabaseUrl) {
   }
 }
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    "Missing Supabase environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY). " +
-    "The app cannot start without them. Check your .env file or deployment config."
-  );
-}
+// Never throw at import time: AuthContext imports this module before React can
+// render BootDiagnostics — a throw here yields a blank white page in dev.
+const resolvedUrl = supabaseUrl || "https://placeholder.supabase.co";
+const resolvedKey = supabaseKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder";
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(resolvedUrl, resolvedKey);

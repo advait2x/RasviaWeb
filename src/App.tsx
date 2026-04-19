@@ -1,8 +1,9 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
-import Home from "./components/home";
+/** Lazy so the marketing shell does not load the partner dashboard (and react-qr-code) on first paint. */
+const Home = lazy(() => import("./components/home"));
 import JoinBridge from "./pages/JoinBridge";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import RestaurantSharePreview from "./pages/RestaurantSharePreview";
