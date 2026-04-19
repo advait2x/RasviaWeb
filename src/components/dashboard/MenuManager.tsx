@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
   ArrowUpDown, Settings2, Loader2, ChevronUp, ChevronDown, Lock,
+  Leaf, Moon,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { MenuItem, MealTime, ItemModifier } from "@/types/dashboard";
@@ -40,6 +41,8 @@ interface FormState {
   imageUrl: string;
   mealTimes: MealTime[];
   inStock: boolean;
+  isVegetarian: boolean;
+  isHalal: boolean;
 }
 
 const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
@@ -49,6 +52,8 @@ const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
   imageUrl: "",
   mealTimes: [menuTags.find((t) => t.enabled)?.key ?? menuTags[0]?.key ?? "main_course"],
   inStock: true,
+  isVegetarian: false,
+  isHalal: false,
 });
 
 function itemToForm(item: MenuItem): FormState {
@@ -59,6 +64,8 @@ function itemToForm(item: MenuItem): FormState {
     imageUrl: item.imageUrl ?? "",
     mealTimes: item.mealTimes,
     inStock: item.inStock,
+    isVegetarian: item.isVegetarian === true,
+    isHalal: item.isHalal === true,
   };
 }
 
@@ -169,6 +176,8 @@ function ItemFormDialog({
         imageUrl: form.imageUrl.trim() || null,
         mealTimes: form.mealTimes,
         inStock: form.inStock,
+        isVegetarian: form.isVegetarian,
+        isHalal: form.isHalal,
       }, force);
       onClose();
     } catch (err) {
@@ -328,6 +337,42 @@ function ItemFormDialog({
                 onCheckedChange={(v) => setForm((f) => ({ ...f, inStock: v }))}
                 className="data-[state=checked]:bg-amber-500"
               />
+            </div>
+
+            {/* Dietary: half-and-half Vegetarian / Halal toggles.
+                Kept as a single row to match the mobile item editor so
+                both platforms expose the same DB flags (is_vegetarian,
+                is_halal). Each side is independently toggleable. */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Dietary</label>
+              <div className="grid grid-cols-2 gap-2">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setForm((f) => ({ ...f, isVegetarian: !f.isVegetarian }))}
+                  className={`flex items-center justify-center gap-2 h-10 rounded-lg border text-sm font-semibold transition-colors ${
+                    form.isVegetarian
+                      ? "border-green-500/45 bg-green-500/12 text-green-400"
+                      : "border-white/10 bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  <Leaf size={14} strokeWidth={2} />
+                  Vegetarian
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setForm((f) => ({ ...f, isHalal: !f.isHalal }))}
+                  className={`flex items-center justify-center gap-2 h-10 rounded-lg border text-sm font-semibold transition-colors ${
+                    form.isHalal
+                      ? "border-sky-500/45 bg-sky-500/12 text-sky-400"
+                      : "border-white/10 bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  <Moon size={14} strokeWidth={2} />
+                  Halal
+                </motion.button>
+              </div>
             </div>
           </div>
         </ScrollArea>

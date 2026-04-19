@@ -61,6 +61,17 @@ export interface MenuItem {
   mealTimes: MealTime[];
   inStock: boolean;
   dietType?: DietType;
+  /**
+   * Whether the item is vegetarian. Sourced from `menu_items.is_vegetarian`
+   * and rendered in the item editor as the left half of the Dietary row.
+   */
+  isVegetarian: boolean;
+  /**
+   * Whether the item is halal. Sourced from `menu_items.is_halal` (added
+   * in migration 20260418040000) and rendered as the right half of the
+   * Dietary row. Independent of `isVegetarian`.
+   */
+  isHalal: boolean;
 }
 
 export interface OrderItemModifier {

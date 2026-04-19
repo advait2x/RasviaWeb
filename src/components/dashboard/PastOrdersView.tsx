@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Filter, CheckCircle2, XCircle, Clock, Users, Receipt,
-  RefreshCw, DollarSign, AlertTriangle, Loader2,
+  RefreshCw, DollarSign, AlertTriangle, Loader2, Minus, Plus, RotateCcw,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import type {
   PastOrdersFilter, PastOrdersRange, PastOrdersSort, PastOrdersStatus, PastOrdersType,
 } from "@/context/DashboardContext";
-import { Order, OrderStatus } from "@/types/dashboard";
+import { Order, OrderItem, OrderStatus } from "@/types/dashboard";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -63,6 +63,16 @@ function remainingRefundable(order: Order): number {
   return Math.max(0, total - refunded);
 }
 
+function computeItemsCents(order: Order, quantities: Record<string, number>): number {
+  let sum = 0;
+  for (const it of order.items) {
+    const qty = quantities[it.id] ?? 0;
+    if (qty <= 0) continue;
+    sum += Math.round(it.unitPrice * 100) * qty;
+  }
+  return sum;
+}
+
 function toLocalInputValue(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -88,7 +98,12 @@ export default function PastOrdersView() {
   const [showFilters, setShowFilters] = useState(() => pastOrdersFilter.range === "custom");
   const [refundTarget, setRefundTarget] = useState<Order | null>(null);
   const [refundBusy, setRefundBusy] = useState(false);
-  const [refundAmountDollars, setRefundAmountDollars] = useState("");
+  // Itemized refund quantities keyed by order item id.
+  const [refundQuantities, setRefundQuantities] = useState<Record<string, number>>({});
+  // When the manager types in the amount box directly we detach from item
+  // selections so their typed value isn't overwritten.
+  const [manualAmountDollars, setManualAmountDollars] = useState<string | null>(null);
+  const [refundReason, setRefundReason] = useState("");
 
   useEffect(() => {
     void fetchPastOrders();
@@ -116,33 +131,85 @@ export default function PastOrdersView() {
   }, [filteredOrders]);
 
   const openRefund = (order: Order) => {
-    const rem = remainingRefundable(order) / 100;
-    setRefundAmountDollars(rem > 0 ? rem.toFixed(2) : "");
+    setRefundQuantities({});
+    setManualAmountDollars(null);
+    setRefundReason("");
     setRefundTarget(order);
+  };
+
+  const closeRefund = () => {
+    if (refundBusy) return;
+    setRefundTarget(null);
+  };
+
+  // Supabase Edge Functions wrap HTTP errors as `FunctionsHttpError` whose
+  // message is the useless "Edge Function returned a non-2xx status code".
+  // The actual server-side `{ error: string }` payload lives in
+  // `error.context` (a Response). This helper pulls it out.
+  const extractFunctionError = async (err: unknown): Promise<string> => {
+    const fallback = err instanceof Error ? err.message : "Refund failed.";
+    const context = (err as { context?: Response } | null)?.context;
+    if (!context || typeof context.clone !== "function") return fallback;
+    try {
+      const body = await context.clone().json();
+      if (body && typeof body === "object" && "error" in body && body.error) {
+        return String((body as { error: unknown }).error);
+      }
+    } catch {
+      // Not JSON — try text.
+    }
+    try {
+      const text = await context.clone().text();
+      if (text) return text;
+    } catch {
+      // ignore
+    }
+    return fallback;
   };
 
   const submitRefund = async () => {
     if (!refundTarget) return;
-    const parsed = Number(refundAmountDollars);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      toast.error("Enter a valid refund amount.");
-      return;
-    }
-    const cents = Math.round(parsed * 100);
+    const selectedItems = Object.entries(refundQuantities)
+      .map(([orderItemId, qty]) => ({ order_item_id: Number(orderItemId), quantity: qty }))
+      .filter((r) => Number.isFinite(r.order_item_id) && r.quantity > 0);
+
+    // Default amount: manual entry overrides, otherwise derive from items,
+    // otherwise fall back to remaining balance.
     const remaining = remainingRefundable(refundTarget);
+    const itemsCents = computeItemsCents(refundTarget, refundQuantities);
+    let cents: number;
+    if (manualAmountDollars != null) {
+      const parsed = Number(manualAmountDollars);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        toast.error("Enter a valid refund amount.");
+        return;
+      }
+      cents = Math.round(parsed * 100);
+    } else if (itemsCents > 0) {
+      cents = itemsCents;
+    } else {
+      cents = remaining;
+    }
+    if (cents <= 0) { toast.error("Nothing to refund."); return; }
     if (cents > remaining) {
       toast.error(`Amount exceeds refundable balance of $${(remaining / 100).toFixed(2)}.`);
       return;
     }
+
     setRefundBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("refund-order", {
         body: {
           order_id: Number(refundTarget.id),
           amount_cents: cents,
+          reason: refundReason.trim() || undefined,
+          items: selectedItems.length > 0 ? selectedItems : undefined,
         },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFunctionError(error);
+        throw new Error(msg);
+      }
       if (data && typeof data === "object" && "error" in data && data.error) {
         throw new Error(String((data as { error: string }).error));
       }
@@ -155,6 +222,32 @@ export default function PastOrdersView() {
     } finally {
       setRefundBusy(false);
     }
+  };
+
+  const adjustItemQty = (itemId: string, maxQty: number, delta: number) => {
+    setRefundQuantities((prev) => {
+      const current = prev[itemId] ?? 0;
+      const next = Math.max(0, Math.min(maxQty, current + delta));
+      const copy = { ...prev };
+      if (next <= 0) delete copy[itemId]; else copy[itemId] = next;
+      return copy;
+    });
+    // User is picking items — drop any manual override so the amount stays in
+    // sync with the selection.
+    setManualAmountDollars(null);
+  };
+
+  const selectAllItems = () => {
+    if (!refundTarget) return;
+    const next: Record<string, number> = {};
+    for (const it of refundTarget.items) next[it.id] = it.quantity;
+    setRefundQuantities(next);
+    setManualAmountDollars(null);
+  };
+
+  const clearItemSelection = () => {
+    setRefundQuantities({});
+    setManualAmountDollars(null);
   };
 
   return (
@@ -321,9 +414,11 @@ export default function PastOrdersView() {
             const fullyRefunded = refundedCents > 0 && refundedCents >= totalCents;
             const partiallyRefunded = refundedCents > 0 && !fullyRefunded;
             const refundable = remainingRefundable(order);
-            const canRefund = refundable > 0 && (
-              !!order.stripePaymentIntentId || !!order.partySessionId
-            );
+            const hasStripeHandle = !!order.stripePaymentIntentId || !!order.partySessionId;
+            const canRefund = refundable > 0 && hasStripeHandle;
+            // Keep the Refund control visible for partially-refunded orders so
+            // managers can keep chipping away; only hard-disable when the
+            // entire balance is gone or the order has no Stripe handle at all.
 
             return (
               <div
@@ -402,10 +497,18 @@ export default function PastOrdersView() {
                         <DollarSign size={11} strokeWidth={2} />
                         Refund
                       </motion.button>
+                    ) : hasStripeHandle ? (
+                      <button
+                        type="button"
+                        disabled
+                        title="This order has already been fully refunded."
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800/40 border border-white/5 text-zinc-600 text-[11px] font-medium cursor-not-allowed"
+                      >
+                        <DollarSign size={11} strokeWidth={2} />
+                        Refunded
+                      </button>
                     ) : (
-                      <span className="text-[10px] text-zinc-600">
-                        {refundable <= 0 ? "No refundable balance" : "Refund unavailable"}
-                      </span>
+                      <span className="text-[10px] text-zinc-600">Refund unavailable</span>
                     )}
                   </div>
                 </div>
@@ -415,53 +518,266 @@ export default function PastOrdersView() {
         </div>
       </ScrollArea>
 
-      <Dialog open={refundTarget !== null} onOpenChange={(o) => !o && setRefundTarget(null)}>
-        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-5">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-3">
+      <RefundDialog
+        order={refundTarget}
+        busy={refundBusy}
+        quantities={refundQuantities}
+        manualAmountDollars={manualAmountDollars}
+        reason={refundReason}
+        onAdjustItemQty={adjustItemQty}
+        onSelectAllItems={selectAllItems}
+        onClearItemSelection={clearItemSelection}
+        onManualAmountChange={setManualAmountDollars}
+        onReasonChange={setRefundReason}
+        onClose={closeRefund}
+        onSubmit={submitRefund}
+      />
+    </div>
+  );
+}
+
+// ─── Refund dialog ────────────────────────────────────────────────────────────
+
+type RefundDialogProps = {
+  order: Order | null;
+  busy: boolean;
+  quantities: Record<string, number>;
+  manualAmountDollars: string | null;
+  reason: string;
+  onAdjustItemQty: (itemId: string, maxQty: number, delta: number) => void;
+  onSelectAllItems: () => void;
+  onClearItemSelection: () => void;
+  onManualAmountChange: (next: string | null) => void;
+  onReasonChange: (next: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+};
+
+function RefundDialog({
+  order, busy, quantities, manualAmountDollars, reason,
+  onAdjustItemQty, onSelectAllItems, onClearItemSelection,
+  onManualAmountChange, onReasonChange, onClose, onSubmit,
+}: RefundDialogProps) {
+  const totalCents = order ? orderTotalCents(order) : 0;
+  const refundedCents = order?.refundedAmountCents ?? 0;
+  const remainingCents = order ? remainingRefundable(order) : 0;
+  const itemsCents = order ? computeItemsCents(order, quantities) : 0;
+
+  // Effective refund amount (what we'll actually submit).
+  const manualCents = (() => {
+    if (manualAmountDollars == null) return null;
+    const n = Number(manualAmountDollars);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.round(n * 100);
+  })();
+  const effectiveCents = manualCents != null
+    ? manualCents
+    : itemsCents > 0
+      ? itemsCents
+      : remainingCents;
+  const overLimit = effectiveCents > remainingCents;
+  const canSubmit = !busy && effectiveCents > 0 && !overLimit && order != null;
+
+  const displayAmount = manualAmountDollars != null
+    ? manualAmountDollars
+    : (itemsCents > 0 ? (itemsCents / 100).toFixed(2) : (remainingCents / 100).toFixed(2));
+
+  return (
+    <Dialog open={order !== null} onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="glass-modal border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        {order && (
+          <>
+            {/* Header */}
+            <div className="p-5 border-b border-white/5 flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} strokeWidth={1.5} className="text-red-400" />
               </div>
-              <div className="space-y-0.5">
-                <h3 className="text-base font-semibold text-zinc-100">Refund order #{refundTarget?.id}</h3>
-                <p className="text-xs text-zinc-400">
-                  This will issue a Stripe refund to the customer. Remaining refundable:
-                  {" "}
-                  ${refundTarget ? (remainingRefundable(refundTarget) / 100).toFixed(2) : "0.00"}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-zinc-100">Refund order #{order.id}</h3>
+                <p className="text-xs text-zinc-500 truncate mt-0.5">
+                  {order.guestName} · {order.orderType.replace("_", "-")} · {order.createdAt.toLocaleString()}
                 </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] tabular-nums">
+                  <span className="text-zinc-400">Order total <span className="text-zinc-200 font-semibold">${(totalCents / 100).toFixed(2)}</span></span>
+                  <span className="text-zinc-400">Refunded <span className={refundedCents > 0 ? "text-amber-300 font-semibold" : "text-zinc-200 font-semibold"}>${(refundedCents / 100).toFixed(2)}</span></span>
+                  <span className="text-zinc-400">Available <span className="text-emerald-300 font-semibold">${(remainingCents / 100).toFixed(2)}</span></span>
+                </div>
               </div>
             </div>
-            <label className="flex flex-col gap-1 text-xs text-zinc-400">
-              Refund amount (USD)
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={refundAmountDollars}
-                onChange={(e) => setRefundAmountDollars(e.target.value)}
-                className="bg-zinc-800 border border-white/10 rounded-md px-3 py-2 text-sm text-zinc-100"
-              />
-            </label>
-            <div className="flex gap-2">
+
+            {/* Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
+              {/* Items */}
+              <section className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Refund items</h4>
+                    <p className="text-[11px] text-zinc-600">Pick the items (and quantities) you're refunding. Leave blank to refund a custom amount.</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={onSelectAllItems}
+                      disabled={busy || order.items.length === 0}
+                      className="text-[10px] px-2 py-1 rounded-md border border-white/10 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClearItemSelection}
+                      disabled={busy}
+                      className="text-[10px] px-2 py-1 rounded-md border border-white/10 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <RotateCcw size={10} strokeWidth={2} /> Reset
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/5 bg-zinc-800/40 divide-y divide-white/5">
+                  {order.items.length === 0 ? (
+                    <div className="px-3 py-4 text-xs text-zinc-500 text-center">No items on this order.</div>
+                  ) : (
+                    order.items.map((it) => (
+                      <RefundItemRow
+                        key={it.id}
+                        item={it}
+                        selectedQty={quantities[it.id] ?? 0}
+                        disabled={busy}
+                        onDec={() => onAdjustItemQty(it.id, it.quantity, -1)}
+                        onInc={() => onAdjustItemQty(it.id, it.quantity, +1)}
+                      />
+                    ))
+                  )}
+                </div>
+                {itemsCents > 0 && manualAmountDollars == null && (
+                  <div className="flex justify-end text-[11px] text-zinc-400 tabular-nums">
+                    Items subtotal <span className="ml-2 text-amber-300 font-semibold">${(itemsCents / 100).toFixed(2)}</span>
+                  </div>
+                )}
+              </section>
+
+              {/* Custom amount */}
+              <section className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Refund amount (USD)</label>
+                  {manualAmountDollars != null && (
+                    <button
+                      type="button"
+                      onClick={() => onManualAmountChange(null)}
+                      disabled={busy}
+                      className="text-[10px] text-amber-400 hover:text-amber-300"
+                    >
+                      Use items subtotal
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    disabled={busy}
+                    value={displayAmount}
+                    onChange={(e) => onManualAmountChange(e.target.value)}
+                    className="w-full bg-zinc-800 border border-white/10 rounded-lg pl-7 pr-3 py-2.5 text-sm text-zinc-100 tabular-nums focus:outline-none focus:border-amber-500/40"
+                  />
+                </div>
+                {overLimit && (
+                  <p className="text-[11px] text-red-400">
+                    Amount exceeds the available balance of ${(remainingCents / 100).toFixed(2)}.
+                  </p>
+                )}
+              </section>
+
+              {/* Reason */}
+              <section className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Reason <span className="text-zinc-600 font-normal normal-case">(optional — logged with the refund & sent to Stripe)</span>
+                </label>
+                <textarea
+                  disabled={busy}
+                  value={reason}
+                  onChange={(e) => onReasonChange(e.target.value)}
+                  placeholder="e.g. Customer received the wrong dish"
+                  rows={2}
+                  maxLength={500}
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/40 resize-none"
+                />
+                <div className="text-[10px] text-zinc-600 text-right tabular-nums">{reason.length}/500</div>
+              </section>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-white/5 flex items-center gap-3">
               <button
-                onClick={() => setRefundTarget(null)}
-                disabled={refundBusy}
-                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors disabled:opacity-60"
+                type="button"
+                onClick={onClose}
+                disabled={busy}
+                className="py-2.5 px-4 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
-                onClick={submitRefund}
-                disabled={refundBusy}
-                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                type="button"
+                onClick={onSubmit}
+                disabled={!canSubmit}
+                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-sm font-semibold hover:bg-red-500/25 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {refundBusy && <Loader2 size={14} className="animate-spin" />}
-                Refund
+                {busy && <Loader2 size={14} className="animate-spin" />}
+                Refund ${(effectiveCents / 100).toFixed(2)}
               </button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RefundItemRow({
+  item, selectedQty, disabled, onDec, onInc,
+}: {
+  item: OrderItem;
+  selectedQty: number;
+  disabled: boolean;
+  onDec: () => void;
+  onInc: () => void;
+}) {
+  const lineCents = Math.round(item.unitPrice * 100) * selectedQty;
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-zinc-100 truncate">{item.menuItemName}</p>
+        <p className="text-[11px] text-zinc-500 tabular-nums">
+          ${item.unitPrice.toFixed(2)} · ordered {item.quantity}
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          disabled={disabled || selectedQty <= 0}
+          onClick={onDec}
+          className="w-7 h-7 rounded-md bg-zinc-900 border border-white/10 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center justify-center"
+          aria-label="Decrease"
+        >
+          <Minus size={12} strokeWidth={2.5} />
+        </button>
+        <span className="w-7 text-center text-sm tabular-nums text-zinc-100">{selectedQty}</span>
+        <button
+          type="button"
+          disabled={disabled || selectedQty >= item.quantity}
+          onClick={onInc}
+          className="w-7 h-7 rounded-md bg-zinc-900 border border-white/10 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 flex items-center justify-center"
+          aria-label="Increase"
+        >
+          <Plus size={12} strokeWidth={2.5} />
+        </button>
+        <span className="min-w-[60px] text-right text-xs tabular-nums text-zinc-400">
+          ${(lineCents / 100).toFixed(2)}
+        </span>
+      </div>
     </div>
   );
 }

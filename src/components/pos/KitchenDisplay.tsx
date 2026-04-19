@@ -144,6 +144,26 @@ export default function KitchenDisplay() {
                 : order.orderType === "pre_order"
                   ? "Pre-Order"
                   : `Table ${order.tableNumber}`;
+            // Phase pill that headlines every card so the line cook can
+            // tell at a glance whether the ticket is still waiting to be
+            // picked up or actively on a station. Colors mirror the
+            // left-border accent + BUMP button styling for consistency.
+            const phase =
+              order.status === "pending"
+                ? {
+                    label: "NEW — Not Started",
+                    dot: "bg-amber-400",
+                    text: "text-amber-300",
+                    bg: "bg-amber-500/10",
+                    border: "border-amber-500/30",
+                  }
+                : {
+                    label: "IN PROGRESS — Cooking",
+                    dot: "bg-blue-400 animate-pulse",
+                    text: "text-blue-300",
+                    bg: "bg-blue-500/10",
+                    border: "border-blue-500/30",
+                  };
 
             return (
               <motion.div
@@ -155,6 +175,17 @@ export default function KitchenDisplay() {
                 transition={{ duration: 0.2 }}
                 className={`bg-zinc-900/80 border border-white/5 border-l-4 ${borderColor} rounded-xl p-3 flex flex-col gap-2.5 max-h-[72vh]`}
               >
+                <div
+                  className={`flex items-center gap-2 rounded-md border px-2 py-1 ${phase.bg} ${phase.border}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${phase.dot}`} />
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-[0.12em] ${phase.text}`}
+                  >
+                    {phase.label}
+                  </span>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-mono font-bold text-lg">

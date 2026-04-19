@@ -90,17 +90,18 @@ export const WithAction = {
   args: {},
 };
 
-export const Promise = {
+export const PromiseToast = {
+  name: "Promise",
   render: () => (
     <div>
       <Toaster />
       <Button
         onClick={() => {
-          const promise = new Promise((resolve) =>
+          const pending = new Promise((resolve) =>
             setTimeout(() => resolve({ name: "Sonner" }), 2000)
           );
 
-          toast.promise(promise, {
+          toast.promise(pending, {
             loading: "Loading...",
             success: "Data loaded successfully",
             error: "Error loading data",

@@ -160,6 +160,23 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     seen.add(key);
     mealTimes.push(t);
   }
+  // Derive a single `dietType` for UI surfaces (POS grid, Take Order,
+  // KitchenDisplay) from the booleans that actually live on the row. We
+  // prefer halal (it implies non-vegetarian in our domain today) over veg,
+  // and only fall back to "non_veg" when the row explicitly marked itself
+  // non-veg via an older `diet_type` column. Anything else stays
+  // undefined so the UI can render a neutral dot / no badge.
+  const isVeg = row.is_vegetarian === true;
+  const isHalal = row.is_halal === true;
+  const legacyDiet = typeof row.diet_type === "string" ? row.diet_type : null;
+  const dietType: "veg" | "non_veg" | "halal" | undefined = isHalal
+    ? "halal"
+    : isVeg
+      ? "veg"
+      : legacyDiet === "non_veg" || legacyDiet === "halal" || legacyDiet === "veg"
+        ? (legacyDiet as "veg" | "non_veg" | "halal")
+        : undefined;
+
   return {
     id: row.id as string,
     name: row.name as string,
@@ -168,6 +185,9 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     imageUrl: (row.image_url as string) ?? null,
     mealTimes,
     inStock: (row.in_stock as boolean) ?? true,
+    isVegetarian: isVeg,
+    isHalal,
+    dietType,
   };
 }
 
@@ -558,6 +578,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       image_url: data.imageUrl,
       meal_times: data.mealTimes,
       in_stock: data.inStock,
+      is_vegetarian: data.isVegetarian === true,
+      is_halal: data.isHalal === true,
     }).select().single();
     if (error) throw new Error(error.message);
     if (insertedData) {
@@ -573,6 +595,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
     if (data.mealTimes !== undefined) patch.meal_times = data.mealTimes;
     if (data.inStock !== undefined) patch.in_stock = data.inStock;
+    if (data.isVegetarian !== undefined) patch.is_vegetarian = data.isVegetarian;
+    if (data.isHalal !== undefined) patch.is_halal = data.isHalal;
     const { data: updatedData, error } = await supabase.from("menu_items").update(patch).eq("id", id).select().single();
     if (error) throw new Error(error.message);
     if (updatedData) {
@@ -988,9 +1012,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const menuItem = menuItems.find((m) => m.id === menuItemId);
     if (!menuItem || menuItem.price == null) return;
 
+    // Prefer the explicit `dietType` arg (e.g. from a customer’s per-line
+    // override), then fall back to whatever the menu item declared. The
+    // `is_vegetarian` column on `order_items` is the source of truth for
+    // reporting, so honor the menu item’s boolean directly too.
+    const resolvedDietType: DietType | undefined = dietType ?? menuItem.dietType;
+    const isVegetarian =
+      resolvedDietType === "veg" || menuItem.isVegetarian === true;
+
     const itemMeta = JSON.stringify({
       specialInstructions: specialInstructions || undefined,
-      dietType: dietType ?? menuItem.dietType,
+      dietType: resolvedDietType,
     });
 
     const { data, error } = await supabase.from("order_items").insert({
@@ -999,7 +1031,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       name: menuItem.name,
       price: menuItem.price,
       quantity: qty,
-      is_vegetarian: (dietType ?? menuItem.dietType) === "veg",
+      is_vegetarian: isVegetarian,
       notes: itemMeta,
     }).select().single();
 
@@ -1015,7 +1047,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         quantity: qty,
         unitPrice: menuItem.price!,
         specialInstructions,
-        dietType: dietType ?? menuItem.dietType,
+        dietType: resolvedDietType,
       };
       const existing = o.items.find((i) => i.menuItemId === menuItemId && i.specialInstructions === (specialInstructions ?? ""));
       const items = existing

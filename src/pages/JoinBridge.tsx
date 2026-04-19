@@ -13,10 +13,13 @@ import { supabase } from "@/lib/supabase";
 import {
   fetchSnapshot, joinSession, addItem, updateItemQuantity, removeItem,
   setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
-  startCheckout, cancelSession, leaveSession,
+  startCheckout, cancelSession, leaveSession, CheckoutError,
   formatCents, totalCartCents, paymentForMember, memberById,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   savePartyCreds, loadPartyCreds, clearPartyCreds,
   saveLastDisplayName, loadLastDisplayName,
@@ -86,6 +89,27 @@ export default function JoinBridge() {
    *  the cart badge reflects the click instantly, even before the round-trip
    *  to Supabase completes. */
   const [pendingAdds, setPendingAdds] = useState<Record<number, number>>({});
+  /**
+   * Modal shown when `create-checkout` bails because the restaurant isn't
+   * linked to Stripe yet. We surface a blocking dialog (rather than a toast)
+   * so the message doesn't disappear off-screen while the user is deciding
+   * what to do about it.
+   */
+  const [checkoutUnavailable, setCheckoutUnavailable] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const handleCheckoutError = (err: unknown, fallback: string) => {
+    if (err instanceof CheckoutError && err.code === "restaurant_not_linked") {
+      setCheckoutUnavailable({
+        title: err.title || "Checkout unavailable",
+        message: err.message,
+      });
+      return;
+    }
+    toast.error(err instanceof Error ? err.message : fallback);
+  };
 
   const session = snapshot?.session ?? null;
   const members = snapshot?.members ?? [];
@@ -293,7 +317,7 @@ export default function JoinBridge() {
       });
       window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Checkout failed");
+      handleCheckoutError(err, "Checkout failed");
       setBusy(false);
     }
   };
@@ -310,7 +334,7 @@ export default function JoinBridge() {
       });
       window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Checkout failed");
+      handleCheckoutError(err, "Checkout failed");
       setBusy(false);
     }
   };
@@ -453,6 +477,12 @@ export default function JoinBridge() {
           items={items}
           selfMemberId={creds.memberId}
           onClose={() => setViewingMemberId(null)}
+        />
+        <CheckoutUnavailableDialog
+          open={!!checkoutUnavailable}
+          title={checkoutUnavailable?.title ?? "Checkout unavailable"}
+          message={checkoutUnavailable?.message ?? ""}
+          onClose={() => setCheckoutUnavailable(null)}
         />
       </Layout>
     );
@@ -952,6 +982,35 @@ function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: Par
         })}
       </div>
     </div>
+  );
+}
+
+function CheckoutUnavailableDialog({
+  open, title, message, onClose,
+}: { open: boolean; title: string; message: string; onClose: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-400" />
+            <DialogTitle className="text-zinc-100">{title}</DialogTitle>
+          </div>
+          <DialogDescription className="pt-2 text-sm leading-relaxed text-zinc-300">
+            {message}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-zinc-900 hover:bg-amber-400"
+          >
+            Got it
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

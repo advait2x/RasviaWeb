@@ -49,12 +49,11 @@ CREATE OR REPLACE FUNCTION public.mark_order_refunded(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $func$
 DECLARE
-  v_order        public.orders;
-  v_total_cents  integer;
-  v_new_refunded integer;
-  v_fully        boolean;
+  v_total_cents      integer;
+  v_new_refunded     integer;
+  v_fully            boolean;
 BEGIN
   IF p_order_id IS NULL THEN
     RAISE EXCEPTION 'order_id_required' USING ERRCODE = '22023';
@@ -63,35 +62,48 @@ BEGIN
     RAISE EXCEPTION 'amount_required' USING ERRCODE = '22023';
   END IF;
 
-  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  UPDATE public.orders AS o
+    SET refunded_amount_cents = LEAST(
+          (round(coalesce(o.subtotal, 0) * 100)::integer
+           + round(coalesce(o.tip_amount, 0) * 100)::integer),
+          coalesce(o.refunded_amount_cents, 0) + p_amount_cents
+        ),
+        refunded_at      = now(),
+        stripe_charge_id = coalesce(p_charge_id, o.stripe_charge_id),
+        status           = CASE
+          WHEN (round(coalesce(o.subtotal, 0) * 100)::integer
+                + round(coalesce(o.tip_amount, 0) * 100)::integer) > 0
+           AND (coalesce(o.refunded_amount_cents, 0) + p_amount_cents)
+                >= (round(coalesce(o.subtotal, 0) * 100)::integer
+                    + round(coalesce(o.tip_amount, 0) * 100)::integer)
+          THEN 'cancelled'
+          ELSE o.status
+        END
+    WHERE o.id = p_order_id
+    RETURNING
+      (round(coalesce(o.subtotal, 0) * 100)::integer
+        + round(coalesce(o.tip_amount, 0) * 100)::integer),
+      o.refunded_amount_cents,
+      (round(coalesce(o.subtotal, 0) * 100)::integer
+        + round(coalesce(o.tip_amount, 0) * 100)::integer) > 0
+        AND o.refunded_amount_cents
+            >= (round(coalesce(o.subtotal, 0) * 100)::integer
+                + round(coalesce(o.tip_amount, 0) * 100)::integer)
+    INTO v_total_cents, v_new_refunded, v_fully;
+
   IF NOT FOUND THEN
     RAISE EXCEPTION 'order_not_found' USING ERRCODE = 'P0002';
   END IF;
-
-  v_total_cents  := round(coalesce(v_order.subtotal, 0) * 100)::integer
-                    + round(coalesce(v_order.tip_amount, 0) * 100)::integer;
-  v_new_refunded := coalesce(v_order.refunded_amount_cents, 0) + p_amount_cents;
-  IF v_new_refunded > v_total_cents THEN
-    v_new_refunded := v_total_cents;
-  END IF;
-  v_fully := v_new_refunded >= v_total_cents AND v_total_cents > 0;
-
-  UPDATE public.orders
-    SET refunded_amount_cents = v_new_refunded,
-        refunded_at           = now(),
-        stripe_charge_id      = coalesce(p_charge_id, stripe_charge_id),
-        status                = CASE WHEN v_fully THEN 'cancelled' ELSE status END
-    WHERE id = p_order_id;
 
   RETURN jsonb_build_object(
     'ok', true,
     'order_id', p_order_id,
     'refunded_amount_cents', v_new_refunded,
     'total_cents', v_total_cents,
-    'fully_refunded', v_fully
+    'fully_refunded', coalesce(v_fully, false)
   );
 END;
-$$;
+$func$;
 
 REVOKE ALL ON FUNCTION public.mark_order_refunded(bigint, integer, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.mark_order_refunded(bigint, integer, text) TO service_role;
