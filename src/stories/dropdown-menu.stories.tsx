@@ -1,8 +1,8 @@
 // [build] library: 'shadcn'
 import {
   Cloud,
+  Code2 as Github,
   CreditCard,
-  Github,
   Keyboard,
   LifeBuoy,
   LogOut,

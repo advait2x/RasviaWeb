@@ -100,15 +100,43 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+// Recharts v3 no longer surfaces the runtime tooltip payload via the public
+// `Tooltip` props, so we describe the render-prop shape explicitly.
+type RechartsTooltipContentProps = {
+  active?: boolean
+  payload?: Array<{
+    value?: number | string
+    name?: string
+    dataKey?: string | number
+    color?: string
+    type?: string
+    payload?: Record<string, unknown> & { fill?: string }
+  }>
+  label?: React.ReactNode
+  labelFormatter?: (
+    label: unknown,
+    payload: RechartsTooltipContentProps["payload"]
+  ) => React.ReactNode
+  formatter?: (
+    value: unknown,
+    name: unknown,
+    item: unknown,
+    index: number,
+    payload: unknown
+  ) => React.ReactNode
+  color?: string
+}
+
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  RechartsTooltipContentProps &
     React.ComponentProps<"div"> & {
       hideLabel?: boolean
       hideIndicator?: boolean
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
+      labelClassName?: string
     }
 >(
   (
@@ -188,7 +216,7 @@ const ChartTooltipContent = React.forwardRef<
             .map((item, index) => {
               const key = `${nameKey || item.name || item.dataKey || "value"}`
               const itemConfig = getPayloadConfigFromPayload(config, item, key)
-              const indicatorColor = color || item.payload.fill || item.color
+              const indicatorColor = color || item.payload?.fill || item.color
 
               return (
                 <div
@@ -238,9 +266,11 @@ const ChartTooltipContent = React.forwardRef<
                             {itemConfig?.label || item.name}
                           </span>
                         </div>
-                        {item.value && (
+                        {item.value != null && (
                           <span className="font-mono font-medium tabular-nums text-foreground">
-                            {item.value.toLocaleString()}
+                            {typeof item.value === "number"
+                              ? item.value.toLocaleString()
+                              : String(item.value)}
                           </span>
                         )}
                       </div>
@@ -258,10 +288,22 @@ ChartTooltipContent.displayName = "ChartTooltip"
 
 const ChartLegend = RechartsPrimitive.Legend
 
+type RechartsLegendContentProps = {
+  payload?: Array<{
+    value?: string | number
+    id?: string
+    type?: string
+    color?: string
+    dataKey?: string | number
+    payload?: Record<string, unknown>
+  }>
+  verticalAlign?: "top" | "middle" | "bottom"
+}
+
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+    RechartsLegendContentProps & {
       hideIcon?: boolean
       nameKey?: string
     }

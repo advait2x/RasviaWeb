@@ -127,7 +127,7 @@ const PRICING_TIERS = [
     {
     name: "Rithwik Matta",
     role: "CTO & Co-Founder",
-    bio: "Computer Science student at the University of Texas at Dallas passionate about Full Stack Development and Cloud Infrastructure.",
+    bio: "Computer science student at the University of Texas at Dallas interested in full stack development, machine learning, and cloud engineering. ",
     initials: "RM",
     gradient: "from-violet-500 to-purple-600",
     imageSrc: null as string | null,
@@ -136,7 +136,7 @@ const PRICING_TIERS = [
   {
     name: "Advait Sagi",
     role: "CEO & Founder",
-    bio: "Student at Texas A&M University passionate about delivering impactful business solutions.",
+    bio: "Engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
     initials: "AS",
     gradient: "from-amber-500 to-orange-600",
     imageSrc: null as string | null,
