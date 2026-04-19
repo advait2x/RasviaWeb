@@ -34,6 +34,7 @@ type RestaurantRow = {
   created_at: string | null;
   is_featured: boolean | null;
   is_enabled: boolean | null;
+  is_coming_soon: boolean | null;
   waitlist_open: boolean | null;
   stripe_account_id: string | null;
   chain_group_key: string | null;
@@ -61,6 +62,7 @@ function emptyForm(): Partial<RestaurantRow> {
     owner_id: null,
     is_featured: false,
     is_enabled: true,
+    is_coming_soon: false,
     waitlist_open: true,
     stripe_account_id: "",
     chain_group_key: "",
@@ -348,6 +350,7 @@ export default function AdminPortalPage() {
       owner_id: draft.owner_id || null,
       is_featured: Boolean(draft.is_featured),
       is_enabled: draft.is_enabled !== false,
+      is_coming_soon: Boolean(draft.is_coming_soon),
       waitlist_open: draft.waitlist_open !== false,
       stripe_account_id: draft.stripe_account_id?.trim() || null,
       chain_group_key: draft.chain_group_key?.trim() || null,
@@ -927,6 +930,21 @@ export default function AdminPortalPage() {
                       id="feat"
                       checked={Boolean(draft.is_featured)}
                       onCheckedChange={(v) => setDraft((d) => ({ ...d, is_featured: v }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/[0.04] px-3 py-2 sm:col-span-2">
+                    <div className="flex flex-col">
+                      <Label htmlFor="coming_soon" className="cursor-pointer">
+                        Coming soon
+                      </Label>
+                      <span className="text-[11px] text-zinc-500">
+                        Shows the restaurant in the app with a "Coming soon" badge and disables ordering / waitlist actions.
+                      </span>
+                    </div>
+                    <Switch
+                      id="coming_soon"
+                      checked={Boolean(draft.is_coming_soon)}
+                      onCheckedChange={(v) => setDraft((d) => ({ ...d, is_coming_soon: v }))}
                     />
                   </div>
                 </div>

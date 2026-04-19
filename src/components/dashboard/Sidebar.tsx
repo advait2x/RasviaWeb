@@ -18,6 +18,7 @@ import {
   ChevronsRight,
   Shield,
   Tablet,
+  QrCode,
 } from "lucide-react";
 import { NavView, Permission } from "@/types/dashboard";
 import { useDashboard } from "@/context/DashboardContext";
@@ -45,6 +46,7 @@ const navItems: { icon: typeof LayoutDashboard; label: string; view: NavView; re
   { icon: ClipboardList, label: "Waitlist", view: "waitlist", requiredPermission: "manage_waitlist" },
   // { icon: Map, label: "Floor Plan", view: "floorplan", requiredPermission: "view_floorplan" },
   { icon: ShoppingBag, label: "Orders", view: "orders", requiredPermission: "view_orders" },
+  { icon: QrCode, label: "Tableside QR", view: "tableside", requiredPermission: "manage_orders" },
   { icon: ChefHat, label: "Kitchen Display", view: "kds", requiredPermission: "access_kds" },
   { icon: UtensilsCrossed, label: "Menu Editor", view: "menu", requiredPermission: "view_menu" },
   { icon: BarChart3, label: "Reports", view: "reports", requiredPermission: "view_reports" },

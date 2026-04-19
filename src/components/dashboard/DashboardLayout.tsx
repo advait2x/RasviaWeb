@@ -8,6 +8,7 @@ import StatusBar from "./StatusBar";
 import WaitlistFeed from "./WaitlistFeed";
 import FloorPlan from "./FloorPlan";
 import OrdersPanel from "./OrdersPanel";
+import TablesidePanel from "./TablesidePanel";
 import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
@@ -42,6 +43,7 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   waitlist: WaitlistFeed,
   floorplan: FloorPlan,
   orders: OrdersPanel,
+  tableside: TablesidePanel,
   menu: MenuManager,
   settings: SettingsPanel,
   notifications: NotificationsPanel,
@@ -58,6 +60,7 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
   waitlist: "manage_waitlist",
   floorplan: "view_floorplan",
   orders: "view_orders",
+  tableside: "manage_orders",
   menu: "view_menu",
   settings: "view_settings",
   notifications: "view_notifications",

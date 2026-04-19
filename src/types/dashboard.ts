@@ -3,6 +3,7 @@ export type NavView =
   | "waitlist"
   | "floorplan"
   | "orders"
+  | "tableside"
   | "menu"
   | "settings"
   | "notifications"
