@@ -248,3 +248,5 @@ The `FOUNDERS` array contains 3 entries with these fields:
 | **About** | Our Mission, Team, Contact Sales, Partner Login |
 | **Legal** | Privacy Policy, Terms of Service |
 
+### After finishing
+Once you finish your work after a prompt, modify this file with any relevant information to aid future agents.
