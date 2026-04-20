@@ -29,7 +29,7 @@ export default function StatusBar() {
         .from("restaurants")
         .select("waitlist_open")
         .eq("id", restaurantId)
-        .single();
+        .maybeSingle();
       if (data && typeof data.waitlist_open === "boolean") {
         setWaitlistOpen(data.waitlist_open);
       }

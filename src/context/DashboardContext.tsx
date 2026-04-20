@@ -1103,7 +1103,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!order) return;
     const notifiedAt = new Date().toISOString();
     // Update the meta in notes to include notification timestamp
-    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
+    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).maybeSingle();
     const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, customerNotifiedAt: notifiedAt });
     await supabase.from("orders").update({ notes: newMeta }).eq("id", Number(orderId));
@@ -1121,7 +1121,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     // Bulk update all active orders to completed with tip info
     for (const o of tableOrders) {
-      const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(o.id)).single();
+      const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(o.id)).maybeSingle();
       const existingMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
       await supabase.from("orders").update({
         status: "completed",
@@ -1392,7 +1392,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const newTable = tables.find((t) => t.id === newTableId);
     if (!newTable) return;
 
-    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).single();
+    const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).maybeSingle();
     const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, tableId: newTableId });
     await supabase.from("orders").update({

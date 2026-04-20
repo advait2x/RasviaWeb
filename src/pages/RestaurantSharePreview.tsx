@@ -43,7 +43,7 @@ export default function RestaurantSharePreview() {
           { data: menuData, error: menuError },
           { data: hoursData },
         ] = await Promise.all([
-          supabase.from("restaurants").select("id, name, description, address, image_url, rating, current_wait_time").eq("id", restaurantId).single(),
+          supabase.from("restaurants").select("id, name, description, address, image_url, rating, current_wait_time").eq("id", restaurantId).maybeSingle(),
           supabase.from("menu_items").select("*").eq("restaurant_id", restaurantId).neq("is_available", false).limit(16),
           supabase.from("restaurant_hours").select("day_of_week, open_time, close_time").eq("restaurant_id", restaurantId),
         ]);

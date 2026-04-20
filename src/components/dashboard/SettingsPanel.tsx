@@ -165,7 +165,7 @@ export default function SettingsPanel() {
     if (!restaurantId) return;
 
     const [profileRes, cuisinesRes] = await Promise.all([
-      supabase.from("restaurants").select("*").eq("id", restaurantId).single(),
+      supabase.from("restaurants").select("*").eq("id", restaurantId).maybeSingle(),
       supabase.from("restaurants").select("cuisine_tags").not("cuisine_tags", "is", null),
     ]);
 

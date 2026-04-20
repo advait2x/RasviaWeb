@@ -248,5 +248,48 @@ The `FOUNDERS` array contains 3 entries with these fields:
 | **About** | Our Mission, Team, Contact Sales, Partner Login |
 | **Legal** | Privacy Policy, Terms of Service |
 
+## Database Hygiene & RLS (April 2026)
+
+The `20260419180000_db_hygiene_rls_cleanup.sql` migration normalised RLS
+policies across the shared Supabase project. Highlights:
+
+- **`waitlist_entries`** — RLS is now enabled (was previously off despite
+  policies being present). Owners / staff / platform admins can read & manage
+  rows. Existing INSERT policies preserved. `KioskPage.tsx` continues to work
+  via the anon `allow_kiosk_walkin_insert` policy.
+- **`system_config`** — RLS on. Authenticated read for everyone, write for
+  platform admins only.
+- **`group_orders`** — DEPRECATED. Read by no one; written only by the
+  legacy `party_settle_payment()` mirror path. The dashboard should not query
+  this table; use `party_payments` / `party_members` / `orders` instead.
+- **`party_items`** — All client mutations must go through `party_*`
+  SECURITY DEFINER RPCs. Direct `.from('party_items').insert/update/delete`
+  from the dashboard will be rejected by RLS.
+- **`order_item_modifiers`** — DROPPED. The POS modifier feature uses
+  `item_modifiers` only. If modifier-per-line-item snapshots become a
+  requirement again, design a new table (and use it from the start).
+- Trigger / utility functions now have a pinned `search_path = public`.
+
+### Standardised Supabase call patterns
+
+- Always use `.maybeSingle()` for select-by-id queries. The codebase has been
+  swept for the obvious cases; please follow this convention going forward.
+  Reserve `.single()` for `INSERT … select().single()` (where exactly one row
+  is expected) or where you have already validated existence.
+- The `supabase` client in `src/lib/supabase.ts` falls back to placeholder
+  credentials so `BootDiagnostics` can render in dev. `flowType: 'pkce'` and
+  `detectSessionInUrl: true` are explicitly set for the JoinBridge / verify
+  email flows.
+- Never throw at module-import time from `lib/supabase.ts` — it's imported
+  before `BootDiagnostics` mounts.
+
+## Unused / deprecated tables
+
+| Table              | Status                                    |
+|--------------------|-------------------------------------------|
+| `group_orders`     | Legacy mirror, not read anywhere          |
+| `menu_categories`  | Defined but only the text `category`      |
+|                    | column on `menu_items` is used in code    |
+
 ### After finishing
 Once you finish your work after a prompt, modify this file with any relevant information to aid future agents.

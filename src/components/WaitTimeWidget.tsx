@@ -18,7 +18,7 @@ export function WaitTimeWidget() {
                 .from('restaurants')
                 .select('current_wait_time')
                 .eq('id', restaurantId)
-                .single();
+                .maybeSingle();
             if (data) setWaitTime(data.current_wait_time);
         };
         fetchTime();

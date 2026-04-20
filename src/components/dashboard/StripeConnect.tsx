@@ -28,7 +28,7 @@ export default function StripeConnect() {
                     .from("restaurants")
                     .select("stripe_account_id")
                     .eq("id", restaurantId)
-                    .single();
+                    .maybeSingle();
 
                 if (!error && data) {
                     const accountId = (data as { stripe_account_id: string | null }).stripe_account_id ?? null;

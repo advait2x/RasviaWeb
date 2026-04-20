@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
@@ -10,7 +10,7 @@ if (!isSupabaseConfigured) {
   console.error(
     "Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env (local) or your host.",
   );
-} else if (supabaseUrl) {
+} else {
   try {
     const url = new URL(supabaseUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -24,6 +24,16 @@ if (!isSupabaseConfigured) {
 // Never throw at import time: AuthContext imports this module before React can
 // render BootDiagnostics — a throw here yields a blank white page in dev.
 const resolvedUrl = supabaseUrl || "https://placeholder.supabase.co";
-const resolvedKey = supabaseKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder";
+const resolvedKey =
+  supabaseKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder";
 
-export const supabase = createClient(resolvedUrl, resolvedKey);
+export const supabase = createClient(resolvedUrl, resolvedKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    // Required for the email-link / Stripe redirect flows to pick up the access
+    // token from the URL hash on the JoinBridge / VerifyEmail pages.
+    detectSessionInUrl: true,
+    flowType: "pkce",
+  },
+});
