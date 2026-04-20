@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   ClipboardList,
-  Map,
   ShoppingBag,
   UtensilsCrossed,
   Settings,
@@ -11,7 +10,6 @@ import {
   LogOut,
   AlertTriangle,
   Users,
-  Monitor,
   ChefHat,
   BarChart3,
   ChevronsLeft,
@@ -152,20 +150,23 @@ export default function Sidebar({
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveView(view)}
-            className={`relative rounded-xl flex items-center justify-center transition-colors duration-200 ${
-              expanded ? "w-full py-2 min-h-[62px] flex-col" : "w-12 h-12"
-            } ${isActive ? "text-amber-500" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`relative flex items-center justify-center rounded-xl transition-colors duration-200 ${
+              expanded ? "min-h-[60px] w-full flex-col py-2" : "h-12 w-12"
+            } ${isActive ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
           >
             {isActive && (
               <motion.div
                 layoutId="sidebar-active"
-                className="absolute inset-0 rounded-xl bg-amber-500/10 border border-amber-500/20"
-                style={{ boxShadow: "0 0 12px rgba(245,158,11,0.08)" }}
-                transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                className="absolute inset-0 rounded-xl border border-white/[0.08] bg-white/[0.04]"
+                transition={{ type: "spring", duration: 0.28, bounce: 0.12 }}
               />
             )}
             {expanded && (
-              <span className={`relative z-10 text-[10px] font-semibold leading-none mb-1 ${isActive ? "text-amber-400" : "text-zinc-400"}`}>
+              <span
+                className={`relative z-10 mb-1 text-[11px] font-semibold tracking-tight leading-none ${
+                  isActive ? "text-zinc-200" : "text-zinc-500"
+                }`}
+              >
                 {label}
               </span>
             )}
@@ -173,32 +174,34 @@ export default function Sidebar({
             {isActive && (
               <motion.div
                 layoutId="sidebar-indicator"
-                className="absolute -left-[1.5px] top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-amber-500"
-                style={{ boxShadow: "0 0 8px rgba(245,158,11,0.4)" }}
-                transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                className="absolute top-1/2 left-0 h-7 w-0.5 -translate-y-1/2 rounded-full bg-zinc-300/70"
+                transition={{ type: "spring", duration: 0.28, bounce: 0.12 }}
               />
             )}
             {/* Unread badge for notifications */}
             {view === "notifications" && unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
+              <span className="absolute -top-0.5 -right-0.5 z-20 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500/[0.35] px-1 text-[10px] font-semibold tracking-tight tabular-nums text-rose-100 ring-1 ring-rose-400/25">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
             {/* Pre-order badge for orders */}
             {view === "orders" && preorderCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
+              <span className="absolute -top-0.5 -right-0.5 z-20 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500/[0.35] px-1 text-[10px] font-semibold tracking-tight tabular-nums text-rose-100 ring-1 ring-rose-400/25">
                 {preorderCount > 99 ? "99+" : preorderCount}
               </span>
             )}
             {/* Waiting parties — waitlist nav */}
             {view === "waitlist" && waitingCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 z-20 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center tabular-nums shadow-lg shadow-red-500/30">
+              <span className="absolute -top-0.5 -right-0.5 z-20 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500/[0.35] px-1 text-[10px] font-semibold tracking-tight tabular-nums text-rose-100 ring-1 ring-rose-400/25">
                 {waitingCount > 99 ? "99+" : waitingCount}
               </span>
             )}
           </motion.button>
         </TooltipTrigger>
-        <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+        <TooltipContent
+          side="right"
+          className="bg-zinc-800 text-zinc-100 border border-white/[0.08] text-[11px] font-medium tracking-tight shadow-xl"
+        >
           {label}
         </TooltipContent>
       </Tooltip>
@@ -213,9 +216,9 @@ export default function Sidebar({
         onTouchEnd={handleTouchEnd}
         style={{
           width: expanded ? 196 : 72,
-          background: "rgba(14,14,16,0.95)",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
-          boxShadow: "1px 0 20px rgba(0,0,0,0.4)",
+          background: "#0a0a0a",
+          borderRight: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "1px 0 24px rgba(0,0,0,0.35)",
         }}
       >
         {/* Top: fixed height — does not steal flex space from nav incorrectly */}
@@ -226,17 +229,22 @@ export default function Sidebar({
               <TooltipTrigger asChild>
                 <a
                   href="/admin"
-                  className={`mb-2 flex items-center justify-center rounded-xl border border-amber-500/35 bg-amber-500/[0.07] text-amber-400 transition-colors hover:border-amber-500/55 hover:bg-amber-500/12 ${
+                  className={`mb-2 flex items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-amber-400 transition-colors hover:border-amber-500/50 hover:bg-amber-500/12 ${
                     expanded ? "w-[150px] h-11 gap-2 px-2" : "w-11 h-11"
                   }`}
                 >
                   <Shield size={18} strokeWidth={1.75} className="shrink-0" />
                   {expanded && (
-                    <span className="text-[11px] font-semibold leading-tight text-amber-300">Admin panel</span>
+                    <span className="text-[11px] font-semibold tracking-tight leading-tight text-amber-200/95">
+                      Admin panel
+                    </span>
                   )}
                 </a>
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+              <TooltipContent
+                side="right"
+                className="bg-zinc-800 text-zinc-100 border border-white/[0.08] text-[11px] font-medium tracking-tight shadow-xl"
+              >
                 Open platform admin (restaurants & owners)
               </TooltipContent>
             </Tooltip>
@@ -246,7 +254,7 @@ export default function Sidebar({
           <Tooltip>
             <TooltipTrigger asChild>
               <div
-                className={`mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/10 ${
+                className={`mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/[0.07] ${
                   expanded ? "h-12 w-[150px] gap-2 px-2" : "h-11 w-11"
                 }`}
                 style={{ boxShadow: "0 0 16px rgba(245,158,11,0.1)" }}
@@ -273,17 +281,20 @@ export default function Sidebar({
                       />
                     </div>
                     {expanded && (
-                      <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-amber-200/95">
+                      <span className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold tracking-tight leading-tight text-amber-200/95">
                         {restaurantBranding.name}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-lg font-bold tracking-tight text-amber-500/90">R</span>
+                  <span className="text-[11px] font-semibold tracking-tight text-amber-300">R</span>
                 )}
               </div>
             </TooltipTrigger>
-            <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+            <TooltipContent
+              side="right"
+              className="bg-zinc-800 text-zinc-100 border border-white/[0.08] text-[11px] font-medium tracking-tight shadow-xl"
+            >
               {restaurantBranding?.name ?? "Restaurant"}
             </TooltipContent>
           </Tooltip>
@@ -328,25 +339,34 @@ export default function Sidebar({
                   <button
                     type="button"
                     onClick={() => window.location.assign("/partner-profile")}
-                    className={`mb-2 flex items-center rounded-xl border border-white/6 bg-zinc-800/40 ${
+                    className={`mb-2 flex items-center rounded-xl border border-white/[0.08] bg-zinc-800/40 ${
                       expanded ? "w-[150px] px-2.5 py-2 gap-2.5" : "w-11 h-11 justify-center"
                     } hover:bg-zinc-700/50 transition-colors`}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[11px] font-bold text-amber-400 select-none">{initials}</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[11px] font-semibold tracking-tight text-amber-400 select-none">
+                        {initials}
+                      </span>
                     </div>
                     {expanded && (
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-zinc-300 truncate leading-tight">{displayName}</p>
-                        <p className="text-[9px] text-zinc-500 truncate leading-tight mt-0.5">{displayRole}</p>
+                        <p className="text-[11px] font-semibold tracking-tight text-zinc-200 truncate leading-tight">
+                          {displayName}
+                        </p>
+                        <p className="text-[10px] font-medium tracking-tight text-zinc-500 truncate leading-tight mt-0.5">
+                          {displayRole}
+                        </p>
                       </div>
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
-                  <p className="font-semibold">{displayName}</p>
-                  <p className="text-zinc-500">{email}</p>
-                  <p className="text-zinc-400 mt-0.5">{displayRole}</p>
+                <TooltipContent
+                  side="right"
+                  className="bg-zinc-800 text-zinc-100 border border-white/[0.08] text-[11px] font-medium tracking-tight shadow-xl"
+                >
+                  <p className="font-semibold tracking-tight">{displayName}</p>
+                  <p className="text-zinc-500 text-[10px] font-normal mt-0.5">{email}</p>
+                  <p className="text-zinc-400 text-[10px] font-medium tracking-tight mt-1">{displayRole}</p>
                 </TooltipContent>
               </Tooltip>
             );
@@ -357,15 +377,20 @@ export default function Sidebar({
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setShowSignOutConfirm(true)}
-                className={`mt-1 mb-3 rounded-xl flex items-center justify-center text-red-400 bg-red-500/10 hover:text-red-300 hover:bg-red-500/20 transition-colors duration-200 ${
+                className={`mt-1 mb-3 rounded-xl flex items-center justify-center border border-red-500/20 text-red-400 bg-red-500/[0.08] hover:text-red-300 hover:bg-red-500/15 transition-colors duration-200 ${
                   expanded ? "w-[150px] h-11 gap-2" : "w-10 h-10"
                 }`}
               >
                 <LogOut size={18} strokeWidth={1.5} />
-                {expanded && <span className="text-xs font-semibold">Sign Out</span>}
+                {expanded && (
+                  <span className="text-[11px] font-semibold tracking-tight leading-tight">Sign Out</span>
+                )}
               </motion.button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs font-medium shadow-xl">
+            <TooltipContent
+              side="right"
+              className="bg-zinc-800 text-zinc-100 border border-white/[0.08] text-[11px] font-medium tracking-tight shadow-xl"
+            >
               Sign Out
             </TooltipContent>
           </Tooltip>
@@ -379,7 +404,7 @@ export default function Sidebar({
           {/* Collapse / Expand toggle */}
           <button
             onClick={() => onExpandedChange(!expanded)}
-            className={`mt-3 rounded-lg border border-white/10 bg-zinc-800/60 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors ${
+            className={`mt-3 rounded-xl border border-white/[0.08] bg-zinc-800/50 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/55 transition-colors ${
               expanded ? "w-[150px] h-8 flex items-center justify-center" : "w-9 h-8 flex items-center justify-center"
             }`}
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}

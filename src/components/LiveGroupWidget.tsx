@@ -51,13 +51,13 @@ export default function LiveGroupWidget({ restaurantId }: { restaurantId: number
     }, [restaurantId, fetchSessions, debouncedFetch]);
 
     return (
-        <div className="card-premium rounded-xl p-5 flex flex-col h-full">
-            <h3 className="text-base font-bold text-zinc-100 mb-4 flex items-center gap-2.5 tracking-tight">
-                <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+        <div className="card-premium flex h-full flex-col rounded-xl p-6">
+            <h3 className="mb-6 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/35 opacity-50" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400/70" />
                 </span>
-                Active Groups
+                Active groups
             </h3>
 
             {activeSessions.length === 0 ? (
@@ -74,14 +74,16 @@ export default function LiveGroupWidget({ restaurantId }: { restaurantId: number
                             }}
                         >
                             <div>
-                                <p className="font-semibold text-zinc-200 text-sm">
-                                    Party <span className="text-amber-500">#{session.id.slice(0, 4)}</span>
+                                <p className="text-sm font-medium text-zinc-200">
+                                    Party <span className="text-zinc-400">#{session.id.slice(0, 4)}</span>
                                 </p>
-                                <p className="text-xs font-medium text-emerald-400 mt-0.5 capitalize">{session.status}</p>
+                                <p className="mt-0.5 text-xs font-medium capitalize text-emerald-200/80">{session.status}</p>
                             </div>
-                            <div className="text-right flex flex-col items-end">
-                                <span className="text-2xl font-bold text-zinc-100 tabular-nums">{session.party_items[0]?.count || 0}</span>
-                                <p className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Items</p>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xl font-semibold tabular-nums text-zinc-100">
+                                  {session.party_items[0]?.count || 0}
+                                </span>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Items</p>
                             </div>
                         </div>
                     ))}

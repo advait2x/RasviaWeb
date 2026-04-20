@@ -6,21 +6,22 @@ import { WaitlistEntry } from "@/types/dashboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SeatPartyModal from "./SeatPartyModal";
 import AddWalkInModal from "./AddWalkInModal";
+import { formatMinutesHumanReadable } from "@/lib/formatWait";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
 }
 
 function getWaitColor(minutes: number): string {
-  if (minutes < 15) return "text-emerald-400";
-  if (minutes <= 30) return "text-amber-400";
-  return "text-red-400";
+  if (minutes < 15) return "text-emerald-200/90";
+  if (minutes <= 30) return "text-amber-200/85";
+  return "text-rose-200/90";
 }
 
 function getWaitBg(minutes: number): string {
-  if (minutes < 15) return "bg-emerald-500/10 border-emerald-500/20";
-  if (minutes <= 30) return "bg-amber-500/10 border-amber-500/20";
-  return "bg-red-500/10 border-red-500/20";
+  if (minutes < 15) return "border-emerald-400/15 bg-emerald-500/[0.06]";
+  if (minutes <= 30) return "border-amber-400/15 bg-amber-500/[0.06]";
+  return "border-rose-400/18 bg-rose-500/[0.07]";
 }
 
 export default function WaitlistFeed() {
@@ -58,27 +59,27 @@ export default function WaitlistFeed() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4">
-        <h2 className="text-xl font-bold text-zinc-100 tracking-tight">
+      <div className="flex items-center justify-between px-8 py-6">
+        <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
           Waitlist
-          <span className="ml-2.5 text-sm font-medium text-zinc-500">
+          <span className="ml-3 text-sm font-normal text-zinc-500">
             {waitingList.length} {waitingList.length === 1 ? "party" : "parties"}
           </span>
         </h2>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
+          className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.06] px-5 py-2.5 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.1]"
         >
           <UserPlus size={16} strokeWidth={1.5} />
-          Add Walk-In
+          Add walk-in
         </motion.button>
       </div>
 
       {/* Table Header */}
-      <div className="grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 px-5 py-2.5 text-[11px] font-bold text-zinc-500 uppercase tracking-widest border-b border-white/5">
+      <div className="grid grid-cols-[minmax(0,1fr)_88px_112px_140px_48px] items-center gap-4 border-b border-white/[0.08] px-8 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
         <span>Guest</span>
         <span>Party</span>
         <span>Wait</span>
@@ -88,7 +89,7 @@ export default function WaitlistFeed() {
 
       {/* Waitlist Rows */}
       <ScrollArea className="flex-1">
-        <div className="px-5 py-2">
+        <div className="px-8 py-2">
           <AnimatePresence mode="popLayout">
             {waitingList.map((entry, index) => {
               const minutes = getWaitMinutes(entry.addedAt);
@@ -107,40 +108,41 @@ export default function WaitlistFeed() {
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                    className={`grid grid-cols-[1fr_80px_100px_140px_48px] gap-4 items-center h-16 px-4 rounded-lg cursor-pointer transition-colors duration-150 ${isExpanded
-                        ? "bg-zinc-800/80 border border-amber-500/20"
-                        : "hover:bg-zinc-800/50 border border-transparent"
-                      }`}
+                    className={`grid h-16 cursor-pointer grid-cols-[minmax(0,1fr)_88px_112px_140px_48px] items-center gap-4 rounded-lg border px-4 transition-colors duration-150 ${
+                      isExpanded
+                        ? "border-white/[0.1] bg-white/[0.04]"
+                        : "border-transparent hover:bg-white/[0.03]"
+                    }`}
                   >
                     {/* Guest Name */}
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-base font-bold text-zinc-100 truncate">
+                      <span className="truncate text-sm font-medium text-zinc-100">
                         {entry.guestName}
                       </span>
                       {entry.source === "walk_in" && (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wide">
+                        <span className="shrink-0 rounded-md border border-sky-400/20 bg-sky-500/[0.08] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200/90">
                           Walk-in
                         </span>
                       )}
                       {entry.notifiedAt && (
-                        <BellRing size={13} strokeWidth={1.5} className="text-emerald-400 shrink-0" />
+                        <BellRing size={13} strokeWidth={1.5} className="shrink-0 text-emerald-200/85" />
                       )}
                     </div>
 
                     {/* Party Size Badge */}
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20">
-                        <Users size={14} strokeWidth={1.5} className="text-amber-500" />
-                        <span className="text-sm font-semibold text-amber-500 tabular-nums">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="inline-flex items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.03] px-2.5 py-1">
+                        <Users size={14} strokeWidth={1.5} className="text-zinc-500" />
+                        <span className="text-sm font-medium tabular-nums text-zinc-300">
                           {entry.partySize}
                         </span>
                       </div>
                     </div>
 
                     {/* Wait Duration */}
-                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md border ${getWaitBg(minutes)}`}>
-                      <span className={`text-sm font-semibold tabular-nums ${getWaitColor(minutes)}`}>
-                        {minutes}m
+                    <div className={`flex items-center justify-center rounded-md border px-2.5 py-1 ${getWaitBg(minutes)}`}>
+                      <span className={`text-sm font-medium tabular-nums ${getWaitColor(minutes)}`}>
+                        {formatMinutesHumanReadable(minutes)}
                       </span>
                     </div>
 
@@ -155,7 +157,7 @@ export default function WaitlistFeed() {
                         animate={{ rotate: isExpanded ? 45 : 0 }}
                         className="w-6 h-6 rounded-md bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-500"
                       >
-                        <X size={12} strokeWidth={2} />
+                        <X size={12} strokeWidth={1.5} />
                       </motion.div>
                     </div>
                   </motion.div>
@@ -170,11 +172,11 @@ export default function WaitlistFeed() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="flex items-center gap-3 px-4 py-3 ml-4 border-l-2 border-amber-500/30">
+                        <div className="ml-4 flex items-center gap-3 border-l-2 border-white/[0.1] px-4 py-3">
                           <motion.button
-                            whileTap={{ scale: 0.95 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={() => handleSeat(entry)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors amber-glow-sm"
+                            className="flex items-center gap-2 rounded-lg border border-white/[0.12] bg-white/[0.08] px-4 py-2.5 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.12]"
                           >
                             <Armchair size={16} strokeWidth={1.5} />
                             Seat Party
@@ -182,9 +184,9 @@ export default function WaitlistFeed() {
                           <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setNotifyConfirmId(entry.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${entry.notifiedAt
-                                ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-                                : "bg-zinc-800 border border-white/10 text-zinc-300 hover:bg-zinc-700"
+                            className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${entry.notifiedAt
+                                ? "border-emerald-400/20 bg-emerald-500/[0.08] text-emerald-200/90 hover:bg-emerald-500/[0.12]"
+                                : "border-white/[0.1] bg-white/[0.04] text-zinc-300 hover:bg-white/[0.07]"
                               }`}
                           >
                             <Bell size={16} strokeWidth={1.5} />
@@ -194,7 +196,7 @@ export default function WaitlistFeed() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-500/8 border border-sky-500/25"
+                              className="flex items-center gap-2 rounded-lg border border-sky-400/20 bg-sky-500/[0.06] px-3 py-2"
                             >
                               <Bell size={13} strokeWidth={1.5} className="text-sky-400 shrink-0" />
                               <span className="text-xs text-sky-300 font-medium">Party will be notified via SMS</span>
@@ -218,10 +220,10 @@ export default function WaitlistFeed() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30"
+                              className="flex items-center gap-2 rounded-lg border border-rose-400/25 bg-rose-500/[0.08] px-3 py-2"
                             >
-                              <AlertTriangle size={14} strokeWidth={1.5} className="text-red-400 shrink-0" />
-                              <span className="text-xs text-red-300 font-medium">Remove from waitlist?</span>
+                              <AlertTriangle size={14} strokeWidth={1.5} className="shrink-0 text-rose-200/90" />
+                              <span className="text-xs font-medium text-rose-100/90">Remove from waitlist?</span>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleCancelDismiss}
@@ -232,7 +234,7 @@ export default function WaitlistFeed() {
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={(e) => handleCancelConfirm(e, entry.id)}
-                                className="px-2.5 py-1 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-semibold hover:bg-red-500/30 transition-colors"
+                                className="rounded-md border border-rose-400/30 bg-rose-500/[0.15] px-2.5 py-1 text-xs font-semibold text-rose-100/95 transition-colors hover:bg-rose-500/[0.22]"
                               >
                                 Remove
                               </motion.button>
@@ -241,7 +243,7 @@ export default function WaitlistFeed() {
                             <motion.button
                               whileTap={{ scale: 0.95 }}
                               onClick={(e) => handleCancelRequest(e, entry.id)}
-                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-medium text-sm hover:bg-red-500/20 transition-colors"
+                              className="flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-500/[0.08] px-4 py-2.5 text-sm font-medium text-rose-200/90 transition-colors hover:bg-rose-500/[0.12]"
                             >
                               <X size={16} strokeWidth={1.5} />
                               Cancel
@@ -258,7 +260,7 @@ export default function WaitlistFeed() {
 
           {waitlistLoading && (
             <div className="flex flex-col items-center justify-center py-24 text-zinc-600">
-              <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-amber-500 animate-spin mb-4" />
+              <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-500" />
               <p className="text-sm text-zinc-500">Loading waitlist…</p>
             </div>
           )}

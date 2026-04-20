@@ -385,8 +385,8 @@ export default function AdminPortalPage() {
   if (!session || !isAdmin) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#09090b] text-zinc-100">
-      <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-[#09090b]/95 backdrop-blur-md">
+    <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-zinc-100">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <a

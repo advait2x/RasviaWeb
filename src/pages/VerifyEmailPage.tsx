@@ -116,7 +116,7 @@ export default function VerifyEmailPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-[#0f0f0f] flex flex-col items-center justify-center px-6">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#0a0a0a] px-6">
       {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}

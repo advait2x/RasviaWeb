@@ -140,7 +140,7 @@ export default function MenuTagDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+      <DialogContent hideClose className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
         <DialogHeader className="p-0 mb-4">
           <DialogTitle className="text-base font-semibold text-zinc-100">
             {mode === "create" ? "Add Menu Tag" : "Edit Menu Tag"}

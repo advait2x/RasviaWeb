@@ -20,12 +20,12 @@ function AdminPortalApp() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
           </div>
-          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading…</span>
+          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading…</span>
         </div>
       </div>
     );
@@ -37,7 +37,7 @@ function AdminPortalApp() {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white px-6">
         <div className="text-center space-y-3 max-w-md">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Admin only</h1>
           <p className="text-sm text-zinc-400">
@@ -79,16 +79,16 @@ function PartnerPortalApp() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
             <div
-              className="absolute inset-0 w-10 h-10 rounded-full border-2 border-transparent border-b-amber-500/20 animate-spin"
+              className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-b-zinc-700/40 border-transparent"
               style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
             />
           </div>
-          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Rasvia…</span>
+          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading Rasvia…</span>
         </div>
       </div>
     );
@@ -101,7 +101,7 @@ function PartnerPortalApp() {
   // Platform admins always have access (even if userRole was mis-read as "user" during a race).
   if (userRole === "user" && !isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
@@ -126,7 +126,7 @@ function PartnerPortalApp() {
 
   if (!restaurantId && !isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#09090b] text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
@@ -151,12 +151,12 @@ function PartnerPortalApp() {
 
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
           </div>
-          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Dashboard…</span>
+          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading dashboard…</span>
         </div>
       </div>
     }>
@@ -170,12 +170,12 @@ function PartnerProfileApp() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
           </div>
-          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Loading Profile…</span>
+          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading profile…</span>
         </div>
       </div>
     );
@@ -230,10 +230,10 @@ function AppContent() {
     // Standalone /kiosk URL redirects into the partner portal kiosk tab (requires auth)
     window.location.replace('/partner-portal?tab=kiosk');
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
-          <span className="text-amber-500/80 font-medium text-sm tracking-wide">Redirecting to Kiosk...</span>
+          <span className="text-sm font-medium tracking-wide text-zinc-500">Redirecting to kiosk…</span>
         </div>
       </div>
     );

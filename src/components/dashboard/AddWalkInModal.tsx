@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, Phone, User, UserPlus } from "lucide-react";
+import { Users, Phone, User, UserPlus } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import {
   Dialog,
@@ -84,21 +84,13 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
+      <DialogContent hideClose className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-              <UserPlus size={15} className="text-amber-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-base font-semibold text-zinc-100">Add Walk-In</h2>
+        <div className="flex items-center gap-2.5 px-6 pt-6 pb-4 border-b border-white/5">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+            <UserPlus size={15} className="text-amber-400" strokeWidth={1.5} />
           </div>
-          <button
-            onClick={handleClose}
-            className="w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
-          >
-            <X size={14} strokeWidth={1.5} />
-          </button>
+          <h2 className="text-base font-semibold text-zinc-100">Add Walk-In</h2>
         </div>
 
         {/* Form Body */}

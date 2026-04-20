@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Search, Plus, Minus, X, Check, ArrowRight, Users, ShoppingBag,
+    Search, Plus, Minus, Check, ArrowRight, Users, ShoppingBag,
     Coffee, Sun, Moon, Star, Clock, Leaf, Drumstick, Vegan, StickyNote,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
@@ -214,7 +214,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
 
     return (
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-            <DialogContent className="glass-modal max-w-2xl border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0 max-h-[85vh] flex flex-col">
+            <DialogContent hideClose className="glass-modal max-w-2xl border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0 max-h-[85vh] flex flex-col">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5 shrink-0">
                     <div className="flex items-center justify-between">
                         <DialogTitle className="text-lg font-bold text-zinc-100 tracking-tight">
@@ -246,9 +246,9 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                     {step === "table" && (
                         <motion.div
                             key="table"
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             className="flex-1 overflow-y-auto p-6 space-y-5"
                         >
                             {/* Order Type */}
@@ -371,9 +371,9 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                     {step === "items" && (
                         <motion.div
                             key="items"
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             className="flex-1 flex flex-col overflow-hidden"
                         >
                             {/* Search + Filters */}
@@ -518,9 +518,9 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                     {step === "review" && (
                         <motion.div
                             key="review"
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             className="flex-1 overflow-y-auto p-6 space-y-5"
                         >
                             {/* Order summary */}
@@ -633,7 +633,6 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                             onClick={handleClose}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-sm font-medium hover:bg-zinc-700 transition-colors"
                         >
-                            <X size={14} strokeWidth={1.5} />
                             Cancel
                         </motion.button>
                         {step === "table" && (

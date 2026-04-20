@@ -171,7 +171,7 @@ export default function KioskPage() {
 
   return (
     <div
-      className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} bg-[#09090b] flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
+      className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} bg-[#0a0a0a] flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
       style={{ WebkitUserSelect: "none", userSelect: "none" }}
       onDoubleClick={handleSecretExitDoubleClick}
     >
@@ -486,7 +486,7 @@ function SuccessView({
             value={APP_DOWNLOAD_URL}
             size={fullscreen ? 148 : 88}
             bgColor="#ffffff"
-            fgColor="#09090b"
+            fgColor="#0a0a0a"
             level="M"
           />
         </div>

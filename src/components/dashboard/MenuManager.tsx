@@ -193,7 +193,7 @@ function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0">
+      <DialogContent hideClose className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
           <DialogTitle className="text-lg font-bold text-zinc-100 tracking-tight">
             {item ? "Edit Item" : "Add Menu Item"}
@@ -402,7 +402,6 @@ function ItemFormDialog({
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-sm font-medium hover:bg-zinc-700 transition-colors"
           >
-            <X size={14} strokeWidth={1.5} />
             Cancel
           </motion.button>
           <motion.button
@@ -418,7 +417,7 @@ function ItemFormDialog({
       </DialogContent>
 
       <Dialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
-        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+        <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
               <span className="text-2xl">🤔</span>
@@ -585,7 +584,7 @@ function ModifiersManager() {
       </ScrollArea>
 
       <Dialog open={showForm} onOpenChange={(o) => !o && setShowForm(false)}>
-        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+        <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-zinc-100">{editing ? "Edit Modifier" : "New Modifier"}</h3>
             <div className="space-y-3">
@@ -909,7 +908,7 @@ export default function MenuManager() {
           </div>
         </ScrollArea>
         <Dialog open={!!pendingTagDelete} onOpenChange={(open) => !open && setPendingTagDelete(null)}>
-          <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
             <DialogHeader className="p-0">
               <DialogTitle className="text-base font-semibold text-zinc-100">Delete Menu Tag?</DialogTitle>
             </DialogHeader>
@@ -1238,7 +1237,7 @@ export default function MenuManager() {
       />
 
       <Dialog open={!!confirmStockItem} onOpenChange={(o) => !o && setConfirmStockItem(null)}>
-        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+        <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="space-y-4">
             <DialogHeader className="p-0">
               <DialogTitle className="text-base font-semibold text-zinc-100">

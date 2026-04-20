@@ -40,7 +40,7 @@ export default function RestaurantSwitcher() {
     <div className="relative w-full px-2 mb-4">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl bg-zinc-800/70 border border-white/10 hover:border-white/20 hover:bg-zinc-800 transition-all duration-200 group"
+        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl bg-zinc-800/50 border border-white/[0.08] hover:border-white/15 hover:bg-zinc-700/45 transition-all duration-200 group"
         title="Switch Restaurant"
       >
         {/* Restaurant image or icon */}
@@ -62,7 +62,7 @@ export default function RestaurantSwitcher() {
         </div>
 
         {/* Name */}
-        <span className="flex-1 text-left text-[11px] font-semibold text-zinc-200 truncate leading-tight">
+        <span className="flex-1 text-left text-[11px] font-semibold tracking-tight text-zinc-200 truncate leading-tight">
           {loading ? "Loading…" : (active?.name ?? "Select Restaurant")}
         </span>
         <ChevronDown
@@ -83,10 +83,10 @@ export default function RestaurantSwitcher() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
               transition={{ duration: 0.14 }}
-              className="absolute left-2 top-full z-50 mt-1.5 w-56 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/98 py-1.5 shadow-2xl backdrop-blur-xl"
+              className="absolute left-2 top-full z-50 mt-1.5 w-56 max-h-80 overflow-y-auto rounded-xl border border-white/[0.08] bg-zinc-900/98 py-1.5 shadow-2xl backdrop-blur-xl"
             >
               {restaurants.length === 0 ? (
-                <p className="text-xs text-zinc-600 px-3 py-2 italic">No restaurants found</p>
+                <p className="text-[11px] font-medium tracking-tight text-zinc-500 px-3 py-2">No restaurants found</p>
               ) : (
                 restaurants.map((r) => (
                   <button
@@ -104,7 +104,13 @@ export default function RestaurantSwitcher() {
                         }}
                       />
                     </div>
-                    <span className={`flex-1 text-xs font-medium truncate ${r.id === restaurantId ? "text-amber-400" : "text-zinc-300"}`}>
+                    <span
+                      className={`flex-1 text-[11px] tracking-tight truncate ${
+                        r.id === restaurantId
+                          ? "font-semibold text-amber-400"
+                          : "font-medium text-zinc-300"
+                      }`}
+                    >
                       {r.name}
                     </span>
                     {r.id === restaurantId && (

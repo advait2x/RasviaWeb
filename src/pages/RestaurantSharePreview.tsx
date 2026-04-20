@@ -104,15 +104,15 @@ export default function RestaurantSharePreview() {
   }, [restaurant]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#09090b] text-zinc-200 flex items-center justify-center">Loading preview...</div>;
+    return <div className="min-h-screen bg-[#0a0a0a] text-zinc-200 flex items-center justify-center">Loading preview...</div>;
   }
 
   if (error || !restaurant) {
-    return <div className="min-h-screen bg-[#09090b] text-red-300 flex items-center justify-center">{error ?? "Preview unavailable."}</div>;
+    return <div className="min-h-screen bg-[#0a0a0a] text-red-300 flex items-center justify-center">{error ?? "Preview unavailable."}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100">
+    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
       {showBanner && (
         <div className="sticky top-0 z-50 w-full border-b border-amber-500 bg-amber-500">
           <div className="mx-auto max-w-5xl px-4 py-2 flex items-center justify-between gap-3">

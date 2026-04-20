@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, type ElementType } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, ShoppingCart, TrendingUp, Heart } from "lucide-react";
+import { DollarSign, ShoppingCart, Heart, Clock, AlertTriangle } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
 } from "recharts";
 import { useDashboard } from "@/context/DashboardContext";
 import type { PastOrdersFilter, PastOrdersRange } from "@/context/DashboardContext";
+import { formatMinutesHumanReadable } from "@/lib/formatWait";
 
 type Range = "today" | "yesterday" | "week" | "month";
 
@@ -39,17 +45,29 @@ function getDateRange(range: Range): [Date, Date] {
 
 function toRangeKey(range: Range): PastOrdersRange {
   switch (range) {
-    case "today": return "today";
-    case "yesterday": return "yesterday";
-    case "week": return "week";
-    case "month": return "month";
+    case "today":
+      return "today";
+    case "yesterday":
+      return "yesterday";
+    case "week":
+      return "week";
+    case "month":
+      return "month";
   }
+}
+
+function getWaitMinutes(addedAt: Date): number {
+  return Math.floor((Date.now() - addedAt.getTime()) / 60000);
 }
 
 export default function SalesReports() {
   const {
-    fetchCompletedOrders, completedOrders,
-    setActiveView, setPastOrdersFilter, pastOrdersFilter,
+    fetchCompletedOrders,
+    completedOrders,
+    setActiveView,
+    setPastOrdersFilter,
+    pastOrdersFilter,
+    waitlist,
   } = useDashboard();
   const [range, setRange] = useState<Range>("today");
 
@@ -58,26 +76,33 @@ export default function SalesReports() {
     fetchCompletedOrders(from, to);
   }, [range, fetchCompletedOrders]);
 
-  const { totalSales, orderCount, avgOrder, tips } = useMemo(() => {
+  const { totalSales, orderCount, tips } = useMemo(() => {
     const total = completedOrders.reduce((s, o) => s + o.total, 0);
     const count = completedOrders.length;
     const tipSum = completedOrders.reduce((s, o) => s + (o.tipAmount ?? 0), 0);
     return {
       totalSales: total,
       orderCount: count,
-      avgOrder: count ? total / count : 0,
       tips: tipSum,
     };
   }, [completedOrders]);
 
-  // Chart shape depends on range.
-  // today/yesterday: hourly buckets
-  // week:             daily buckets (last 7 days including today)
-  // month:            weekly buckets (up to 5 ISO-weekish columns within the month)
+  const { avgWait, longestWait } = useMemo(() => {
+    const waitingOnly = waitlist.filter((w) => w.status === "waiting");
+    const n = waitingOnly.length;
+    if (n === 0) return { avgWait: 0, longestWait: 0 };
+    const sum = waitingOnly.reduce((acc, w) => acc + getWaitMinutes(w.addedAt), 0);
+    const longest = Math.max(...waitingOnly.map((w) => getWaitMinutes(w.addedAt)));
+    return { avgWait: Math.round(sum / n), longestWait: longest };
+  }, [waitlist]);
+
   type ChartMode = "hourly" | "daily" | "weekly";
   const chartMode: ChartMode =
-    range === "today" || range === "yesterday" ? "hourly" :
-    range === "week" ? "daily" : "weekly";
+    range === "today" || range === "yesterday"
+      ? "hourly"
+      : range === "week"
+        ? "daily"
+        : "weekly";
 
   const chart = useMemo(() => {
     if (chartMode === "hourly") {
@@ -85,8 +110,18 @@ export default function SalesReports() {
         label: `${i}:00`,
         key: i,
         sales: 0,
-        bucketStart: (() => { const d = new Date(); d.setHours(i, 0, 0, 0); if (range === "yesterday") d.setDate(d.getDate() - 1); return d; })(),
-        bucketEnd: (() => { const d = new Date(); d.setHours(i, 59, 59, 999); if (range === "yesterday") d.setDate(d.getDate() - 1); return d; })(),
+        bucketStart: (() => {
+          const d = new Date();
+          d.setHours(i, 0, 0, 0);
+          if (range === "yesterday") d.setDate(d.getDate() - 1);
+          return d;
+        })(),
+        bucketEnd: (() => {
+          const d = new Date();
+          d.setHours(i, 59, 59, 999);
+          if (range === "yesterday") d.setDate(d.getDate() - 1);
+          return d;
+        })(),
       }));
       completedOrders.forEach((o) => {
         const h = new Date(o.createdAt).getHours();
@@ -96,12 +131,20 @@ export default function SalesReports() {
     }
 
     if (chartMode === "daily") {
-      // Last 7 days (today inclusive)
       const now = new Date();
-      const buckets: Array<{ label: string; key: number; sales: number; bucketStart: Date; bucketEnd: Date }> = [];
+      const buckets: Array<{
+        label: string;
+        key: number;
+        sales: number;
+        bucketStart: Date;
+        bucketEnd: Date;
+      }> = [];
       for (let i = 6; i >= 0; i--) {
-        const start = new Date(now); start.setDate(now.getDate() - i); start.setHours(0, 0, 0, 0);
-        const end = new Date(start); end.setHours(23, 59, 59, 999);
+        const start = new Date(now);
+        start.setDate(now.getDate() - i);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setHours(23, 59, 59, 999);
         buckets.push({
           label: start.toLocaleDateString(undefined, { weekday: "short" }),
           key: start.getTime(),
@@ -118,18 +161,28 @@ export default function SalesReports() {
       return buckets;
     }
 
-    // weekly for current month
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const buckets: Array<{ label: string; key: number; sales: number; bucketStart: Date; bucketEnd: Date }> = [];
+    const buckets: Array<{
+      label: string;
+      key: number;
+      sales: number;
+      bucketStart: Date;
+      bucketEnd: Date;
+    }> = [];
     const cursor = new Date(monthStart);
     let idx = 1;
     while (cursor <= monthEnd) {
       const weekStart = new Date(cursor);
       weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59, 999);
-      if (weekEnd > monthEnd) { weekEnd.setTime(monthEnd.getTime()); weekEnd.setHours(23, 59, 59, 999); }
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      if (weekEnd > monthEnd) {
+        weekEnd.setTime(monthEnd.getTime());
+        weekEnd.setHours(23, 59, 59, 999);
+      }
       buckets.push({
         label: `W${idx}`,
         key: weekStart.getTime(),
@@ -148,7 +201,8 @@ export default function SalesReports() {
     return buckets;
   }, [chartMode, completedOrders, range]);
 
-  const chartTitle = chartMode === "hourly" ? "Hourly Sales" : chartMode === "daily" ? "Daily Sales" : "Weekly Sales";
+  const chartTitle =
+    chartMode === "hourly" ? "Hourly sales" : chartMode === "daily" ? "Daily sales" : "Weekly sales";
 
   const topItems = useMemo(() => {
     const map = new Map<string, { qty: number; revenue: number }>();
@@ -161,13 +215,15 @@ export default function SalesReports() {
         });
       })
     );
-    return [...map.entries()]
-      .sort((a, b) => b[1].qty - a[1].qty)
-      .slice(0, 10);
+    return [...map.entries()].sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
   }, [completedOrders]);
 
   const typeCounts = useMemo(() => {
-    const c: { dine_in: number; takeout: number; pre_order: number } = { dine_in: 0, takeout: 0, pre_order: 0 };
+    const c: { dine_in: number; takeout: number; pre_order: number } = {
+      dine_in: 0,
+      takeout: 0,
+      pre_order: 0,
+    };
     completedOrders.forEach((o) => {
       if (o.orderType === "dine_in" || o.orderType === "takeout" || o.orderType === "pre_order") {
         c[o.orderType] = (c[o.orderType] ?? 0) + 1;
@@ -180,17 +236,31 @@ export default function SalesReports() {
   const ranges: { key: Range; label: string }[] = [
     { key: "today", label: "Today" },
     { key: "yesterday", label: "Yesterday" },
-    { key: "week", label: "This Week" },
-    { key: "month", label: "This Month" },
+    { key: "week", label: "This week" },
+    { key: "month", label: "This month" },
   ];
 
   const cards: Array<{
-    label: string; value: string | number; icon: typeof DollarSign; clickable: boolean;
+    label: string;
+    value: string | number;
+    icon: typeof DollarSign;
+    clickable: boolean;
   }> = [
-    { label: "Total Sales", value: fmt(totalSales), icon: DollarSign, clickable: true },
+    { label: "Total sales", value: fmt(totalSales), icon: DollarSign, clickable: true },
     { label: "Orders", value: orderCount, icon: ShoppingCart, clickable: true },
-    { label: "Avg Order", value: fmt(avgOrder), icon: TrendingUp, clickable: false },
     { label: "Tips", value: fmt(tips), icon: Heart, clickable: false },
+    {
+      label: "Avg wait time",
+      value: formatMinutesHumanReadable(avgWait),
+      icon: Clock,
+      clickable: false,
+    },
+    {
+      label: "Longest wait",
+      value: formatMinutesHumanReadable(longestWait),
+      icon: AlertTriangle,
+      clickable: false,
+    },
   ];
 
   const gotoPastOrders = (overrides: Partial<PastOrdersFilter>) => {
@@ -204,7 +274,6 @@ export default function SalesReports() {
       ...overrides,
     });
     setActiveView("orders");
-    // The OrdersPanel remembers the user's last tab; nudge it toward "past" via URL.
     const url = new URL(window.location.href);
     url.searchParams.set("tab", "orders");
     url.searchParams.set("ordersTab", "past");
@@ -212,7 +281,7 @@ export default function SalesReports() {
   };
 
   const handleCardClick = (label: string) => {
-    if (label !== "Total Sales" && label !== "Orders") return;
+    if (label !== "Total sales" && label !== "Orders") return;
     gotoPastOrders({});
   };
 
@@ -225,17 +294,17 @@ export default function SalesReports() {
   };
 
   return (
-    <div className="space-y-6 p-4">
-      {/* Date range */}
-      <div className="flex gap-2">
+    <div className="space-y-8 p-8">
+      <div className="flex flex-wrap gap-2">
         {ranges.map((r) => (
           <button
             key={r.key}
+            type="button"
             onClick={() => setRange(r.key)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
               range === r.key
-                ? "bg-amber-500 text-black"
-                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                ? "border-white/[0.12] bg-white/[0.08] text-zinc-100"
+                : "border-white/[0.08] bg-white/[0.02] text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300"
             }`}
           >
             {r.label}
@@ -243,59 +312,58 @@ export default function SalesReports() {
         ))}
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {cards.map((c, i) => {
-          const Wrapper: React.ElementType = c.clickable ? "button" : "div";
+          const Wrapper: ElementType = c.clickable ? "button" : "div";
           return (
             <motion.div
               key={c.label}
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ delay: i * 0.04 }}
             >
               <Wrapper
                 type={c.clickable ? "button" : undefined}
                 onClick={c.clickable ? () => handleCardClick(c.label) : undefined}
-                className={`w-full text-left rounded-xl border bg-zinc-900 p-5 transition-all ${
+                className={`card-premium w-full rounded-xl p-5 text-left ${
                   c.clickable
-                    ? "border-white/5 hover:border-amber-500/50 hover:ring-1 hover:ring-amber-500/50 cursor-pointer"
-                    : "border-white/5"
+                    ? "cursor-pointer hover:border-white/[0.12]"
+                    : ""
                 }`}
                 title={c.clickable ? "View matching past orders" : undefined}
               >
-                <div className="mb-2 flex items-center gap-2 text-zinc-400">
-                  <c.icon size={16} />
-                  <span className="text-xs uppercase tracking-wider">{c.label}</span>
+                <div className="mb-3 flex items-center gap-2 text-zinc-500">
+                  <c.icon size={16} strokeWidth={1.5} />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">{c.label}</span>
                 </div>
-                <p className="text-2xl font-bold text-white">{c.value}</p>
+                <p className="text-xl font-semibold tabular-nums tracking-tight text-zinc-100">{c.value}</p>
               </Wrapper>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Chart */}
-      <div className="rounded-xl border border-white/5 bg-zinc-900 p-5">
+      <div className="card-premium rounded-xl p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-zinc-400">{chartTitle}</h3>
-          <span className="text-[10px] text-zinc-600">Click a bar to filter Past Orders</span>
+          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{chartTitle}</h3>
+          <span className="text-[10px] text-zinc-600">Click a bar to filter past orders</span>
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={chart}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "#71717a", fontSize: 11 }}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} />
             <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
-              contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
+              contentStyle={{
+                background: "#121212",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+              }}
               formatter={(v: number) => [`$${v.toFixed(2)}`, "Sales"]}
             />
             <Bar
               dataKey="sales"
-              fill="#f59e0b"
+              fill="rgba(148, 163, 184, 0.55)"
               radius={[4, 4, 0, 0]}
               cursor="pointer"
               onClick={(data: unknown) => {
@@ -309,44 +377,42 @@ export default function SalesReports() {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Top items */}
-        <div className="rounded-xl border border-white/5 bg-zinc-900 p-5">
-          <h3 className="mb-3 text-sm font-medium text-zinc-400">Top Items</h3>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card-premium rounded-xl p-6">
+          <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Top items</h3>
           <div className="space-y-2">
             {topItems.length === 0 && <p className="text-sm text-zinc-500">No data</p>}
             {topItems.map(([name, d], i) => (
               <div key={name} className="flex items-center justify-between text-sm">
-                <span className="text-white">
+                <span className="text-zinc-200">
                   <span className="mr-2 text-zinc-500">{i + 1}.</span>
                   {name}
                 </span>
-                <span className="text-zinc-400">
-                  {d.qty} sold &middot; {fmt(d.revenue)}
+                <span className="text-zinc-500">
+                  {d.qty} sold · {fmt(d.revenue)}
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Order type breakdown */}
-        <div className="rounded-xl border border-white/5 bg-zinc-900 p-5">
-          <h3 className="mb-3 text-sm font-medium text-zinc-400">Order Types</h3>
+        <div className="card-premium rounded-xl p-6">
+          <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Order types</h3>
           {(
             [
-              ["Dine-In", typeCounts.dine_in],
+              ["Dine-in", typeCounts.dine_in],
               ["Takeout", typeCounts.takeout],
-              ["Pre-Order", typeCounts.pre_order],
+              ["Pre-order", typeCounts.pre_order],
             ] as const
           ).map(([label, count]) => (
-            <div key={label} className="mb-3 last:mb-0">
+            <div key={label} className="mb-4 last:mb-0">
               <div className="mb-1 flex justify-between text-sm">
-                <span className="text-white">{label}</span>
-                <span className="text-zinc-400">{count}</span>
+                <span className="text-zinc-200">{label}</span>
+                <span className="text-zinc-500">{count}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
                 <div
-                  className="h-full rounded-full bg-amber-500 transition-all"
+                  className="h-full rounded-full bg-zinc-500/50 transition-all"
                   style={{ width: `${orderCount ? (count / orderCount) * 100 : 0}%` }}
                 />
               </div>

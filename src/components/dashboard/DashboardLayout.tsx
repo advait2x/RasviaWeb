@@ -97,7 +97,7 @@ function FullScreenAccessDenied() {
   return (
     <div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 text-center"
-      style={{ background: "#09090b" }}
+      style={{ background: "#0a0a0a" }}
     >
       <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
         <ShieldX size={28} strokeWidth={1.5} className="text-red-400" />
@@ -170,14 +170,20 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex" style={{ background: "#09090b" }}>
-      {/* Ambient background gradients */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/3 w-[600px] h-[400px] rounded-full opacity-30"
-          style={{ background: "radial-gradient(ellipse, rgba(120,53,15,0.15) 0%, transparent 70%)" }}
+    <div className="flex h-screen w-screen overflow-hidden" style={{ background: "#0a0a0a" }}>
+      {/* Subtle ambient depth — low chroma */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div
+          className="absolute left-1/3 top-0 h-[420px] w-[560px] rounded-full opacity-[0.14]"
+          style={{
+            background: "radial-gradient(ellipse, rgba(255,255,255,0.04) 0%, transparent 72%)",
+          }}
         />
-        <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full opacity-20"
-          style={{ background: "radial-gradient(ellipse, rgba(245,158,11,0.06) 0%, transparent 70%)" }}
+        <div
+          className="absolute bottom-0 right-0 h-[360px] w-[480px] rounded-full opacity-[0.1]"
+          style={{
+            background: "radial-gradient(ellipse, rgba(255,255,255,0.03) 0%, transparent 70%)",
+          }}
         />
       </div>
 

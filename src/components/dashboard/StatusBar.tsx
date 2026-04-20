@@ -73,36 +73,37 @@ export default function StatusBar() {
     <header className="relative">
       {/* Main bar */}
       <div
-        className="h-[72px] flex items-center justify-between px-6 gap-6"
+        className="flex h-16 items-center justify-between gap-8 px-8"
         style={{
-          background: "rgba(14,14,16,0.9)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          boxShadow: "0 1px 12px rgba(0,0,0,0.3)",
+          background: "#0a0a0a",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 1px 0 rgba(0,0,0,0.4)",
         }}
       >
         {/* Left: Waitlist Toggle */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="flex items-center gap-4">
             <Switch
               checked={waitlistOpen}
               onCheckedChange={handleSwitchChange}
               disabled={isToggleDisabled}
-              className={`${waitlistOpen && !isToggleDisabled
-                  ? "data-[state=checked]:bg-emerald-500"
-                  : "data-[state=unchecked]:bg-zinc-700"
-                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${
+                waitlistOpen && !isToggleDisabled
+                  ? "data-[state=checked]:bg-emerald-600/45 data-[state=checked]:border-emerald-500/20"
+                  : "data-[state=unchecked]:bg-zinc-800"
+              } disabled:cursor-not-allowed disabled:opacity-40`}
             />
             <motion.span
               animate={{ opacity: 1 }}
-              className={`text-sm font-semibold tracking-tight ${
+              className={`text-sm font-medium tracking-tight ${
                 isToggleDisabled
                   ? "text-zinc-600"
                   : waitlistOpen
-                  ? "text-emerald-400"
-                  : "text-zinc-500"
+                    ? "text-emerald-200/90"
+                    : "text-zinc-500"
               }`}
             >
-              {waitlistOpen && !isToggleDisabled ? "Waitlist Open" : "Waitlist Closed"}
+              {waitlistOpen && !isToggleDisabled ? "Waitlist open" : "Waitlist closed"}
             </motion.span>
             {isToggleDisabled && (
               <span className="flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 border border-zinc-700 text-zinc-500 select-none">
@@ -113,16 +114,16 @@ export default function StatusBar() {
 
         </div>
 
-        {/* Center: Current Wait Time */}
-        <WaitTimeWidget />
+        {/* Center: quoted wait — flex-1 keeps control centered between toggle and count */}
+        <div className="flex flex-1 justify-center px-4">
+          <WaitTimeWidget />
+        </div>
 
         {/* Right: Waiting count */}
-        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/70 px-3.5 py-1.5">
-          <Users size={17} strokeWidth={1.7} className="text-amber-400" />
-          <span className="text-base font-semibold text-zinc-200">
-            <span className="text-amber-400 font-bold tabular-nums">
-              {waitingCount}
-            </span>{" "}
+        <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2">
+          <Users size={16} strokeWidth={1.5} className="text-zinc-500" />
+          <span className="text-sm font-medium text-zinc-400">
+            <span className="font-semibold tabular-nums text-zinc-200">{waitingCount}</span>{" "}
             waiting
           </span>
         </div>
@@ -134,12 +135,12 @@ export default function StatusBar() {
       <Dialog open={pendingToggle !== null} onOpenChange={(o) => !o && handleCancelToggle()}>
         <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="flex flex-col items-center text-center gap-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+            <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
               pendingToggle
-                ? "bg-emerald-500/10 border border-emerald-500/20"
-                : "bg-zinc-700/40 border border-zinc-600/30"
+                ? "border border-emerald-400/20 bg-emerald-500/[0.08]"
+                : "border border-zinc-600/30 bg-zinc-800/50"
             }`}>
-              <Users size={22} strokeWidth={1.5} className={pendingToggle ? "text-emerald-400" : "text-zinc-400"} />
+              <Users size={22} strokeWidth={1.5} className={pendingToggle ? "text-emerald-200/90" : "text-zinc-400"} />
             </div>
             <div className="space-y-1.5">
               <h3 className="text-base font-semibold text-zinc-100">
@@ -162,10 +163,10 @@ export default function StatusBar() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleConfirmToggle}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
                   pendingToggle
-                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
-                    : "bg-zinc-700/60 border border-zinc-600/40 text-zinc-300 hover:bg-zinc-700"
+                    ? "border border-emerald-400/20 bg-emerald-500/[0.1] text-emerald-200/95 hover:bg-emerald-500/[0.14]"
+                    : "border border-zinc-600/40 bg-zinc-800/60 text-zinc-300 hover:bg-zinc-800"
                 }`}
               >
                 {pendingToggle ? "Open Waitlist" : "Close Waitlist"}

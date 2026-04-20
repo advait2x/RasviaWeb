@@ -289,7 +289,7 @@ export default function PartnerProfilePage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center px-6">
         <div className="text-center space-y-3">
           <h1 className="text-xl font-semibold">Sign in required</h1>
           <button
@@ -305,7 +305,7 @@ export default function PartnerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 px-4 py-6 sm:px-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 px-4 py-6 sm:px-8">
       <div className="mx-auto w-full max-w-3xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <button

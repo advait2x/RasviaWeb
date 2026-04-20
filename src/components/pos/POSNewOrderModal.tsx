@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Users, Phone, ShoppingBag, Utensils, Package } from "lucide-react";
+import { Users, Phone, ShoppingBag, Utensils, Package } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { TableInfo, OrderType } from "@/types/dashboard";
@@ -58,14 +58,11 @@ export default function POSNewOrderModal({ open, onClose, tables, onConfirm }: P
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
-      <DialogContent className="glass-modal max-w-lg border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
+      <DialogContent hideClose className="glass-modal max-w-lg border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
         <div className="p-6 space-y-5">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div>
             <h3 className="text-lg font-bold text-zinc-100">New Order</h3>
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
-              <X size={18} />
-            </button>
           </div>
 
           {/* Order Type */}

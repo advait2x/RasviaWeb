@@ -1,170 +1,109 @@
 import { motion } from "framer-motion";
-import {
-  Users,
-  Clock,
-  AlertTriangle,
-  UtensilsCrossed,
-} from "lucide-react";
+import { Users } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
-import { useAuth } from "@/context/AuthContext";
-import LiveGroupWidget from "@/components/LiveGroupWidget";
+import ActiveOrdersWidget from "./ActiveOrdersWidget";
+import { formatMinutesHumanReadable } from "@/lib/formatWait";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
 }
 
 export default function DashboardOverview() {
-  const { waitlist, menuItems, setActiveView } = useDashboard();
-  const { restaurantId } = useAuth();
+  const { waitlist, setActiveView } = useDashboard();
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
-  const eightySixed = menuItems.filter((m) => !m.inStock).length;
-  const avgWait =
-    waitingCount > 0
-      ? Math.round(
-        waitlist
-          .filter((w) => w.status === "waiting")
-          .reduce((acc, w) => acc + getWaitMinutes(w.addedAt), 0) / waitingCount
-      )
-      : 0;
 
-  const longestWait =
-    waitingCount > 0
-      ? Math.max(
-        ...waitlist
-          .filter((w) => w.status === "waiting")
-          .map((w) => getWaitMinutes(w.addedAt))
-      )
-      : 0;
-
-  const stats = [
-    {
-      label: "Parties Waiting",
-      value: waitingCount,
-      icon: Users,
-      color: "text-amber-500",
-      iconBg: "bg-amber-500/10 border-amber-500/20",
-      glowColor: "rgba(245,158,11,0.06)",
-      tab: "waitlist" as const,
-    },
-    {
-      label: "Avg Wait Time",
-      value: `${avgWait}m`,
-      icon: Clock,
-      color: "text-emerald-400",
-      iconBg: "bg-emerald-500/10 border-emerald-500/20",
-      glowColor: "rgba(16,185,129,0.06)",
-      tab: "waitlist" as const,
-    },
-    {
-      label: "Longest Wait",
-      value: `${longestWait}m`,
-      icon: AlertTriangle,
-      color: longestWait > 30 ? "text-red-400" : "text-amber-400",
-      iconBg: longestWait > 30 ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20",
-      glowColor: longestWait > 30 ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
-      tab: "waitlist" as const,
-    },
-    {
-      label: "Items 86'd",
-      value: eightySixed,
-      icon: UtensilsCrossed,
-      color: eightySixed > 0 ? "text-red-400" : "text-zinc-400",
-      iconBg: eightySixed > 0 ? "bg-red-500/10 border-red-500/20" : "bg-zinc-500/10 border-zinc-500/20",
-      glowColor: eightySixed > 0 ? "rgba(239,68,68,0.06)" : "rgba(0,0,0,0)",
-      tab: "menu" as const,
-    },
-  ];
+  const nextUpHeader = (
+    <div className="mb-6 flex items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={() => setActiveView("waitlist")}
+        className="group flex items-center gap-3 rounded-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+      >
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/30 opacity-50" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400/70" />
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500 transition-colors group-hover:text-zinc-400">
+          Next up
+        </span>
+      </button>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full p-5 overflow-y-auto">
-      <h2 className="text-xl font-bold text-zinc-100 tracking-tight mb-5">
-        Dashboard Overview
+    <div className="flex h-full flex-col overflow-y-auto p-8">
+      <h2 className="mb-8 text-lg font-semibold tracking-tight text-zinc-100">
+        Dashboard overview
       </h2>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-3">
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: index * 0.05 }}
-            className="card-premium rounded-xl p-5 group cursor-pointer hover:ring-1 hover:ring-white/10 transition-all"
-            style={{ boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px ${stat.glowColor}` }}
-            onClick={() => setActiveView(stat.tab)}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg border flex items-center justify-center ${stat.iconBg}`}>
-                <stat.icon size={18} strokeWidth={1.5} className={stat.color} />
-              </div>
-            </div>
-            <p className={`text-3xl font-bold tabular-nums ${stat.color}`}>
-              {stat.value}
-            </p>
-            <p className="text-xs text-zinc-500 font-medium mt-1.5 tracking-wide uppercase">
-              {stat.label}
-            </p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Lower Section Grid */}
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
-        {/* Quick Waitlist Preview */}
+      <div className="grid grid-cols-1 gap-6 pb-8 lg:grid-cols-2">
         {waitingCount > 0 ? (
-          <div className="card-premium rounded-xl p-5 flex flex-col">
-            <h3 className="text-xs font-bold text-zinc-400 mb-4 uppercase tracking-widest">
-              Next Up
-            </h3>
-            <div className="space-y-2">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="card-premium flex h-full flex-col rounded-xl p-6"
+          >
+            {nextUpHeader}
+            <div className="flex flex-col">
+              <div className="mb-3 grid grid-cols-[minmax(0,1fr)_56px_72px] items-center gap-4 border-b border-white/[0.08] pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                <span>Guest</span>
+                <span className="text-center">Party</span>
+                <span className="text-right">Wait</span>
+              </div>
               {waitlist
                 .filter((w) => w.status === "waiting")
                 .slice(0, 3)
                 .map((entry) => {
                   const minutes = getWaitMinutes(entry.addedAt);
+                  const waitTone =
+                    minutes < 15
+                      ? "text-emerald-200/90"
+                      : minutes <= 30
+                        ? "text-amber-200/85"
+                        : "text-rose-200/90";
                   return (
                     <div
                       key={entry.id}
-                      className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0"
+                      className="grid grid-cols-[minmax(0,1fr)_56px_72px] items-center gap-4 border-b border-white/[0.06] py-3 last:border-0"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-zinc-200">
-                          {entry.guestName}
-                        </span>
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-                          <Users size={12} strokeWidth={1.5} className="text-amber-500" />
-                          <span className="text-xs font-semibold text-amber-500 tabular-nums">
+                      <span className="min-w-0 truncate text-sm font-medium text-zinc-200">
+                        {entry.guestName}
+                      </span>
+                      <div className="flex justify-center">
+                        <div className="inline-flex items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.03] px-2 py-0.5">
+                          <Users size={12} strokeWidth={1.5} className="text-zinc-500" />
+                          <span className="text-xs font-medium tabular-nums text-zinc-300">
                             {entry.partySize}
                           </span>
                         </div>
                       </div>
                       <span
-                        className={`text-sm font-bold tabular-nums ${minutes < 15
-                          ? "text-emerald-400"
-                          : minutes <= 30
-                            ? "text-amber-400"
-                            : "text-red-400"
-                          }`}
+                        className={`text-right text-sm font-medium tabular-nums ${waitTone}`}
                       >
-                        {minutes}m
+                        {formatMinutesHumanReadable(minutes)}
                       </span>
                     </div>
                   );
                 })}
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <div className="card-premium rounded-xl p-5 flex items-center justify-center">
-            <div className="text-center py-4">
-              <Users size={32} strokeWidth={1} className="text-zinc-700 mx-auto mb-2" />
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card-premium flex h-full flex-col rounded-xl p-6"
+          >
+            {nextUpHeader}
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+              <Users size={28} strokeWidth={1.5} className="mb-3 text-zinc-600" />
               <p className="text-sm text-zinc-500">No parties currently waiting</p>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Live Group Widget */}
-        {restaurantId && <LiveGroupWidget restaurantId={restaurantId} />}
+        <ActiveOrdersWidget />
       </div>
     </div>
   );

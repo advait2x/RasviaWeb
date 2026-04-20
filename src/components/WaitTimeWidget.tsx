@@ -4,113 +4,126 @@ import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 import { Clock, Minus, Plus } from "lucide-react";
 
+const STEP_MIN = 5;
+
 export function WaitTimeWidget() {
-    const { restaurantId } = useAuth();
-    const [waitTime, setWaitTime] = useState(0);
-    const [editing, setEditing] = useState(false);
-    const [inputVal, setInputVal] = useState("");
-    const inputRef = useRef<HTMLInputElement>(null);
+  const { restaurantId } = useAuth();
+  const [waitTime, setWaitTime] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        if (!restaurantId) return;
-        const fetchTime = async () => {
-            const { data } = await supabase
-                .from('restaurants')
-                .select('current_wait_time')
-                .eq('id', restaurantId)
-                .maybeSingle();
-            if (data) setWaitTime(data.current_wait_time);
-        };
-        fetchTime();
-    }, [restaurantId]);
-
-    useEffect(() => {
-        if (editing && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [editing]);
-
-    const updateTime = async (newTime: number) => {
-        const clamped = Math.max(0, Math.round(newTime));
-        setWaitTime(clamped);
-        if (!restaurantId) return;
-        const { error } = await supabase
-            .from('restaurants')
-            .update({ current_wait_time: clamped })
-            .eq('id', restaurantId);
-        if (error) console.error("Failed to update wait time:", error.message);
+  useEffect(() => {
+    if (!restaurantId) return;
+    const fetchTime = async () => {
+      const { data } = await supabase
+        .from("restaurants")
+        .select("current_wait_time")
+        .eq("id", restaurantId)
+        .maybeSingle();
+      if (data) setWaitTime(data.current_wait_time);
     };
+    fetchTime();
+  }, [restaurantId]);
 
-    const commitEdit = () => {
-        const parsed = parseInt(inputVal, 10);
-        if (!isNaN(parsed)) updateTime(parsed);
-        setEditing(false);
-    };
-
-    if (!restaurantId) {
-        return (
-            <div className="flex items-center gap-3 opacity-50">
-                <Clock size={18} strokeWidth={1.5} className="text-zinc-500" />
-                <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10" />
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight">--</span>
-                        <span className="text-sm text-zinc-500 font-medium">min</span>
-                    </div>
-                    <div className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10" />
-                </div>
-            </div>
-        );
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
     }
+  }, [editing]);
 
+  const updateTime = async (newTime: number) => {
+    const clamped = Math.max(0, Math.round(newTime));
+    setWaitTime(clamped);
+    if (!restaurantId) return;
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ current_wait_time: clamped })
+      .eq("id", restaurantId);
+    if (error) console.error("Failed to update wait time:", error.message);
+  };
+
+  const commitEdit = () => {
+    const parsed = parseInt(inputVal, 10);
+    if (!isNaN(parsed)) updateTime(parsed);
+    setEditing(false);
+  };
+
+  const numberClass =
+    "min-w-[2.5ch] text-center text-3xl font-semibold tabular-nums leading-none tracking-tight text-zinc-100";
+
+  if (!restaurantId) {
     return (
+      <div className="flex items-center gap-4 opacity-50">
+        <Clock size={18} strokeWidth={1.5} className="shrink-0 text-zinc-500" />
         <div className="flex items-center gap-3">
-            <Clock size={18} strokeWidth={1.5} className="text-zinc-500" />
-            <div className="flex items-center gap-2">
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => updateTime(Math.max(0, waitTime - 5))}
-                    className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors"
-                >
-                    <Minus size={14} strokeWidth={1.5} />
-                </motion.button>
-
-                <div className="flex items-baseline gap-1">
-                    {editing ? (
-                        <input
-                            ref={inputRef}
-                            type="number"
-                            min={0}
-                            value={inputVal}
-                            onChange={(e) => setInputVal(e.target.value)}
-                            onBlur={commitEdit}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") commitEdit();
-                                if (e.key === "Escape") setEditing(false);
-                            }}
-                            className="w-20 text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight bg-transparent border-b-2 border-amber-500/50 focus:outline-none focus:border-amber-500 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                    ) : (
-                        <span
-                            onClick={() => { setEditing(true); setInputVal(String(waitTime)); }}
-                            className="text-[48px] font-bold text-amber-500 tabular-nums leading-none tracking-tight cursor-text hover:text-amber-400 transition-colors select-none"
-                            title="Click to edit"
-                        >
-                            {waitTime}
-                        </span>
-                    )}
-                    <span className="text-sm text-zinc-500 font-medium">min</span>
-                </div>
-
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => updateTime(waitTime + 5)}
-                    className="w-7 h-7 rounded-md bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors"
-                >
-                    <Plus size={14} strokeWidth={1.5} />
-                </motion.button>
-            </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />
+          <div className="flex items-baseline gap-1.5">
+            <span className={numberClass}>—</span>
+            <span className="text-xs font-medium text-zinc-500">min</span>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <Clock size={18} strokeWidth={1.5} className="shrink-0 text-zinc-500" />
+      <div className="flex items-center gap-3">
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => updateTime(Math.max(0, waitTime - STEP_MIN))}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.04] text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-zinc-100"
+          aria-label={`Decrease quoted wait by ${STEP_MIN} minutes`}
+        >
+          <Minus size={18} strokeWidth={1.5} />
+        </motion.button>
+
+        <div className="flex items-baseline gap-1.5">
+          {editing ? (
+            <input
+              ref={inputRef}
+              type="number"
+              min={0}
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              className={`${numberClass} w-20 border-b border-zinc-500/50 bg-transparent [appearance:textfield] focus:border-zinc-400 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(true);
+                setInputVal(String(waitTime));
+              }}
+              className={`${numberClass} cursor-text rounded-md px-1 hover:bg-white/[0.04]`}
+              title="Click to edit"
+            >
+              {waitTime}
+            </button>
+          )}
+          <span className="text-xs font-medium text-zinc-500">min</span>
+        </div>
+
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.96 }}
+          onClick={() => updateTime(waitTime + STEP_MIN)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.04] text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-zinc-100"
+          aria-label={`Increase quoted wait by ${STEP_MIN} minutes`}
+        >
+          <Plus size={18} strokeWidth={1.5} />
+        </motion.button>
+      </div>
+    </div>
+  );
 }
