@@ -12,7 +12,7 @@ import ContactPage from "./pages/ContactPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import AdminPortalPage from "./pages/AdminPortalPage";
-import PartnerProfilePage from "./pages/PartnerProfilePage";
+import { AppShell } from "./components/layout/AppShell";
 import { Toaster } from "sonner";
 
 function AdminPortalApp() {
@@ -20,14 +20,16 @@ function AdminPortalApp() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
+      <AppShell>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
+            </div>
+            <span className="text-sm font-medium tracking-wide text-zinc-500">Loading…</span>
           </div>
-          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading…</span>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -37,7 +39,8 @@ function AdminPortalApp() {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white px-6">
+      <AppShell>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 text-white px-6">
         <div className="text-center space-y-3 max-w-md">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Admin only</h1>
           <p className="text-sm text-zinc-400">
@@ -53,12 +56,15 @@ function AdminPortalApp() {
           Sign Out
         </button>
       </div>
+      </AppShell>
     );
   }
 
   return (
     <>
-      <AdminPortalPage />
+      <AppShell>
+        <AdminPortalPage />
+      </AppShell>
       <Toaster
         theme="dark"
         position="top-center"
@@ -79,18 +85,20 @@ function PartnerPortalApp() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
-            <div
-              className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-b-zinc-700/40 border-transparent"
-              style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
-            />
+      <AppShell>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
+              <div
+                className="absolute inset-0 h-10 w-10 animate-spin rounded-full border-2 border-b-zinc-700/40 border-transparent"
+                style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
+              />
+            </div>
+            <span className="text-sm font-medium tracking-wide text-zinc-500">Loading Rasvia…</span>
           </div>
-          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading Rasvia…</span>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -101,7 +109,8 @@ function PartnerPortalApp() {
   // Platform admins always have access (even if userRole was mis-read as "user" during a race).
   if (userRole === "user" && !isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white">
+      <AppShell>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 text-white">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
@@ -121,12 +130,14 @@ function PartnerPortalApp() {
           Sign Out
         </button>
       </div>
+      </AppShell>
     );
   }
 
   if (!restaurantId && !isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] text-white">
+      <AppShell>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 text-white">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-red-400">
@@ -146,46 +157,26 @@ function PartnerPortalApp() {
           Sign Out
         </button>
       </div>
+      </AppShell>
     );
   }
 
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
+      <AppShell>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
+            </div>
+            <span className="text-sm font-medium tracking-wide text-zinc-500">Loading dashboard…</span>
           </div>
-          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading dashboard…</span>
         </div>
-      </div>
+      </AppShell>
     }>
       <Home />
     </Suspense>
   );
-}
-
-function PartnerProfileApp() {
-  const { session, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-800 border-t-zinc-400" />
-          </div>
-          <span className="text-sm font-medium tracking-wide text-zinc-500">Loading profile…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return <Login />;
-  }
-
-  return <PartnerProfilePage />;
 }
 
 function AppContent() {
@@ -227,15 +218,21 @@ function AppContent() {
   }
 
   if (window.location.pathname.startsWith('/kiosk')) {
-    // Standalone /kiosk URL redirects into the partner portal kiosk tab (requires auth)
-    window.location.replace('/partner-portal?tab=kiosk');
+    try {
+      sessionStorage.setItem("rasvia:partner_initial_view", "kiosk");
+    } catch {
+      /* ignore */
+    }
+    window.location.replace("/partner-portal");
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin" />
-          <span className="text-sm font-medium tracking-wide text-zinc-500">Redirecting to kiosk…</span>
+      <AppShell>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+            <span className="text-sm font-medium tracking-wide text-zinc-500">Redirecting to kiosk…</span>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -247,23 +244,54 @@ function AppContent() {
     return <PartnerPortalApp />;
   }
 
-  if (window.location.pathname.startsWith('/partner-profile')) {
-    return <PartnerProfileApp />;
+  if (window.location.pathname.startsWith("/partner-profile")) {
+    try {
+      sessionStorage.setItem("rasvia:open_settings_panel", "partner");
+    } catch {
+      /* ignore */
+    }
+    window.location.replace("/partner-portal");
+    return (
+      <AppShell>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+            <span className="text-sm font-medium tracking-wide text-zinc-500">Opening settings…</span>
+          </div>
+        </div>
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith('/contact')) {
-    return <ContactPage />;
+    return (
+      <AppShell>
+        <ContactPage />
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith('/privacy')) {
-    return <PrivacyPage />;
+    return (
+      <AppShell>
+        <PrivacyPage />
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith('/terms')) {
-    return <TermsPage />;
+    return (
+      <AppShell>
+        <TermsPage />
+      </AppShell>
+    );
   }
 
-  return <LandingPage />;
+  return (
+    <AppShell>
+      <LandingPage />
+    </AppShell>
+  );
 }
 
 export default function App() {

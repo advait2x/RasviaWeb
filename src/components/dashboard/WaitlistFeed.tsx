@@ -7,21 +7,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import SeatPartyModal from "./SeatPartyModal";
 import AddWalkInModal from "./AddWalkInModal";
 import { formatMinutesHumanReadable } from "@/lib/formatWait";
+import { DASH_BTN_ADD, dashWaitRowBgClass, dashWaitTextClass } from "@/lib/dashboardUi";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
 }
 
 function getWaitColor(minutes: number): string {
-  if (minutes < 15) return "text-emerald-200/90";
-  if (minutes <= 30) return "text-amber-200/85";
-  return "text-rose-200/90";
+  return dashWaitTextClass(minutes);
 }
 
 function getWaitBg(minutes: number): string {
-  if (minutes < 15) return "border-emerald-400/15 bg-emerald-500/[0.06]";
-  if (minutes <= 30) return "border-amber-400/15 bg-amber-500/[0.06]";
-  return "border-rose-400/18 bg-rose-500/[0.07]";
+  return dashWaitRowBgClass(minutes);
 }
 
 export default function WaitlistFeed() {
@@ -71,7 +68,7 @@ export default function WaitlistFeed() {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.06] px-5 py-2.5 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.1]"
+          className={`${DASH_BTN_ADD} rounded-xl px-5 py-2.5`}
         >
           <UserPlus size={16} strokeWidth={1.5} />
           Add walk-in
@@ -120,12 +117,12 @@ export default function WaitlistFeed() {
                         {entry.guestName}
                       </span>
                       {entry.source === "walk_in" && (
-                        <span className="shrink-0 rounded-md border border-sky-400/20 bg-sky-500/[0.08] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200/90">
+                        <span className="shrink-0 rounded-md border border-amber-400/22 bg-amber-500/[0.08] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
                           Walk-in
                         </span>
                       )}
                       {entry.notifiedAt && (
-                        <BellRing size={13} strokeWidth={1.5} className="shrink-0 text-emerald-200/85" />
+                        <BellRing size={13} strokeWidth={1.5} className="shrink-0 text-amber-300/90" />
                       )}
                     </div>
 
@@ -185,7 +182,7 @@ export default function WaitlistFeed() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setNotifyConfirmId(entry.id)}
                             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${entry.notifiedAt
-                                ? "border-emerald-400/20 bg-emerald-500/[0.08] text-emerald-200/90 hover:bg-emerald-500/[0.12]"
+                                ? "border-amber-400/22 bg-amber-500/[0.08] text-amber-200/90 hover:bg-amber-500/[0.12]"
                                 : "border-white/[0.1] bg-white/[0.04] text-zinc-300 hover:bg-white/[0.07]"
                               }`}
                           >
@@ -196,10 +193,10 @@ export default function WaitlistFeed() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 rounded-lg border border-sky-400/20 bg-sky-500/[0.06] px-3 py-2"
+                              className="flex items-center gap-2 rounded-lg border border-amber-400/22 bg-amber-500/[0.07] px-3 py-2"
                             >
-                              <Bell size={13} strokeWidth={1.5} className="text-sky-400 shrink-0" />
-                              <span className="text-xs text-sky-300 font-medium">Party will be notified via SMS</span>
+                              <Bell size={13} strokeWidth={1.5} className="shrink-0 text-amber-400" />
+                              <span className="text-xs font-medium text-amber-200/95">Party will be notified via SMS</span>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setNotifyConfirmId(null)}
@@ -210,7 +207,7 @@ export default function WaitlistFeed() {
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => { notifyParty(entry.id); setNotifyConfirmId(null); }}
-                                className="px-2.5 py-1 rounded-md bg-sky-500/20 border border-sky-500/40 text-sky-300 text-xs font-semibold hover:bg-sky-500/30 transition-colors"
+                                className="rounded-md border border-amber-500/35 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/30"
                               >
                                 Send
                               </motion.button>

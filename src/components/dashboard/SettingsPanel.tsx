@@ -9,13 +9,29 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import TeamRolesPanel from "@/components/dashboard/TeamRolesPanel";
+import PartnerProfilePanel from "@/components/dashboard/PartnerProfilePanel";
+import RestaurantMediaCarousel from "@/components/dashboard/RestaurantMediaCarousel";
+import { useDashboard } from "@/context/DashboardContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import StripeConnect from "@/components/dashboard/StripeConnect";
 import { getRestaurantFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
+import { cn } from "@/lib/utils";
+import { DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,8 +138,36 @@ function fmt12(time24: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+type SettingsLeftTab = "restaurant" | "partner";
+type SettingsRightTab = "hours" | "team";
+type SettingsMobileTab = SettingsLeftTab | SettingsRightTab;
+
 export default function SettingsPanel() {
-  const { restaurantId, isAdmin } = useAuth();
+  const { restaurantId, isAdmin, isRestaurantOwner } = useAuth();
+  const { setActiveView } = useDashboard();
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const showTeamSection = isAdmin || isRestaurantOwner;
+
+  const [leftTab, setLeftTab] = useState<SettingsLeftTab>("restaurant");
+  const [rightTab, setRightTab] = useState<SettingsRightTab>("hours");
+  const [mobileTab, setMobileTab] = useState<SettingsMobileTab>("restaurant");
+  const [showRemoveImageConfirm, setShowRemoveImageConfirm] = useState(false);
+
+  useEffect(() => {
+    try {
+      const v = sessionStorage.getItem("rasvia:open_settings_panel");
+      if (v) {
+        sessionStorage.removeItem("rasvia:open_settings_panel");
+        setActiveView("settings");
+        if (v === "partner") {
+          setLeftTab("partner");
+          setMobileTab("partner");
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [setActiveView]);
 
   // Profile
   const [profile, setProfile] = useState<RestaurantProfile>(empty());
@@ -137,7 +181,7 @@ export default function SettingsPanel() {
   const [imageUploading, setImageUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showWaitlistCapacityDialog, setShowWaitlistCapacityDialog] = useState(false);
+  const [showWaitlistSettingsDialog, setShowWaitlistSettingsDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -277,8 +321,9 @@ export default function SettingsPanel() {
     }
   };
 
-  const handleImageRemove = async () => {
+  const performImageRemove = async () => {
     if (!restaurantId) return;
+    setShowRemoveImageConfirm(false);
     setImageUploading(true);
     try {
       const { error } = await supabase
@@ -495,14 +540,19 @@ export default function SettingsPanel() {
     setHoursError(null);
   };
 
-  const saveWaitlistCapacity = async () => {
+  const saveWaitlistSettingsModal = async () => {
     if (!restaurantId) return;
     setHoursSaving(true);
     setHoursError(null);
     const maxWait = Math.max(1, Math.min(200, Number(maxWaitlistSize) || 15));
+    const earlyM = Math.max(0, Math.min(24 * 60, Number(waitlistEarlyMinutes) || 0));
     const { error } = await supabase
       .from("restaurants")
-      .update({ max_waitlist_size: maxWait })
+      .update({
+        max_waitlist_size: maxWait,
+        waitlist_early_open_enabled: waitlistEarlyEnabled,
+        waitlist_early_open_minutes: earlyM,
+      })
       .eq("id", restaurantId);
     setHoursSaving(false);
     if (error) {
@@ -511,9 +561,17 @@ export default function SettingsPanel() {
     }
     setSavedMaxWaitlistSize(maxWait);
     setMaxWaitlistSize(maxWait);
-    setShowWaitlistCapacityDialog(false);
+    setSavedWaitlistEarlyEnabled(waitlistEarlyEnabled);
+    setSavedWaitlistEarlyMinutes(earlyM);
+    setShowWaitlistSettingsDialog(false);
     setHoursSuccess(true);
     setTimeout(() => setHoursSuccess(false), 3000);
+  };
+
+  const resetWaitlistSettingsDialog = () => {
+    setMaxWaitlistSize(savedMaxWaitlistSize);
+    setWaitlistEarlyEnabled(savedWaitlistEarlyEnabled);
+    setWaitlistEarlyMinutes(savedWaitlistEarlyMinutes);
   };
 
   const fields: {
@@ -530,10 +588,82 @@ export default function SettingsPanel() {
       { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
     ];
 
-  return (
-    <div className="flex flex-col h-full p-5 overflow-y-auto">
-      <div className="max-w-lg mx-auto w-full space-y-8">
+  const tabBtn = (active: boolean) =>
+    `rounded-lg px-3 py-2 text-[11px] font-semibold tracking-tight transition-colors sm:text-xs ${
+      active ? "border border-white/15 bg-white/[0.08] text-zinc-100" : "border border-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300"
+    }`;
 
+  const syncMobileToSplit = (t: SettingsMobileTab) => {
+    setMobileTab(t);
+    if (t === "restaurant" || t === "partner") setLeftTab(t);
+    if (t === "hours" || t === "team") setRightTab(t);
+  };
+
+  const restaurantHidden = (isLg ? leftTab !== "restaurant" : mobileTab !== "restaurant") ? "hidden" : "";
+  const partnerHidden = (isLg ? leftTab !== "partner" : mobileTab !== "partner") ? "hidden" : "";
+  const hoursHidden = (isLg ? rightTab !== "hours" : mobileTab !== "hours") ? "hidden" : "";
+  const teamHidden = (isLg ? rightTab !== "team" : mobileTab !== "team") ? "hidden" : "";
+
+  /** On small screens the layout is stacked; hide the entire column that isn't active so flex-1 doesn't leave a blank half. */
+  const mobileShowsLeftColumn = mobileTab === "restaurant" || mobileTab === "partner";
+  const mobileShowsRightColumn = mobileTab === "hours" || mobileTab === "team";
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="sticky top-0 z-20 shrink-0 border-b border-white/[0.08] bg-background/95 px-3 py-2 backdrop-blur-md sm:px-4">
+        <div className="grid grid-cols-2 gap-1.5 lg:hidden">
+          <button type="button" onClick={() => syncMobileToSplit("restaurant")} className={tabBtn(mobileTab === "restaurant")}>
+            Restaurant
+          </button>
+          <button type="button" onClick={() => syncMobileToSplit("partner")} className={tabBtn(mobileTab === "partner")}>
+            Partner
+          </button>
+          <button type="button" onClick={() => syncMobileToSplit("hours")} className={tabBtn(mobileTab === "hours")}>
+            Hours
+          </button>
+          <button
+            type="button"
+            onClick={() => syncMobileToSplit("team")}
+            disabled={!showTeamSection}
+            className={`${tabBtn(mobileTab === "team")} ${!showTeamSection ? "cursor-not-allowed opacity-40" : ""}`}
+          >
+            Team
+          </button>
+        </div>
+        <div className="hidden items-center justify-between gap-4 lg:flex">
+          <div className="flex flex-wrap gap-1">
+            <button type="button" onClick={() => setLeftTab("restaurant")} className={tabBtn(leftTab === "restaurant")}>
+              Restaurant
+            </button>
+            <button type="button" onClick={() => setLeftTab("partner")} className={tabBtn(leftTab === "partner")}>
+              Partner
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <button type="button" onClick={() => setRightTab("hours")} className={tabBtn(rightTab === "hours")}>
+              Hours
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightTab("team")}
+              disabled={!showTeamSection}
+              className={`${tabBtn(rightTab === "team")} ${!showTeamSection ? "cursor-not-allowed opacity-40" : ""}`}
+            >
+              Team
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col border-white/[0.06] lg:w-1/2 lg:border-r",
+            !isLg && !mobileShowsLeftColumn && "hidden",
+          )}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div className={`mx-auto w-full max-w-xl space-y-8 ${restaurantHidden}`}>
         {/* ── Restaurant Profile ─────────────────────────────────────── */}
         <div className="space-y-6">
           <div className="flex items-start justify-between">
@@ -584,18 +714,20 @@ export default function SettingsPanel() {
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                         <motion.button
                           whileTap={{ scale: 0.95 }}
+                          type="button"
                           onClick={() => imageInputRef.current?.click()}
                           disabled={imageUploading}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800/90 border border-white/15 text-zinc-200 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-700 border border-zinc-500/40 text-zinc-50 text-xs font-semibold hover:bg-zinc-600 transition-colors shadow-sm"
                         >
                           <Upload size={13} strokeWidth={1.5} />
                           Replace
                         </motion.button>
                         <motion.button
                           whileTap={{ scale: 0.95 }}
-                          onClick={handleImageRemove}
+                          type="button"
+                          onClick={() => setShowRemoveImageConfirm(true)}
                           disabled={imageUploading}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/25 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-950/55 text-red-200/95 text-xs font-semibold shadow-sm transition-colors hover:border-red-500/45 hover:bg-red-950/75 hover:text-red-100"
                         >
                           <Trash2 size={13} strokeWidth={1.5} />
                           Remove
@@ -740,7 +872,7 @@ export default function SettingsPanel() {
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowOtherInput(true)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-white/15 text-xs font-medium text-zinc-600 hover:text-zinc-300 hover:border-white/30 transition-colors"
+                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-amber-500/25 px-2.5 py-1 text-xs font-medium text-amber-400/90 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10"
                     >
                       <Plus size={11} strokeWidth={2} />
                       Other
@@ -827,83 +959,31 @@ export default function SettingsPanel() {
           )}
         </div>
 
-        {/* ── Waitlist Settings ──────────────────────────────────────── */}
-        <div className="space-y-4 border-t border-white/5 pt-6">
-          <div>
-            <h3 className="text-base font-bold text-zinc-100 tracking-tight flex items-center gap-2">
-              <Clock size={16} strokeWidth={1.5} className="text-amber-500/70" />
-              Waitlist Settings
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Configure max active parties and optional early opening window.
-            </p>
-          </div>
+        <RestaurantMediaCarousel />
 
-          <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3.5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Waitlist Capacity</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Max active parties: <span className="text-zinc-300 font-semibold">{savedMaxWaitlistSize}</span>
-              </p>
+        <div className="border-t border-white/5 pt-6">
+          <StripeConnect />
+        </div>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowWaitlistCapacityDialog(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
-            >
-              <Pencil size={12} strokeWidth={1.5} />
-              Edit
-            </motion.button>
-          </div>
 
-          <div className="p-4 rounded-xl border border-white/10 bg-zinc-800/40 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-zinc-200">Early waitlist window</p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Allow opening the waitlist this many minutes before the first scheduled open (same day).
-                </p>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={waitlistEarlyEnabled}
-                  onChange={(e) => setWaitlistEarlyEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded accent-amber-500"
-                />
-                <span className="text-xs text-zinc-400">Enable</span>
-              </label>
+            <div className={partnerHidden}>
+              <PartnerProfilePanel embedded />
             </div>
-            {waitlistEarlyEnabled && (
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Minutes before open</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={1440}
-                  value={waitlistEarlyMinutes}
-                  onChange={(e) => setWaitlistEarlyMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))}
-                  className="h-9 bg-zinc-900 border-white/10 text-zinc-100 text-sm max-w-[120px]"
-                />
-              </div>
-            )}
-            {(waitlistEarlyEnabled !== savedWaitlistEarlyEnabled || waitlistEarlyMinutes !== savedWaitlistEarlyMinutes) && (
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => void handleSaveHours()}
-                disabled={hoursSaving}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {hoursSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={2} />}
-                Save waitlist settings
-              </motion.button>
-            )}
           </div>
         </div>
 
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col lg:w-1/2",
+            !isLg && !mobileShowsRightColumn && "hidden",
+          )}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div className={`mx-auto w-full max-w-xl space-y-8 ${hoursHidden}`}>
+
         {/* ── Operating Hours ────────────────────────────────────────── */}
-        <div className="space-y-4 border-t border-white/5 pt-6">
-          <div className="flex items-start justify-between">
+        <div id="settings-hours" className="scroll-mt-28 space-y-4 border-t border-white/5 pt-6 first:border-t-0 first:pt-0">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-zinc-100 tracking-tight flex items-center gap-2">
                 <Clock size={16} strokeWidth={1.5} className="text-amber-500/70" />
@@ -919,13 +999,43 @@ export default function SettingsPanel() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setEditingHours(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
               >
                 {hours === null ? <Plus size={12} strokeWidth={2} /> : <Pencil size={12} strokeWidth={1.5} />}
                 {hours === null ? "Add Hours" : "Edit"}
               </motion.button>
             )}
           </div>
+
+          {hoursLoaded && (
+            <div className="rounded-xl border border-white/[0.08] bg-zinc-900/35 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1 text-sm">
+                  <p className="text-zinc-200">
+                    <span className="text-zinc-500">Max parties </span>
+                    <span className="font-semibold tabular-nums text-zinc-100">{savedMaxWaitlistSize}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Early waitlist window:{" "}
+                    {savedWaitlistEarlyEnabled ? (
+                      <span className="font-medium text-zinc-300">{savedWaitlistEarlyMinutes} min before open</span>
+                    ) : (
+                      <span className="text-zinc-500">Off</span>
+                    )}
+                  </p>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => setShowWaitlistSettingsDialog(true)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800/80 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700"
+                >
+                  <Pencil size={12} strokeWidth={1.5} />
+                  Edit waitlist rules
+                </motion.button>
+              </div>
+            </div>
+          )}
 
           {!hoursLoaded ? (
             <div className="flex items-center justify-center py-8">
@@ -984,7 +1094,7 @@ export default function SettingsPanel() {
                             <button
                               type="button"
                               onClick={() => addPeriod(day)}
-                              className="h-8 px-2 rounded-lg border border-white/10 bg-zinc-800 text-zinc-300 text-[11px]"
+                              className={`${DASH_BTN_ADD_XS} h-8 px-2`}
                             >
                               + Add Period
                             </button>
@@ -1064,25 +1174,44 @@ export default function SettingsPanel() {
           )}
         </div>
 
-        {/* ── Payouts / Stripe Connect ─────────────────────────────── */}
-        <StripeConnect />
+            </div>
 
-        {/* ── Team & Roles (owner-only) ────────────────────────────── */}
-        {isAdmin && <TeamRolesPanel />}
-
+        <div className={`mx-auto w-full max-w-xl ${teamHidden}`}>
+          {/* ── Team & Roles (restaurant owners & platform admins) ───── */}
+          <div className="space-y-4 border-t border-white/5 pt-6">
+            {showTeamSection ? (
+              <TeamRolesPanel />
+            ) : (
+              <p className="text-sm text-zinc-500">
+                Team management is available to restaurant owners and platform admins.
+              </p>
+            )}
+          </div>
+        </div>
+          </div>
+        </div>
       </div>
 
       {/* Profile Confirmation Dialog */}
-      <Dialog open={showWaitlistCapacityDialog} onOpenChange={(o) => !o && setShowWaitlistCapacityDialog(false)}>
-        <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
-          <div className="space-y-4">
+      <Dialog
+        open={showWaitlistSettingsDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetWaitlistSettingsDialog();
+            setShowWaitlistSettingsDialog(false);
+          }
+        }}
+      >
+        <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
+          <div className="space-y-5">
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-zinc-100">Waitlist Capacity</h3>
+              <h3 className="text-base font-semibold text-zinc-100">Waitlist rules</h3>
               <p className="text-sm text-zinc-400">
-                Set how many active parties can wait before new joins are blocked.
+                Set max capacity and when guests can join before the first open (same day).
               </p>
             </div>
-            <div className="space-y-1">
+
+            <div className="space-y-1.5">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Max active parties</label>
               <Input
                 type="number"
@@ -1092,16 +1221,47 @@ export default function SettingsPanel() {
                 onChange={(e) => setMaxWaitlistSize(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
                 className="h-10 bg-zinc-900 border-white/10 text-zinc-100 text-sm"
               />
+              <p className="text-xs text-zinc-500">Guests above this limit are asked to call the restaurant.</p>
             </div>
-            <p className="text-xs text-zinc-500">
-              Guests above this limit will be told to call the restaurant directly.
-            </p>
+
+            <div className="space-y-3 rounded-xl border border-white/[0.08] bg-zinc-800/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">Early waitlist window</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">Open the waitlist this many minutes before the first scheduled open.</p>
+                </div>
+                <label className="flex shrink-0 cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={waitlistEarlyEnabled}
+                    onChange={(e) => setWaitlistEarlyEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />
+                  <span className="text-xs text-zinc-400">Enable</span>
+                </label>
+              </div>
+              {waitlistEarlyEnabled && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Minutes before open</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1440}
+                    value={waitlistEarlyMinutes}
+                    onChange={(e) => setWaitlistEarlyMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))}
+                    className="h-10 max-w-[140px] bg-zinc-900 border-white/10 text-zinc-100 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-1">
               <motion.button
                 whileTap={{ scale: 0.95 }}
+                type="button"
                 onClick={() => {
-                  setMaxWaitlistSize(savedMaxWaitlistSize);
-                  setShowWaitlistCapacityDialog(false);
+                  resetWaitlistSettingsDialog();
+                  setShowWaitlistSettingsDialog(false);
                 }}
                 className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
               >
@@ -1109,7 +1269,8 @@ export default function SettingsPanel() {
               </motion.button>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={saveWaitlistCapacity}
+                type="button"
+                onClick={() => void saveWaitlistSettingsModal()}
                 disabled={hoursSaving}
                 className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
               >
@@ -1166,6 +1327,31 @@ export default function SettingsPanel() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showRemoveImageConfirm} onOpenChange={setShowRemoveImageConfirm}>
+        <AlertDialogContent className="border-white/10 bg-zinc-900 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove restaurant image?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Guests will see your fallback photo until you upload a new image.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-zinc-800 text-zinc-200 hover:bg-zinc-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-500 focus:ring-red-600"
+              onClick={(e) => {
+                e.preventDefault();
+                void performImageRemove();
+              }}
+            >
+              Remove image
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

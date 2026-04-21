@@ -3,8 +3,7 @@ import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { Permission } from "@/types/dashboard";
 import { ShieldX, Loader2 } from "lucide-react";
-import Sidebar from "./Sidebar";
-import StatusBar from "./StatusBar";
+import PartnerDashboardChrome from "./PartnerDashboardChrome";
 import WaitlistFeed from "./WaitlistFeed";
 import FloorPlan from "./FloorPlan";
 import OrdersPanel from "./OrdersPanel";
@@ -13,28 +12,38 @@ import MenuManager from "./MenuManager";
 import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
 import KioskPage from "@/pages/KioskPage";
-import NotificationsPanel from "./NotificationsPanel";
-import TeamRolesPanel from "./TeamRolesPanel";
 
 const POSTerminal = lazy(() => import("@/components/pos/POSTerminal"));
 const KitchenDisplay = lazy(() => import("@/components/pos/KitchenDisplay"));
 const SalesReports = lazy(() => import("@/components/pos/SalesReports"));
 
 function LazyFallback() {
-  return <div className="flex items-center justify-center h-full"><Loader2 size={24} className="animate-spin text-zinc-600" /></div>;
+  return (
+    <div className="flex h-full items-center justify-center">
+      <Loader2 size={24} className="animate-spin text-zinc-600" />
+    </div>
+  );
 }
 
-function LazyPOS() { return <Suspense fallback={<LazyFallback />}><POSTerminal /></Suspense>; }
-function LazyKDS() { return <Suspense fallback={<LazyFallback />}><KitchenDisplay /></Suspense>; }
-function LazyReports() { return <Suspense fallback={<LazyFallback />}><SalesReports /></Suspense>; }
-
-function TeamRolesPage() {
+function LazyPOS() {
   return (
-    <div className="flex flex-col h-full p-5 overflow-y-auto">
-      <div className="max-w-3xl mx-auto w-full">
-        <TeamRolesPanel />
-      </div>
-    </div>
+    <Suspense fallback={<LazyFallback />}>
+      <POSTerminal />
+    </Suspense>
+  );
+}
+function LazyKDS() {
+  return (
+    <Suspense fallback={<LazyFallback />}>
+      <KitchenDisplay />
+    </Suspense>
+  );
+}
+function LazyReports() {
+  return (
+    <Suspense fallback={<LazyFallback />}>
+      <SalesReports />
+    </Suspense>
   );
 }
 
@@ -46,15 +55,12 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
   tableside: TablesidePanel,
   menu: MenuManager,
   settings: SettingsPanel,
-  notifications: NotificationsPanel,
-  team: TeamRolesPage,
   pos: LazyPOS,
   kds: LazyKDS,
   reports: LazyReports,
   kiosk: KioskPage,
 };
 
-/** Maps each view to the permission needed to access it */
 const VIEW_PERMISSIONS: Record<string, Permission> = {
   dashboard: "view_dashboard",
   waitlist: "manage_waitlist",
@@ -63,8 +69,6 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
   tableside: "manage_orders",
   menu: "view_menu",
   settings: "view_settings",
-  notifications: "view_notifications",
-  team: "manage_team",
   pos: "access_pos",
   kds: "access_kds",
   reports: "view_reports",
@@ -73,14 +77,14 @@ const VIEW_PERMISSIONS: Record<string, Permission> = {
 
 function AccessDenied() {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
         <ShieldX size={28} strokeWidth={1.5} className="text-red-400" />
       </div>
       <div className="space-y-1.5">
         <h2 className="text-lg font-bold text-zinc-100">Access Denied</h2>
-        <p className="text-sm text-zinc-500 max-w-xs">
-          You don't have permission to access this section. Contact your restaurant owner to update your role.
+        <p className="max-w-xs text-sm text-zinc-500">
+          You don&apos;t have permission to access this section. Contact your restaurant owner to update your role.
         </p>
       </div>
     </div>
@@ -97,21 +101,22 @@ function FullScreenAccessDenied() {
   return (
     <div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 text-center"
-      style={{ background: "#0a0a0a" }}
+      style={{ background: "hsl(var(--background))" }}
     >
-      <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
         <ShieldX size={28} strokeWidth={1.5} className="text-red-400" />
       </div>
       <div className="space-y-1.5">
         <h2 className="text-lg font-bold text-zinc-100">Access Denied</h2>
-        <p className="text-sm text-zinc-500 max-w-xs">
-          You don't have permission to access any section of this dashboard.
-          Contact your restaurant owner to update your role.
+        <p className="max-w-xs text-sm text-zinc-500">
+          You don&apos;t have permission to access any section of this dashboard. Contact your restaurant owner to update
+          your role.
         </p>
       </div>
       <button
+        type="button"
         onClick={handleSignOut}
-        className="mt-2 px-5 py-2 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+        className="mt-2 rounded-lg border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
       >
         Sign Out
       </button>
@@ -120,23 +125,31 @@ function FullScreenAccessDenied() {
 }
 
 export default function DashboardLayout() {
-  const { activeView, setActiveView, replaceActiveView, kioskFullscreen } = useDashboard();
+  const { activeView, replaceActiveView, kioskFullscreen } = useDashboard();
   const { hasPermission, permissions, loading } = useAuth();
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
   const prevView = useRef(activeView);
   const hasSetInitialView = useRef(false);
 
-  // On first load, set the active view to the first one the user has permission for
   useEffect(() => {
     if (hasSetInitialView.current || permissions.length === 0) return;
     hasSetInitialView.current = true;
 
     const requiredPerm = VIEW_PERMISSIONS[activeView];
-    if (requiredPerm && hasPermission(requiredPerm)) return; // current view is fine
+    if (requiredPerm && hasPermission(requiredPerm)) return;
 
-    // Find the first permitted view
-    const viewOrder = ["dashboard", "kiosk", "pos", "waitlist", "floorplan", "orders", "kds", "menu", "reports", "notifications", "settings", "team"];
+    const viewOrder = [
+      "dashboard",
+      "kiosk",
+      "pos",
+      "waitlist",
+      "floorplan",
+      "orders",
+      "kds",
+      "menu",
+      "reports",
+      "settings",
+    ];
     const firstAllowed = viewOrder.find((v) => {
       const perm = VIEW_PERMISSIONS[v];
       return perm && hasPermission(perm);
@@ -150,9 +163,8 @@ export default function DashboardLayout() {
       const raf = requestAnimationFrame(() => setFadeIn(true));
       prevView.current = activeView;
       return () => cancelAnimationFrame(raf);
-    } else {
-      setFadeIn(true);
     }
+    setFadeIn(true);
   }, [activeView]);
 
   const mountedViews = useRef(new Set<string>());
@@ -161,47 +173,21 @@ export default function DashboardLayout() {
   const views = useMemo(
     () => Array.from(mountedViews.current),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeView]
+    [activeView],
   );
 
-  // If auth is resolved and the user has zero permissions, block the entire screen
   if (!loading && permissions.length === 0) {
     return <FullScreenAccessDenied />;
   }
 
+  const showChrome = !activeView.includes("kiosk") || !kioskFullscreen;
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden" style={{ background: "#0a0a0a" }}>
-      {/* Subtle ambient depth — low chroma */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div
-          className="absolute left-1/3 top-0 h-[420px] w-[560px] rounded-full opacity-[0.14]"
-          style={{
-            background: "radial-gradient(ellipse, rgba(255,255,255,0.04) 0%, transparent 72%)",
-          }}
-        />
-        <div
-          className="absolute bottom-0 right-0 h-[360px] w-[480px] rounded-full opacity-[0.1]"
-          style={{
-            background: "radial-gradient(ellipse, rgba(255,255,255,0.03) 0%, transparent 70%)",
-          }}
-        />
-      </div>
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+      {showChrome ? <PartnerDashboardChrome /> : null}
 
-      {/* Sidebar - hidden in kiosk fullscreen */}
-      {!activeView.includes("kiosk") || !kioskFullscreen ? (
-        <Sidebar expanded={sidebarExpanded} onExpandedChange={setSidebarExpanded} />
-      ) : null}
-
-      {/* Main Content */}
-      <div
-        className="flex-1 flex flex-col h-full relative z-10 transition-[margin] duration-200"
-        style={{ marginLeft: (activeView.includes("kiosk") && kioskFullscreen) ? 0 : (sidebarExpanded ? 196 : 72) }}
-      >
-        {/* Status Bar - hidden in kiosk fullscreen */}
-        {(!activeView.includes("kiosk") || !kioskFullscreen) && <StatusBar />}
-
-        {/* View Content — keep-alive: each view stays mounted once visited */}
-        <div className="flex-1 overflow-hidden relative">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           {views.map((view) => {
             const isActive = view === activeView;
             const requiredPerm = VIEW_PERMISSIONS[view];

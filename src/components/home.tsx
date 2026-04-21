@@ -1,11 +1,14 @@
 import { DashboardProvider } from "@/context/DashboardContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { AppShell } from "@/components/layout/AppShell";
 import { Toaster } from "sonner";
 
 function Home() {
   return (
     <DashboardProvider>
-      <DashboardLayout />
+      <AppShell>
+        <DashboardLayout />
+      </AppShell>
       <Toaster
         theme="dark"
         position="bottom-right"

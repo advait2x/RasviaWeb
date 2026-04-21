@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -31,23 +32,8 @@ export default function Login() {
     };
 
     return (
+        <AppShell>
         <div style={styles.root}>
-            {/* Animated background layers */}
-            <div style={styles.bgBase} />
-            <div style={styles.bgGradient1} />
-            <div style={styles.bgGradient2} />
-            <div style={styles.bgGradient3} />
-            <div style={styles.bgNoise} />
-
-            {/* Floating orbs */}
-            <div style={styles.orb1} />
-            <div style={styles.orb2} />
-            <div style={styles.orb3} />
-
-            {/* Grid overlay */}
-            <div style={styles.grid} />
-
-            {/* Main content */}
             <div style={styles.contentWrapper}>
 
                 {/* Logo / Brand mark */}
@@ -240,6 +226,7 @@ export default function Login() {
                 }
             `}</style>
         </div>
+        </AppShell>
     );
 }
 
@@ -252,82 +239,6 @@ const styles: Record<string, React.CSSProperties> = {
         justifyContent: "center",
         overflow: "hidden",
         fontFamily: "'Inter', sans-serif",
-    },
-    bgBase: {
-        position: "absolute",
-        inset: 0,
-        background: "#0A0A0A",
-        zIndex: 0,
-    },
-    bgGradient1: {
-        position: "absolute",
-        inset: 0,
-        background: "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(245,158,11,0.08) 0%, rgba(120,53,15,0.20) 30%, transparent 65%)",
-        zIndex: 1,
-    },
-    bgGradient2: {
-        position: "absolute",
-        inset: 0,
-        background: "radial-gradient(ellipse 50% 50% at 80% 80%, rgba(245,158,11,0.08) 0%, transparent 60%)",
-        zIndex: 1,
-    },
-    bgGradient3: {
-        position: "absolute",
-        inset: 0,
-        background: "radial-gradient(ellipse 40% 40% at 10% 60%, rgba(180,83,9,0.12) 0%, transparent 55%)",
-        zIndex: 1,
-    },
-    bgNoise: {
-        position: "absolute",
-        inset: 0,
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E")`,
-        zIndex: 2,
-        opacity: 0.4,
-    },
-    orb1: {
-        position: "absolute",
-        width: 500,
-        height: 500,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)",
-        top: "-15%",
-        left: "-10%",
-        animation: "float1 12s ease-in-out infinite",
-        zIndex: 1,
-    },
-    orb2: {
-        position: "absolute",
-        width: 600,
-        height: 600,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(180,83,9,0.1) 0%, transparent 70%)",
-        bottom: "-20%",
-        right: "-15%",
-        animation: "float2 15s ease-in-out infinite",
-        zIndex: 1,
-    },
-    orb3: {
-        position: "absolute",
-        width: 300,
-        height: 300,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(251,191,36,0.07) 0%, transparent 70%)",
-        top: "50%",
-        left: "60%",
-        animation: "float3 10s ease-in-out infinite",
-        zIndex: 1,
-    },
-    grid: {
-        position: "absolute",
-        inset: 0,
-        backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
-        `,
-        backgroundSize: "48px 48px",
-        zIndex: 2,
-        maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)",
-        WebkitMaskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)",
     },
     contentWrapper: {
         position: "relative",

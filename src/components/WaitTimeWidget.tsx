@@ -51,7 +51,7 @@ export function WaitTimeWidget() {
   };
 
   const numberClass =
-    "min-w-[2.5ch] text-center text-3xl font-semibold tabular-nums leading-none tracking-tight text-zinc-100";
+    "tabular-nums text-3xl font-semibold leading-none tracking-tight text-zinc-100";
 
   if (!restaurantId) {
     return (
@@ -59,9 +59,9 @@ export function WaitTimeWidget() {
         <Clock size={18} strokeWidth={1.5} className="shrink-0 text-zinc-500" />
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex items-baseline gap-0">
             <span className={numberClass}>—</span>
-            <span className="text-xs font-medium text-zinc-500">min</span>
+            <span className="pl-[3px] text-[11px] font-medium leading-none text-zinc-500">min</span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />
         </div>
@@ -83,7 +83,7 @@ export function WaitTimeWidget() {
           <Minus size={18} strokeWidth={1.5} />
         </motion.button>
 
-        <div className="flex items-baseline gap-1.5">
+        <div className="flex items-baseline gap-0">
           {editing ? (
             <input
               ref={inputRef}
@@ -105,13 +105,13 @@ export function WaitTimeWidget() {
                 setEditing(true);
                 setInputVal(String(waitTime));
               }}
-              className={`${numberClass} cursor-text rounded-md px-1 hover:bg-white/[0.04]`}
+              className={`${numberClass} cursor-text rounded-md px-0 hover:bg-white/[0.04]`}
               title="Click to edit"
             >
               {waitTime}
             </button>
           )}
-          <span className="text-xs font-medium text-zinc-500">min</span>
+          <span className="pl-[6px] text-[11px] font-medium leading-none text-zinc-500">min</span>
         </div>
 
         <motion.button

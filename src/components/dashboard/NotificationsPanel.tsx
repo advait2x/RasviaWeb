@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, UserPlus, UserMinus, Inbox, UsersRound } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { AppNotification } from "@/types/dashboard";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DASH_NOTIF_CARD, DASH_NOTIF_ICON, DASH_NOTIF_ICON_WRAP } from "@/lib/dashboardUi";
 
 
 function formatTime(date: Date): string {
@@ -23,17 +24,18 @@ function PartyNotif({ notif }: { notif: AppNotification }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ duration: 0.2 }}
-      className={`flex items-start gap-3 p-3.5 rounded-xl border ${isJoined ? "bg-emerald-500/5 border-emerald-500/15" : "bg-red-500/5 border-red-500/10"
-        }`}
+      className={DASH_NOTIF_CARD}
     >
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isJoined ? "bg-emerald-500/15" : "bg-red-500/15"}`}>
-        {isJoined
-          ? <UserPlus size={15} strokeWidth={1.5} className="text-emerald-400" />
-          : <UserMinus size={15} strokeWidth={1.5} className="text-red-400" />}
+      <div className={DASH_NOTIF_ICON_WRAP}>
+        {isJoined ? (
+          <UserPlus size={15} strokeWidth={1.5} className={DASH_NOTIF_ICON} />
+        ) : (
+          <UserMinus size={15} strokeWidth={1.5} className={DASH_NOTIF_ICON} />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-zinc-100">{notif.guestName}</p>
-        <p className={`text-xs mt-0.5 ${isJoined ? "text-emerald-400" : "text-red-400"}`}>
+        <p className="text-xs mt-0.5 text-zinc-400">
           {isJoined ? "Joined" : "Left"} the waitlist · Party of {notif.partySize}
         </p>
       </div>
@@ -50,14 +52,14 @@ function GroupNotif({ notif }: { notif: AppNotification }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ duration: 0.2 }}
-      className="flex items-start gap-3 p-3.5 rounded-xl border bg-violet-500/5 border-violet-500/15"
+      className={DASH_NOTIF_CARD}
     >
-      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-violet-500/15">
-        <UsersRound size={15} strokeWidth={1.5} className="text-violet-400" />
+      <div className={DASH_NOTIF_ICON_WRAP}>
+        <UsersRound size={15} strokeWidth={1.5} className={DASH_NOTIF_ICON} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-zinc-100">{notif.guestName}</p>
-        <p className="text-xs mt-0.5 text-violet-400">
+        <p className="text-xs mt-0.5 text-zinc-400">
           Started a group session{notif.partySize > 0 ? ` · Party of ${notif.partySize}` : ""}
         </p>
         {notif.sessionId && (
@@ -87,19 +89,20 @@ function EmptyState() {
   );
 }
 
-export default function NotificationsPanel() {
+export default function NotificationsPanel({ active = true }: { active?: boolean }) {
   const { notifications, markNotificationsRead } = useDashboard();
 
   useEffect(() => {
+    if (!active) return;
     markNotificationsRead();
-  }, [markNotificationsRead]);
+  }, [active, markNotificationsRead]);
 
   const displayed = notifications.filter(
     (n) => n.type === "joined" || n.type === "left" || n.type === "group_created"
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4">
         <Bell size={20} strokeWidth={1.5} className="text-amber-500/70" />

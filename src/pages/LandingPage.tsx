@@ -748,7 +748,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
+    <div className="w-full min-h-screen overflow-x-hidden text-zinc-100">
       <Navbar />
 
       <main className="w-full py-12 pt-28">

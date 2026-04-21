@@ -11,7 +11,7 @@ interface Restaurant {
   image_url: string | null;
 }
 
-export default function RestaurantSwitcher() {
+export default function RestaurantSwitcher({ layout = "bar" }: { layout?: "bar" | "sidebar" }) {
   const { restaurantId, setActiveRestaurantId } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [open, setOpen] = useState(false);
@@ -36,11 +36,19 @@ export default function RestaurantSwitcher() {
     setOpen(false);
   };
 
+  const shell =
+    layout === "bar"
+      ? "relative max-w-[220px] shrink-0 px-0"
+      : "relative w-full px-2 mb-4";
+
   return (
-    <div className="relative w-full px-2 mb-4">
+    <div className={shell}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl bg-zinc-800/50 border border-white/[0.08] hover:border-white/15 hover:bg-zinc-700/45 transition-all duration-200 group"
+        className={`flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-800/50 px-2.5 py-2 transition-all duration-200 hover:border-white/15 hover:bg-zinc-700/45 group ${
+          layout === "bar" ? "min-w-0" : ""
+        }`}
         title="Switch Restaurant"
       >
         {/* Restaurant image or icon */}

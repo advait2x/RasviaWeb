@@ -5,6 +5,7 @@ import {
   CalendarClock, Link2, Unlink, X, Check, Receipt, ShoppingBag,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
+import { DASH_BTN_ADD_SM } from "@/lib/dashboardUi";
 import { TableInfo, WaitlistEntry } from "@/types/dashboard";
 import {
   Dialog,
@@ -25,9 +26,9 @@ function getSeatedDuration(seatedAt?: Date): string {
 function getTimerColor(seatedAt?: Date): string {
   if (!seatedAt) return "text-zinc-500";
   const minutes = Math.floor((Date.now() - seatedAt.getTime()) / 60000);
-  if (minutes < 30) return "text-emerald-400";
-  if (minutes < 60) return "text-amber-400";
-  return "text-red-400";
+  if (minutes < 30) return "text-amber-300/95";
+  if (minutes < 60) return "text-orange-300/90";
+  return "text-orange-400/95";
 }
 
 const STATUS_CONFIG = {
@@ -342,7 +343,7 @@ export default function FloorPlan() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAddTable(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 hover:border-white/15 transition-colors"
+                className={`${DASH_BTN_ADD_SM} rounded-xl px-3.5 py-2`}
               >
                 <Plus size={13} strokeWidth={2} />
                 Add Table

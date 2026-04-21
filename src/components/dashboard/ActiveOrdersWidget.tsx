@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ClipboardList } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
+import { DASH_HEADER_DOT, DASH_HEADER_DOT_PING } from "@/lib/dashboardUi";
 import type { Order, OrderStatus } from "@/types/dashboard";
 
 const INACTIVE_STATUSES: OrderStatus[] = ["served", "completed", "cancelled"];
@@ -31,8 +32,8 @@ export default function ActiveOrdersWidget() {
       <div className="mb-6 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400/30 opacity-50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400/70" />
+            <span className={DASH_HEADER_DOT_PING} />
+            <span className={DASH_HEADER_DOT} />
           </span>
           Active orders
         </h3>

@@ -12,7 +12,7 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 
-export default function StatusBar() {
+export default function StatusBar({ embedded = false }: { embedded?: boolean }) {
   const { waitlistOpen, setWaitlistOpen, waitlist, restaurantOpen } = useDashboard();
   const { restaurantId } = useAuth();
 
@@ -73,12 +73,18 @@ export default function StatusBar() {
     <header className="relative">
       {/* Main bar */}
       <div
-        className="flex h-16 items-center justify-between gap-8 px-8"
-        style={{
-          background: "#0a0a0a",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 1px 0 rgba(0,0,0,0.4)",
-        }}
+        className={`flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-6 sm:py-2.5 ${
+          embedded ? "bg-transparent shadow-none" : ""
+        }`}
+        style={
+          embedded
+            ? undefined
+            : {
+                background: "hsl(var(--background))",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 1px 0 rgba(0,0,0,0.4)",
+              }
+        }
       >
         {/* Left: Waitlist Toggle */}
         <div className="flex shrink-0 items-center gap-4">

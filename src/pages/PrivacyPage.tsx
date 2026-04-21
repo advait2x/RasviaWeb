@@ -1,6 +1,6 @@
 export default function PrivacyPage() {
   return (
-    <div className="w-full min-h-screen overflow-x-hidden bg-[#0A0A0A] text-zinc-100">
+    <div className="w-full min-h-screen overflow-x-hidden text-zinc-100">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <a
           href="/"

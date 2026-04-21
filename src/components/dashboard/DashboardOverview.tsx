@@ -2,7 +2,9 @@ import { motion } from "framer-motion";
 import { Users } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import ActiveOrdersWidget from "./ActiveOrdersWidget";
+import NotificationsPreviewWidget from "./NotificationsPreviewWidget";
 import { formatMinutesHumanReadable } from "@/lib/formatWait";
+import { DASH_HEADER_DOT, DASH_HEADER_DOT_PING, dashWaitTextClass } from "@/lib/dashboardUi";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
@@ -21,8 +23,8 @@ export default function DashboardOverview() {
         className="group flex items-center gap-3 rounded-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
       >
         <span className="relative flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/30 opacity-50" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400/70" />
+          <span className={DASH_HEADER_DOT_PING} />
+          <span className={DASH_HEADER_DOT} />
         </span>
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500 transition-colors group-hover:text-zinc-400">
           Next up
@@ -33,11 +35,9 @@ export default function DashboardOverview() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-8">
-      <h2 className="mb-8 text-lg font-semibold tracking-tight text-zinc-100">
-        Dashboard overview
-      </h2>
+      <h2 className="mb-8 text-lg font-semibold tracking-tight text-zinc-100">Dashboard overview</h2>
 
-      <div className="grid grid-cols-1 gap-6 pb-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 pb-8 lg:grid-cols-2 xl:grid-cols-3">
         {waitingCount > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -57,12 +57,7 @@ export default function DashboardOverview() {
                 .slice(0, 3)
                 .map((entry) => {
                   const minutes = getWaitMinutes(entry.addedAt);
-                  const waitTone =
-                    minutes < 15
-                      ? "text-emerald-200/90"
-                      : minutes <= 30
-                        ? "text-amber-200/85"
-                        : "text-rose-200/90";
+                  const waitTone = dashWaitTextClass(minutes);
                   return (
                     <div
                       key={entry.id}
@@ -104,6 +99,8 @@ export default function DashboardOverview() {
         )}
 
         <ActiveOrdersWidget />
+
+        <NotificationsPreviewWidget />
       </div>
     </div>
   );

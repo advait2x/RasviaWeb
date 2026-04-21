@@ -47,7 +47,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
+        <div className="flex min-h-screen items-center justify-center bg-background p-6 text-zinc-100">
           <div className="max-w-xl w-full rounded-xl border border-red-500/30 bg-red-500/10 p-5 space-y-3">
             <h1 className="text-lg font-semibold text-red-300">App crashed during startup</h1>
             <p className="text-sm text-zinc-300 break-words">{this.state.message}</p>
@@ -85,7 +85,7 @@ function BootDiagnostics({ children }: { children: React.ReactNode }) {
 
   if (missingEnvVars.length > 0) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-zinc-100">
         <div className="max-w-xl w-full rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 space-y-3">
           <h1 className="text-lg font-semibold text-amber-300">Missing deployment environment variables</h1>
           <p className="text-sm text-zinc-300">
@@ -105,7 +105,7 @@ function BootDiagnostics({ children }: { children: React.ReactNode }) {
 
   if (hasInvalidSupabaseUrl) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-zinc-100">
         <div className="max-w-xl w-full rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 space-y-3">
           <h1 className="text-lg font-semibold text-amber-300">Invalid `VITE_SUPABASE_URL`</h1>
           <p className="text-sm text-zinc-300 break-words">
@@ -121,7 +121,7 @@ function BootDiagnostics({ children }: { children: React.ReactNode }) {
 
   if (fatalError) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-zinc-100">
         <div className="max-w-xl w-full rounded-xl border border-red-500/30 bg-red-500/10 p-5 space-y-3">
           <h1 className="text-lg font-semibold text-red-300">Unhandled runtime error</h1>
           <p className="text-sm text-zinc-300 break-words">{fatalError}</p>

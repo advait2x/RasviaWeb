@@ -6,8 +6,6 @@ export type NavView =
   | "tableside"
   | "menu"
   | "settings"
-  | "notifications"
-  | "team"
   | "pos"
   | "kds"
   | "reports"

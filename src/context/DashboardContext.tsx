@@ -7,13 +7,25 @@ import { toast } from "sonner";
 
 const VALID_NAV_VIEWS: NavView[] = [
   "dashboard", "waitlist", "floorplan", "orders", "menu",
-  "settings", "notifications", "team", "pos", "kds", "reports", "kiosk",
+  "settings", "pos", "kds", "reports", "kiosk",
 ];
 
-function getTabFromUrl(): NavView | null {
-  const params = new URLSearchParams(window.location.search);
-  const tab = params.get("tab") as NavView;
-  return VALID_NAV_VIEWS.includes(tab) ? tab : null;
+const PARTNER_INITIAL_VIEW_KEY = "rasvia:partner_initial_view";
+
+function readInitialViewFromStorage(): NavView | null {
+  try {
+    const v = sessionStorage.getItem(PARTNER_INITIAL_VIEW_KEY);
+    sessionStorage.removeItem(PARTNER_INITIAL_VIEW_KEY);
+    if (v === "kiosk") return "kiosk";
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function getPartnerTabFromHistoryState(): NavView | null {
+  const raw = (window.history.state as { partnerTab?: string } | null)?.partnerTab;
+  return raw && VALID_NAV_VIEWS.includes(raw as NavView) ? (raw as NavView) : null;
 }
 
 interface DashboardState {
@@ -194,39 +206,38 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { restaurantId } = useAuth();
 
-  const [activeView, setActiveViewState] = useState<NavView>(() => getTabFromUrl() ?? "dashboard");
+  const [activeView, setActiveViewState] = useState<NavView>(() => {
+    const fromStorage = readInitialViewFromStorage();
+    if (fromStorage) return fromStorage;
+    return getPartnerTabFromHistoryState() ?? "dashboard";
+  });
 
-  // Seed the URL with the initial tab on first mount (replaceState so it doesn't add a history entry)
+  /** Partner portal uses a clean `/partner-portal` URL; tab is stored in history state only. Strip legacy `?tab=` on load. */
   useEffect(() => {
-    if (!getTabFromUrl()) {
-      window.history.replaceState(
-        { tab: activeView },
-        "",
-        `/partner-portal?tab=${activeView}`
-      );
+    if (window.location.pathname !== "/partner-portal") return;
+    if (window.location.search) {
+      window.history.replaceState({ partnerTab: activeView }, "", "/partner-portal");
+    } else if (!(window.history.state as { partnerTab?: NavView } | null)?.partnerTab) {
+      window.history.replaceState({ partnerTab: activeView }, "", "/partner-portal");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // User-initiated tab navigation — pushes a new browser history entry
   const setActiveView = useCallback((view: NavView) => {
     setActiveViewState(view);
-    window.history.pushState({ tab: view }, "", `/partner-portal?tab=${view}`);
+    window.history.pushState({ partnerTab: view }, "", "/partner-portal");
   }, []);
 
-  // Programmatic/permission-based view change — replaces instead of pushing
   const replaceActiveView = useCallback((view: NavView) => {
     setActiveViewState(view);
-    window.history.replaceState({ tab: view }, "", `/partner-portal?tab=${view}`);
+    window.history.replaceState({ partnerTab: view }, "", "/partner-portal");
   }, []);
 
-  // Sync state when the user presses browser back/forward
   useEffect(() => {
     const handlePop = () => {
-      if (window.location.pathname.startsWith("/partner-portal")) {
-        const tab = getTabFromUrl();
-        if (tab) setActiveViewState(tab);
-      }
+      if (!window.location.pathname.startsWith("/partner-portal")) return;
+      const tab = (window.history.state as { partnerTab?: NavView } | null)?.partnerTab;
+      if (tab && VALID_NAV_VIEWS.includes(tab)) setActiveViewState(tab);
     };
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);

@@ -13,6 +13,7 @@ import {
     DialogContent,
 } from "@/components/ui/dialog";
 import PinManagement from "@/components/pos/PinManagement";
+import { DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -523,7 +524,7 @@ export default function TeamRolesPanel() {
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setShowInvite(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-[11px] font-medium hover:bg-zinc-700 transition-colors"
+                        className={`${DASH_BTN_ADD_XS} px-2.5 py-1`}
                     >
                         <UserPlus size={11} strokeWidth={1.5} />
                         Add Staff
