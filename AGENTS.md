@@ -205,6 +205,7 @@ Current repo defaults:
 6. **Edge functions share code between Rasvia1 and RasviaWeb** — `create-checkout` and `payment-redirect` exist in both repos and should be kept in sync
 7. **Receipt print HTML must be escaped** — never inject unsanitized order/user fields into the print window markup
 8. **`chart.tsx` uses `dangerouslySetInnerHTML`** — this is the standard shadcn/ui pattern for injecting CSS variables into a `<style>` tag; the values come from the config object, not user input
+9. **Broken remote refs can block `git fetch` / `git pull`** — if Git reports `fatal: bad object refs/remotes/origin/HEAD 2`, inspect `.git/refs/remotes/origin/` and `.git/logs/refs/remotes/origin/` for a stray malformed `HEAD 2` ref, remove only that local bookkeeping file, then rerun `git fetch origin`
 
 ## Landing Page Navigation & Content
 
