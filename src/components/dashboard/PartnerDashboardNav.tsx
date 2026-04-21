@@ -20,6 +20,8 @@ import { supabase } from "@/lib/supabase";
 import { getRestaurantFallback } from "@/lib/fallbackImages";
 import { DASH_NAV_COUNT_BADGE } from "@/lib/dashboardUi";
 import RestaurantSwitcher from "./RestaurantSwitcher";
+import { ThemeIconToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/context/ThemeContext";
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +60,7 @@ export default function PartnerDashboardNav() {
   const { activeView, setActiveView, preorderCount, waitlist } = useDashboard();
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
   const { hasPermission, isAdmin, restaurantId } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [restaurantBranding, setRestaurantBranding] = useState<{
     name: string;
     image_url: string | null;
@@ -155,8 +158,12 @@ export default function PartnerDashboardNav() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="flex max-w-[200px] shrink-0 items-center gap-2 overflow-hidden rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-2 py-1.5"
-                  style={{ boxShadow: "0 0 12px rgba(245,158,11,0.08)" }}
+                  className={`flex max-w-[200px] shrink-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 ${
+                    resolvedTheme === "light"
+                      ? "border border-amber-500/45 bg-amber-50/90"
+                      : "border border-amber-500/30 bg-amber-500/[0.07]"
+                  }`}
+                  style={{ boxShadow: resolvedTheme === "light" ? "0 0 0 1px rgba(245,158,11,0.15)" : "0 0 12px rgba(245,158,11,0.08)" }}
                 >
                   {restaurantId && restaurantBranding ? (
                     <>
@@ -170,12 +177,16 @@ export default function PartnerDashboardNav() {
                           }}
                         />
                       </div>
-                      <span className="min-w-0 truncate text-[11px] font-semibold text-amber-200/95 sm:text-xs">
+                      <span
+                        className={`min-w-0 truncate text-[11px] font-semibold sm:text-xs ${
+                          resolvedTheme === "light" ? "text-amber-950" : "text-amber-200/95"
+                        }`}
+                      >
                         {restaurantBranding.name}
                       </span>
                     </>
                   ) : (
-                    <span className="px-1 text-xs font-semibold text-amber-300">Restaurant</span>
+                    <span className={`px-1 text-xs font-semibold ${resolvedTheme === "light" ? "text-amber-950" : "text-amber-300"}`}>Restaurant</span>
                   )}
                 </div>
               </TooltipTrigger>
@@ -183,6 +194,14 @@ export default function PartnerDashboardNav() {
                 {restaurantBranding?.name ?? "Restaurant"}
               </TooltipContent>
             </Tooltip>
+
+            <ThemeIconToggle
+              className={
+                resolvedTheme === "light"
+                  ? "border-amber-500/45 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  : ""
+              }
+            />
 
             {isAdmin && <RestaurantSwitcher />}
           </div>

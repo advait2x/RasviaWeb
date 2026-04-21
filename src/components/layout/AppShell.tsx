@@ -27,13 +27,13 @@ export function AppShell({ children, className, contentClassName, showAmbient = 
           <div
             className="absolute left-1/3 top-0 h-[420px] w-[560px] rounded-full opacity-[0.14]"
             style={{
-              background: "radial-gradient(ellipse, rgba(255,255,255,0.04) 0%, transparent 72%)",
+              background: "radial-gradient(ellipse, var(--ambient-spot-1) 0%, transparent 72%)",
             }}
           />
           <div
             className="absolute bottom-0 right-0 h-[360px] w-[480px] rounded-full opacity-[0.1]"
             style={{
-              background: "radial-gradient(ellipse, rgba(255,255,255,0.03) 0%, transparent 70%)",
+              background: "radial-gradient(ellipse, var(--ambient-spot-2) 0%, transparent 70%)",
             }}
           />
         </div>

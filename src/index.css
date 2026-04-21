@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hind:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -60,6 +60,49 @@
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 100% / 0.1;
     --sidebar-ring: 38 92% 50%;
+    --ambient-spot-1: rgba(255, 255, 255, 0.04);
+    --ambient-spot-2: rgba(255, 255, 255, 0.03);
+  }
+
+  :root[data-theme="light"] {
+    --background: 210 33% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 31 96% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 27% 93%;
+    --secondary-foreground: 222 47% 18%;
+
+    --muted: 210 27% 93%;
+    --muted-foreground: 215 16% 40%;
+
+    --accent: 31 96% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 216 13% 15% / 0.14;
+    --input: 216 13% 15% / 0.14;
+    --ring: 31 96% 50%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 12%;
+    --sidebar-primary: 31 96% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 25% 95%;
+    --sidebar-accent-foreground: 222 47% 12%;
+    --sidebar-border: 216 13% 15% / 0.12;
+    --sidebar-ring: 31 96% 50%;
+    --ambient-spot-1: rgba(15, 23, 42, 0.06);
+    --ambient-spot-2: rgba(15, 23, 42, 0.045);
   }
 }
 
@@ -73,7 +116,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Hind', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -152,4 +195,88 @@
 /* Smooth transitions */
 button, a, input, textarea, select {
   transition: all 0.15s ease;
+}
+
+.theme-ready *,
+.theme-ready *::before,
+.theme-ready *::after {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    fill 0.2s ease,
+    stroke 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* ---------- Light Theme Utility Overrides (global coverage) ---------- */
+:root[data-theme="light"] body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.02), 0 6px 28px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .glass-modal {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.02), 0 20px 60px rgba(15, 23, 42, 0.18);
+}
+
+:root[data-theme="light"] .card-premium {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.02), 0 2px 14px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .card-premium:hover {
+  border-color: rgba(15, 23, 42, 0.16);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03), 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme="light"] [class*="bg-black"] { background-color: #f8fafc !important; }
+:root[data-theme="light"] [class*="text-white"] { color: #0f172a !important; }
+:root[data-theme="light"] [class*="text-white/90"] { color: rgba(15, 23, 42, 0.9) !important; }
+
+:root[data-theme="light"] [class*="text-zinc-50"] { color: #0f172a !important; }
+:root[data-theme="light"] [class*="text-zinc-100"] { color: #111827 !important; }
+:root[data-theme="light"] [class*="text-zinc-200"] { color: #1f2937 !important; }
+:root[data-theme="light"] [class*="text-zinc-300"] { color: #374151 !important; }
+:root[data-theme="light"] [class*="text-zinc-400"] { color: #4b5563 !important; }
+:root[data-theme="light"] [class*="text-zinc-500"] { color: #64748b !important; }
+:root[data-theme="light"] [class*="text-zinc-600"] { color: #718096 !important; }
+:root[data-theme="light"] [class*="text-zinc-700"] { color: #94a3b8 !important; }
+:root[data-theme="light"] [class*="text-zinc-900"] { color: #0f172a !important; }
+
+:root[data-theme="light"] [class*="bg-zinc-950"] { background-color: rgba(241, 245, 249, 0.98) !important; }
+:root[data-theme="light"] [class*="bg-zinc-900"] { background-color: rgba(255, 255, 255, 0.98) !important; }
+:root[data-theme="light"] [class*="bg-zinc-800"] { background-color: rgba(248, 250, 252, 0.98) !important; }
+:root[data-theme="light"] [class*="bg-zinc-700"] { background-color: rgba(241, 245, 249, 0.95) !important; }
+:root[data-theme="light"] [class*="bg-zinc-600"] { background-color: rgba(226, 232, 240, 0.95) !important; }
+:root[data-theme="light"] [class*="bg-zinc-500"] { background-color: rgba(203, 213, 225, 0.92) !important; }
+
+:root[data-theme="light"] [class*="border-zinc-900"] { border-color: rgba(15, 23, 42, 0.18) !important; }
+:root[data-theme="light"] [class*="border-zinc-800"] { border-color: rgba(15, 23, 42, 0.15) !important; }
+:root[data-theme="light"] [class*="border-zinc-700"] { border-color: rgba(15, 23, 42, 0.14) !important; }
+:root[data-theme="light"] [class*="border-zinc-600"] { border-color: rgba(15, 23, 42, 0.14) !important; }
+:root[data-theme="light"] [class*="border-zinc-500"] { border-color: rgba(15, 23, 42, 0.14) !important; }
+:root[data-theme="light"] [class*="border-zinc-400"] { border-color: rgba(15, 23, 42, 0.16) !important; }
+
+:root[data-theme="light"] [class*="border-white/"] { border-color: rgba(15, 23, 42, 0.14) !important; }
+:root[data-theme="light"] [class*="bg-white/"] { background-color: rgba(15, 23, 42, 0.08) !important; }
+
+:root[data-theme="light"] [class*="from-zinc-950"] { --tw-gradient-from: rgba(241, 245, 249, 1) var(--tw-gradient-from-position) !important; }
+:root[data-theme="light"] [class*="via-zinc-900"] { --tw-gradient-via: rgba(248, 250, 252, 1) var(--tw-gradient-via-position) !important; }
+:root[data-theme="light"] [class*="to-zinc-950"] { --tw-gradient-to: rgba(241, 245, 249, 1) var(--tw-gradient-to-position) !important; }
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.22);
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.35);
 }

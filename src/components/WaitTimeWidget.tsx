@@ -105,7 +105,7 @@ export function WaitTimeWidget() {
                 setEditing(true);
                 setInputVal(String(waitTime));
               }}
-              className={`${numberClass} cursor-text rounded-md px-0 hover:bg-white/[0.04]`}
+              className={`${numberClass} cursor-text px-0`}
               title="Click to edit"
             >
               {waitTime}

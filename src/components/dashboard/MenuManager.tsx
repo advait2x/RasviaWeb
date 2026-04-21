@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { getMenuItemFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
 import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, serializeMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
@@ -615,6 +616,8 @@ function ModifiersManager() {
 export default function MenuManager() {
   const { menuItems, menuLoading, toggleMenuItem, addMenuItem, updateMenuItem, deleteMenuItem } = useDashboard();
   const { hasPermission, restaurantId } = useAuth();
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === "light";
   const canEdit = hasPermission("manage_menu");
   const [menuTab, setMenuTab] = useState<"items" | "modifiers" | "tags">("items");
   const [search, setSearch] = useState("");
@@ -757,11 +760,17 @@ export default function MenuManager() {
   };
 
   const tabButtonClass = (tab: "items" | "modifiers" | "tags") =>
-    `px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${menuTab === tab ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`;
+    `px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+      menuTab === tab
+        ? isLight
+          ? "bg-zinc-200 text-zinc-900"
+          : "bg-zinc-700 text-zinc-100"
+        : "text-zinc-500 hover:text-zinc-300"
+    }`;
 
   const renderTabBar = () => (
     <div className="px-5 pt-4 pb-2">
-      <div className="flex gap-1 p-1 rounded-xl bg-zinc-800/60 border border-white/5 w-fit">
+      <div className={`flex gap-1 p-1 rounded-xl w-fit ${isLight ? "bg-zinc-100 border border-zinc-300/80" : "bg-zinc-800/60 border border-white/5"}`}>
         <button onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
         <button onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
         <button onClick={() => setMenuTab("tags")} className={tabButtonClass("tags")}>Menu Tags</button>
@@ -794,7 +803,7 @@ export default function MenuManager() {
         </div>
         <ScrollArea className="flex-1">
           <div className="px-5 pb-5">
-            <div className="rounded-xl border border-white/10 bg-zinc-800/35 p-3">
+            <div className={`rounded-xl border p-3 ${isLight ? "border-zinc-300 bg-white/95 shadow-sm" : "border-white/10 bg-zinc-800/35"}`}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Menu Tag Setup</p>
                 {savingTags && <Loader2 size={13} className="text-amber-400 animate-spin" />}
@@ -809,7 +818,10 @@ export default function MenuManager() {
               <div className="space-y-2 mb-2">
                 <div
                   className="rounded-xl border p-2.5"
-                  style={{ borderColor: "rgba(255,255,255,0.16)", background: "rgba(18,18,18,0.95)" }}
+                  style={{
+                    borderColor: isLight ? "rgba(15,23,42,0.20)" : "rgba(255,255,255,0.16)",
+                    background: isLight ? "rgba(255,255,255,0.96)" : "rgba(18,18,18,0.95)",
+                  }}
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
@@ -828,7 +840,10 @@ export default function MenuManager() {
                   <div
                     key={tag.key}
                     className="rounded-xl border p-2.5"
-                    style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(10,10,10,0.9)" }}
+                    style={{
+                      borderColor: isLight ? "rgba(15,23,42,0.18)" : "rgba(255,255,255,0.12)",
+                      background: isLight ? "rgba(248,250,252,0.98)" : "rgba(10,10,10,0.9)",
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
@@ -908,10 +923,10 @@ export default function MenuManager() {
           </div>
         </ScrollArea>
         <Dialog open={!!pendingTagDelete} onOpenChange={(open) => !open && setPendingTagDelete(null)}>
-          <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
-            <DialogHeader className="p-0">
-              <DialogTitle className="text-base font-semibold text-zinc-100">Delete Menu Tag?</DialogTitle>
-            </DialogHeader>
+        <DialogContent hideClose className={`glass-modal max-w-sm backdrop-blur-xl p-6 ${isLight ? "border-zinc-300 bg-white/95" : "border-white/10 bg-zinc-900/95"}`}>
+          <DialogHeader className="p-0">
+            <DialogTitle className="text-base font-semibold text-zinc-100">Delete Menu Tag?</DialogTitle>
+          </DialogHeader>
             <p className="text-sm text-zinc-300 mt-3">
               Are you sure you want to delete{" "}
               <span className="font-semibold text-zinc-100">"{pendingTagDelete?.label}"</span>?

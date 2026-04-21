@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useDashboard } from "@/context/DashboardContext";
+import { useTheme } from "@/context/ThemeContext";
 import type { PastOrdersFilter, PastOrdersRange } from "@/context/DashboardContext";
 import { formatMinutesHumanReadable } from "@/lib/formatWait";
 
@@ -61,6 +62,7 @@ function getWaitMinutes(addedAt: Date): number {
 }
 
 export default function SalesReports() {
+  const { resolvedTheme } = useTheme();
   const {
     fetchCompletedOrders,
     completedOrders,
@@ -233,6 +235,13 @@ export default function SalesReports() {
   }, [completedOrders]);
 
   const fmt = (n: number) => `$${n.toFixed(2)}`;
+  const isLight = resolvedTheme === "light";
+  const chartGridColor = isLight ? "rgba(15,23,42,0.14)" : "rgba(255,255,255,0.06)";
+  const chartTickColor = isLight ? "#334155" : "#71717a";
+  const chartTooltipBackground = isLight ? "rgba(255,255,255,0.98)" : "#121212";
+  const chartTooltipBorder = isLight ? "1px solid rgba(15,23,42,0.16)" : "1px solid rgba(255,255,255,0.1)";
+  const chartTooltipText = isLight ? "#0f172a" : "#e4e4e7";
+  const chartBarFill = isLight ? "rgba(71, 85, 105, 0.7)" : "rgba(148, 163, 184, 0.55)";
   const ranges: { key: Range; label: string }[] = [
     { key: "today", label: "Today" },
     { key: "yesterday", label: "Yesterday" },
@@ -350,20 +359,23 @@ export default function SalesReports() {
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={chart}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} />
-            <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+            <XAxis dataKey="label" tick={{ fill: chartTickColor, fontSize: 11 }} />
+            <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
             <Tooltip
               contentStyle={{
-                background: "#121212",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: chartTooltipBackground,
+                border: chartTooltipBorder,
                 borderRadius: 8,
+                color: chartTooltipText,
               }}
+              labelStyle={{ color: chartTooltipText, fontWeight: 600 }}
+              itemStyle={{ color: chartTooltipText }}
               formatter={(v: number) => [`$${v.toFixed(2)}`, "Sales"]}
             />
             <Bar
               dataKey="sales"
-              fill="rgba(148, 163, 184, 0.55)"
+              fill={chartBarFill}
               radius={[4, 4, 0, 0]}
               cursor="pointer"
               onClick={(data: unknown) => {

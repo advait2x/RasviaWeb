@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 const basename = import.meta.env.BASE_URL;
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
@@ -138,9 +139,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AppErrorBoundary>
       <BootDiagnostics>
         <BrowserRouter basename={basename}>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </ThemeProvider>
         </BrowserRouter>
       </BootDiagnostics>
     </AppErrorBoundary>

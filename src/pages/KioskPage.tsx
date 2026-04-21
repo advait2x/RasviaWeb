@@ -4,6 +4,7 @@ import { QRCode } from "@/lib/resolve-react-qr-code";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useDashboard } from "@/context/DashboardContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Check, Loader2, AlertCircle, RotateCcw, Users, Maximize2, Minimize2 } from "lucide-react";
 import ManagerPinModal from "@/components/pos/ManagerPinModal";
 
@@ -21,6 +22,7 @@ const APP_DOWNLOAD_URL = "https://rasvia.com/download";
 
 export default function KioskPage() {
   const { restaurantId } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [view, setView] = useState<KioskView>("form");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -171,7 +173,9 @@ export default function KioskPage() {
 
   return (
     <div
-      className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} bg-[#0a0a0a] flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
+      className={`${fullscreen ? "fixed inset-0 z-[9999]" : "h-full w-full"} ${
+        resolvedTheme === "light" ? "bg-slate-50" : "bg-[#0a0a0a]"
+      } flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden relative`}
       style={{ WebkitUserSelect: "none", userSelect: "none" }}
       onDoubleClick={handleSecretExitDoubleClick}
     >

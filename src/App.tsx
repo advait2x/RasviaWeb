@@ -14,9 +14,35 @@ import TermsPage from "./pages/TermsPage";
 import AdminPortalPage from "./pages/AdminPortalPage";
 import { AppShell } from "./components/layout/AppShell";
 import { Toaster } from "sonner";
+import { useTheme } from "./context/ThemeContext";
+
+function DarkThemeLock() {
+  useEffect(() => {
+    const root = document.documentElement;
+    const prevLock = root.getAttribute("data-theme-lock");
+    const prevTheme = root.getAttribute("data-theme");
+    const prevMode = root.getAttribute("data-theme-mode");
+    const prevColorScheme = root.style.colorScheme;
+    root.setAttribute("data-theme-lock", "dark");
+    root.setAttribute("data-theme", "dark");
+    root.setAttribute("data-theme-mode", "dark");
+    root.style.colorScheme = "dark";
+    return () => {
+      if (prevLock) root.setAttribute("data-theme-lock", prevLock);
+      else root.removeAttribute("data-theme-lock");
+      if (prevTheme) root.setAttribute("data-theme", prevTheme);
+      else root.removeAttribute("data-theme");
+      if (prevMode) root.setAttribute("data-theme-mode", prevMode);
+      else root.removeAttribute("data-theme-mode");
+      root.style.colorScheme = prevColorScheme;
+    };
+  }, []);
+  return null;
+}
 
 function AdminPortalApp() {
   const { session, loading, isAdmin } = useAuth();
+  const { resolvedTheme } = useTheme();
 
   if (loading) {
     return (
@@ -66,13 +92,17 @@ function AdminPortalApp() {
         <AdminPortalPage />
       </AppShell>
       <Toaster
-        theme="dark"
+        theme={resolvedTheme}
         position="top-center"
         toastOptions={{
           style: {
-            background: "rgba(24, 24, 27, 0.95)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#e4e4e7",
+            background:
+              resolvedTheme === "dark" ? "rgba(24,24,27,0.95)" : "rgba(255,255,255,0.96)",
+            border:
+              resolvedTheme === "dark"
+                ? "1px solid rgba(255,255,255,0.08)"
+                : "1px solid rgba(15,23,42,0.12)",
+            color: resolvedTheme === "dark" ? "#e4e4e7" : "#0f172a",
           },
         }}
       />
@@ -263,7 +293,7 @@ function AppContent() {
     );
   }
 
-  if (window.location.pathname.startsWith('/contact')) {
+  if (window.location.pathname.startsWith('/support')) {
     return (
       <AppShell>
         <ContactPage />
@@ -288,9 +318,12 @@ function AppContent() {
   }
 
   return (
-    <AppShell>
-      <LandingPage />
-    </AppShell>
+    <>
+      <DarkThemeLock />
+      <AppShell>
+        <LandingPage />
+      </AppShell>
+    </>
   );
 }
 

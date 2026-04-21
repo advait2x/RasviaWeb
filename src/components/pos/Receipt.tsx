@@ -71,8 +71,9 @@ export default function Receipt({ order, open, onClose, restaurantName = "Restau
         <head>
           <title>Receipt</title>
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Hind:wght@300;400;500;600;700&display=swap');
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 4mm; color: #000; }
+            body { font-family: 'Hind', sans-serif; font-size: 12px; width: 80mm; padding: 4mm; color: #000; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
             .line { border-top: 1px dashed #000; margin: 6px 0; }

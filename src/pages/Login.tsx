@@ -1,13 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { AppShell } from "@/components/layout/AppShell";
 
-export default function Login() {
+export default function Login({ forceDark = true }: { forceDark?: boolean }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!forceDark) return;
+        const root = document.documentElement;
+        const prevLock = root.getAttribute("data-theme-lock");
+        const prevTheme = root.getAttribute("data-theme");
+        const prevMode = root.getAttribute("data-theme-mode");
+        const prevColorScheme = root.style.colorScheme;
+        root.setAttribute("data-theme-lock", "dark");
+        root.setAttribute("data-theme", "dark");
+        root.setAttribute("data-theme-mode", "dark");
+        root.style.colorScheme = "dark";
+        return () => {
+            if (prevLock) root.setAttribute("data-theme-lock", prevLock);
+            else root.removeAttribute("data-theme-lock");
+            if (prevTheme) root.setAttribute("data-theme", prevTheme);
+            else root.removeAttribute("data-theme");
+            if (prevMode) root.setAttribute("data-theme-mode", prevMode);
+            else root.removeAttribute("data-theme-mode");
+            root.style.colorScheme = prevColorScheme;
+        };
+    }, [forceDark]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -238,7 +260,7 @@ const styles: Record<string, React.CSSProperties> = {
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Hind', sans-serif",
     },
     contentWrapper: {
         position: "relative",
@@ -355,7 +377,7 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "13px 42px 13px 42px",
         color: "#fff",
         fontSize: 14,
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Hind', sans-serif",
         width: "100%",
     },
     eyeButton: {

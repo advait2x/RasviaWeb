@@ -932,14 +932,14 @@ export default function LandingPage() {
                   <span className="text-sm text-neutral-500">/mo</span>
                 </div>
                 <a
-                  href="/contact"
+                  href="/support"
                   className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-bold transition-all duration-300 ${
                     tier.highlighted
                       ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.35)]"
                       : "border border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:border-white/20"
                   }`}
                 >
-                  Contact Sales
+                  Contact Support Now
                 </a>
                 <ul className="mt-6 flex flex-col gap-2.5">
                   {tier.features.map((feature) => (
@@ -1037,7 +1037,7 @@ export default function LandingPage() {
               <ul className="mt-4 flex flex-col gap-3">
                 <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Our Mission</button></li>
                 <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Team</button></li>
-                <li><a href="/contact" className="text-sm text-neutral-500 transition-colors hover:text-white">Contact Sales</a></li>
+                <li><a href="/support" className="text-sm text-neutral-500 transition-colors hover:text-white">Contact Support</a></li>
                 <li><a href="/partner-portal" className="text-sm text-neutral-500 transition-colors hover:text-white">Partner Login</a></li>
               </ul>
             </div>
