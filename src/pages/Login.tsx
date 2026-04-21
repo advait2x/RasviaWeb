@@ -260,7 +260,7 @@ const styles: Record<string, React.CSSProperties> = {
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        fontFamily: "'Hind', sans-serif",
+        fontFamily: "'Bricolage Grotesque', sans-serif",
     },
     contentWrapper: {
         position: "relative",
@@ -377,7 +377,7 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "13px 42px 13px 42px",
         color: "#fff",
         fontSize: 14,
-        fontFamily: "'Hind', sans-serif",
+        fontFamily: "'Bricolage Grotesque', sans-serif",
         width: "100%",
     },
     eyeButton: {
