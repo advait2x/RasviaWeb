@@ -150,6 +150,20 @@ Edge functions use these secrets (configured in Supabase Dashboard):
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 
+## Node.js, npm, and lockfile (CI / deploy)
+
+`package.json` pins **`engines.node`** and **`engines.npm`** so Heroku / DigitalOcean Node buildpacks install a Node + npm combo that matches how the lockfile was produced. That keeps `npm ci` on the server aligned with local tooling (especially when the buildpack would otherwise default to an older npm).
+
+When you need to **refresh `package-lock.json`**, regenerate it with the Linux deploy target in mind. A plain `npm install` on macOS may skip optional platform packages (for example Tailwind’s `@tailwindcss/oxide-wasm32-wasi` and its bundled `@emnapi/*` tree). The deploy image is **linux-x64**; if those entries are missing, `npm ci` on the server can fail with “missing from lock file” for `@emnapi/core` / `@emnapi/runtime`.
+
+Run:
+
+```bash
+npm install --package-lock-only --os=linux --cpu=x64 --libc=glibc --include=optional
+```
+
+Then commit the updated `package-lock.json`. That keeps the lockfile valid for both local development (e.g. darwin-arm64) and **linux-x64** production builds.
+
 ## Deploying Edge Functions (JWT Flags)
 
 Use this flow for any edge function deployment:
