@@ -56,6 +56,8 @@ const LEGACY_KEY_MAP: Record<string, string> = {
 
 export function slugifyTag(value: string): string {
   return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
@@ -97,15 +99,10 @@ export function normalizeMenuItemTags(raw: string[] | null | undefined, tags: Me
   for (const value of raw ?? []) {
     const mapped = LEGACY_KEY_MAP[String(value).trim().toLowerCase()] ?? slugifyTag(String(value));
     if (!mapped || seen.has(mapped)) continue;
-    if (known.has(mapped) || mapped) {
-      out.push(mapped);
-      seen.add(mapped);
-    }
-  }
+    if (!known.has(mapped)) continue;
 
-  if (out.length === 0) {
-    const fallback = tags.find((t) => t.enabled)?.key ?? tags[0]?.key;
-    if (fallback) out.push(fallback);
+    out.push(mapped);
+    seen.add(mapped);
   }
 
   return out;

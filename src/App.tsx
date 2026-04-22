@@ -77,7 +77,7 @@ function AdminPortalApp() {
         <button
           type="button"
           onClick={() => supabase.auth.signOut()}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10"
+          className="hover-red-override px-6 py-2.5 bg-zinc-800 hover:bg-red-600 text-zinc-200 hover:text-white font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-red-600"
         >
           Sign Out
         </button>
@@ -155,7 +155,7 @@ function PartnerPortalApp() {
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-white/15"
+          className="hover-red-override px-6 py-2.5 bg-zinc-800 hover:bg-red-600 text-zinc-200 hover:text-white font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-red-600"
         >
           Sign Out
         </button>
@@ -182,7 +182,7 @@ function PartnerPortalApp() {
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-white/15"
+          className="hover-red-override px-6 py-2.5 bg-zinc-800 hover:bg-red-600 text-zinc-200 hover:text-white font-medium text-sm rounded-xl transition-colors border border-white/10 hover:border-red-600"
         >
           Sign Out
         </button>

@@ -215,9 +215,9 @@ export default function PartnerDashboardNav() {
               type="button"
               whileTap={{ scale: 0.97 }}
               onClick={() => setSignOutConfirmOpen(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800/90 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-red-500/25 hover:bg-zinc-800 hover:text-red-300/95 sm:px-3"
+              className="hover-red-override group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800/90 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white sm:px-3"
             >
-              <LogOut size={15} strokeWidth={1.75} className="shrink-0 text-red-400/80" />
+              <LogOut size={15} strokeWidth={1.75} className="shrink-0 text-red-400/80 transition-colors group-hover:text-white" />
               <span className="max-[380px]:sr-only">Sign out</span>
             </motion.button>
           )}

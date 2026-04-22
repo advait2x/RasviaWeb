@@ -51,7 +51,7 @@ const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
   description: "",
   price: "",
   imageUrl: "",
-  mealTimes: [menuTags.find((t) => t.enabled)?.key ?? menuTags[0]?.key ?? "main_course"],
+  mealTimes: [],
   inStock: true,
   isVegetarian: false,
   isHalal: false,

@@ -280,3 +280,13 @@ button, a, input, textarea, select {
 :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.35);
 }
+
+/* Fix for sign out buttons that need to turn red on hover, overriding the aggressive wildcard light theme rules above */
+:root[data-theme="light"] button.hover-red-override:hover {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+:root[data-theme="light"] button.hover-red-override:hover * {
+  color: #ffffff !important;
+}

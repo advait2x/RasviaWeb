@@ -42,6 +42,39 @@ export default function PartnerProfilePanel({ embedded = false }: { embedded?: b
   const [fullNameDraft, setFullNameDraft] = useState("");
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [prefs, setPrefs] = useState<Prefs>({ orderAlerts: true, waitlistAlerts: true, productUpdates: false });
+
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const formatPhone = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 10);
+    if (digits.length === 0) return "";
+    if (digits.length <= 3) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)})-${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  const savePhone = async () => {
+    if (!session?.user?.id) return;
+    setSavingPhone(true);
+    setStatusMessage("");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ phone_number: phoneDraft.trim() || null })
+      .eq("id", session.user.id);
+    setSavingPhone(false);
+
+    if (error) {
+      setStatusMessage(error.message || "Could not save phone number.");
+      return;
+    }
+
+    setProfile((p) => (p ? { ...p, phone_number: phoneDraft.trim() || null } : p));
+    setEditingPhone(false);
+    setStatusMessage("Phone number updated.");
+  };
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PREFS_KEY);
@@ -210,7 +243,7 @@ export default function PartnerProfilePanel({ embedded = false }: { embedded?: b
               type="button"
               onClick={saveName}
               disabled={!canSaveName || saving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 text-sm font-semibold text-amber-300 disabled:opacity-45"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/60 bg-amber-500 px-4 text-sm font-semibold text-black hover:bg-amber-400 transition-colors dark:bg-amber-500/15 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/25 disabled:opacity-45"
             >
               <Save size={15} /> {saving ? "Saving..." : "Save Name"}
             </button>
@@ -225,14 +258,68 @@ export default function PartnerProfilePanel({ embedded = false }: { embedded?: b
             <p className="text-sm text-zinc-500">Loading account details...</p>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {infoRows.map(({ label, value, icon: Icon }) => (
-                <div key={label} className="rounded-xl border border-white/8 bg-zinc-800/50 px-3 py-2.5">
-                  <p className="mb-1 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500">
-                    <Icon size={12} /> {label}
-                  </p>
-                  <p className="break-all text-sm text-zinc-100">{value}</p>
-                </div>
-              ))}
+              {infoRows.map(({ label, value, icon: Icon }) => {
+                if (label === "Phone") {
+                  return (
+                    <div key={label} className="rounded-xl border border-white/8 bg-zinc-800/50 px-3 py-2.5 flex flex-col justify-center relative min-h-[56px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500">
+                          <Icon size={12} /> {label}
+                        </p>
+                        {!editingPhone ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhoneDraft(value === "-" ? "" : value);
+                              setEditingPhone(true);
+                            }}
+                            className="text-[10px] uppercase font-semibold text-amber-500 hover:text-amber-400"
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPhone(false)}
+                              className="text-[10px] uppercase font-semibold text-zinc-400 hover:text-zinc-300"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={savePhone}
+                              disabled={savingPhone}
+                              className="text-[10px] uppercase font-semibold text-amber-500 hover:text-amber-400 disabled:opacity-50"
+                            >
+                              {savingPhone ? "..." : "Save"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {!editingPhone ? (
+                        <p className="break-all text-sm text-zinc-100">{value}</p>
+                      ) : (
+                        <input
+                          autoFocus
+                          value={phoneDraft}
+                          onChange={(e) => setPhoneDraft(formatPhone(e.target.value))}
+                          placeholder="(xxx)-xxx-xxxx"
+                          className="h-6 w-full rounded border-none bg-zinc-900 px-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={label} className="rounded-xl border border-white/8 bg-zinc-800/50 px-3 py-2.5 min-h-[56px]">
+                    <p className="mb-1 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500">
+                      <Icon size={12} /> {label}
+                    </p>
+                    <p className="break-all text-sm text-zinc-100">{value}</p>
+                  </div>
+                );
+              })}
             </div>
           )}
           <button
@@ -250,9 +337,9 @@ export default function PartnerProfilePanel({ embedded = false }: { embedded?: b
             <button
               type="button"
               onClick={signOutAll}
-              className="inline-flex items-center gap-2 rounded-lg border border-red-500/35 bg-red-500/12 px-3 py-2 text-sm text-red-300"
+              className="hover-red-override group inline-flex items-center gap-2 rounded-lg border border-red-500/35 bg-red-500/12 px-3 py-2 text-sm text-red-300 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white"
             >
-              <LogOut size={14} /> Sign Out All Sessions
+              <LogOut size={14} className="group-hover:text-white" /> Sign Out All Sessions
             </button>
           </div>
         </div>

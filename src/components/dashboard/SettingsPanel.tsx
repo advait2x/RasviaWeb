@@ -33,6 +33,20 @@ import FallbackImage from "@/components/ui/FallbackImage";
 import { cn } from "@/lib/utils";
 import { DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
 
+// ── Phone formatting ─────────────────────────────────────────────────────────
+
+function formatPhoneForDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  if (digits.length === 0) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function stripPhoneDigits(s: string): string {
+  return s.replace(/\D/g, "").slice(0, 10);
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RestaurantProfile {
@@ -188,6 +202,8 @@ export default function SettingsPanel() {
   const [communityImagesEnabled, setCommunityImagesEnabled] = useState(true);
   const [savedCommunityImagesEnabled, setSavedCommunityImagesEnabled] = useState(true);
   const [communityImagesSettingAvailable, setCommunityImagesSettingAvailable] = useState(true);
+  const [phoneEditing, setPhoneEditing] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
 
   // Operating hours
   const [hours, setHours] = useState<OperatingHours | null>(null);
@@ -231,6 +247,7 @@ export default function SettingsPanel() {
     };
     setProfile(p);
     setDraft(p);
+    setPhoneDraft(formatPhoneForDisplay(p.phone));
     const hasCommunitySetting = !!(row && Object.prototype.hasOwnProperty.call(row, "accept_community_image_contributions"));
     setCommunityImagesSettingAvailable(hasCommunitySetting);
     if (hasCommunitySetting) {
@@ -378,18 +395,18 @@ export default function SettingsPanel() {
       cuisine_tags: draft.cuisineTags,
       description: draft.description.trim(),
       chain_group_key: draft.chainGroupKey.trim() || null,
+      phone_number: stripPhoneDigits(phoneDraft) || null,
     };
     if (communityImagesSettingAvailable) {
       patch.accept_community_image_contributions = communityImagesEnabled;
     }
-    if (draft.phone.trim()) patch.phone = draft.phone.trim();
     const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurantId);
     setSaving(false);
     setShowConfirm(false);
     if (error) {
       setSaveError(error.message);
     } else {
-      setProfile({ ...draft });
+      setProfile({ ...draft, phone: stripPhoneDigits(phoneDraft) });
       setSavedCommunityImagesEnabled(communityImagesEnabled);
       setEditing(false);
       setSaveSuccess(true);
@@ -399,6 +416,7 @@ export default function SettingsPanel() {
 
   const handleDiscard = () => {
     setDraft({ ...profile });
+    setPhoneDraft(formatPhoneForDisplay(profile.phone));
     setCommunityImagesEnabled(savedCommunityImagesEnabled);
     setEditing(false);
     setShowOtherInput(false);
@@ -583,7 +601,6 @@ export default function SettingsPanel() {
   }[] = [
       { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
       { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
-      { key: "phone", label: "Phone Number", icon: Phone, placeholder: "(555) 000-0000" },
       { key: "chainGroupKey", label: "Chain Group Key", icon: Store, placeholder: "e.g. saravanaa-bhavan" },
       { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
     ];
@@ -797,6 +814,68 @@ export default function SettingsPanel() {
                   </div>
                 );
               })}
+
+              {/* Phone number — inline edit button */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    <Phone size={12} strokeWidth={1.5} />
+                    Phone Number
+                  </label>
+                  {!editing && !phoneEditing && !loading && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => { setPhoneDraft(formatPhoneForDisplay(profile.phone)); setPhoneEditing(true); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-medium hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                    >
+                      <Pencil size={10} strokeWidth={1.5} />
+                      Edit
+                    </motion.button>
+                  )}
+                </div>
+                {phoneEditing ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={phoneDraft}
+                      onChange={(e) => setPhoneDraft(formatPhoneForDisplay(e.target.value))}
+                      placeholder="(555) 000-0000"
+                      maxLength={14}
+                      className="h-10 flex-1 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
+                      autoFocus
+                    />
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={async () => {
+                        if (!restaurantId) return;
+                        const { error } = await supabase.from("restaurants").update({ phone_number: stripPhoneDigits(phoneDraft) || null }).eq("id", restaurantId);
+                        if (error) {
+                          setSaveError(error.message);
+                          setTimeout(() => setSaveError(null), 4000);
+                          return;
+                        }
+                        setProfile((p) => ({ ...p, phone: stripPhoneDigits(phoneDraft) }));
+                        setPhoneEditing(false);
+                        setSaveSuccess(true);
+                        setTimeout(() => setSaveSuccess(false), 2500);
+                      }}
+                      className="h-10 px-3 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors"
+                    >
+                      <Check size={14} strokeWidth={2} />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setPhoneEditing(false)}
+                      className="h-10 px-3 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 transition-colors"
+                    >
+                      <X size={14} strokeWidth={2} />
+                    </motion.button>
+                  </div>
+                ) : (
+                  <p className={`text-sm px-3 py-2 rounded-lg border ${profile.phone ? "text-zinc-300 bg-zinc-900/40 border-white/5" : "text-zinc-600 bg-zinc-900/40 border-white/5 italic"}`}>
+                    {profile.phone ? formatPhoneForDisplay(profile.phone) : "No phone number set"}
+                  </p>
+                )}
+              </div>
 
               {/* Cuisine tags */}
               <div className="space-y-1.5">

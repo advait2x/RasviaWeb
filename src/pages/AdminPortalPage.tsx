@@ -412,7 +412,7 @@ export default function AdminPortalPage() {
             type="button"
             variant="outline"
             size="sm"
-            className="border-white/15 bg-zinc-900/80 text-zinc-200 hover:bg-zinc-800"
+            className="hover-red-override border-white/15 bg-zinc-900/80 text-zinc-200 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white"
             onClick={() => supabase.auth.signOut()}
           >
             Sign out

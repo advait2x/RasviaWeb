@@ -116,7 +116,7 @@ function FullScreenAccessDenied() {
       <button
         type="button"
         onClick={handleSignOut}
-        className="mt-2 rounded-lg border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+        className="hover-red-override mt-2 rounded-lg border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white"
       >
         Sign Out
       </button>
