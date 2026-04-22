@@ -143,7 +143,7 @@ export default function PartnerDashboardNav() {
                 <TooltipTrigger asChild>
                   <a
                     href="/admin"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-2.5 py-2 text-[11px] font-semibold text-amber-300 transition-colors hover:border-amber-500/50 hover:bg-amber-500/12 sm:text-xs"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-500 px-2.5 py-2 text-[11px] font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-amber-400 sm:text-xs dark:shadow-amber-500/10"
                   >
                     <Shield size={16} strokeWidth={1.75} className="shrink-0" />
                     <span className="hidden sm:inline">Admin</span>
@@ -155,55 +155,59 @@ export default function PartnerDashboardNav() {
               </Tooltip>
             )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={`flex max-w-[200px] shrink-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 ${
-                    resolvedTheme === "light"
-                      ? "border border-amber-500/45 bg-amber-50/90"
-                      : "border border-amber-500/30 bg-amber-500/[0.07]"
-                  }`}
-                  style={{ boxShadow: resolvedTheme === "light" ? "0 0 0 1px rgba(245,158,11,0.15)" : "0 0 12px rgba(245,158,11,0.08)" }}
-                >
-                  {restaurantId && restaurantBranding ? (
-                    <>
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900">
-                        <img
-                          src={restaurantBranding.image_url || getRestaurantFallback(restaurantId)}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = getRestaurantFallback(restaurantId);
-                          }}
-                        />
-                      </div>
-                      <span
-                        className={`min-w-0 truncate text-[11px] font-semibold sm:text-xs ${
-                          resolvedTheme === "light" ? "text-amber-950" : "text-amber-200/95"
-                        }`}
-                      >
-                        {restaurantBranding.name}
+            {!isAdmin && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`flex max-w-[200px] shrink-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 ${
+                      resolvedTheme === "light"
+                        ? "border border-amber-500/45 bg-amber-50/90"
+                        : "border border-amber-500/30 bg-amber-500/[0.07]"
+                    }`}
+                    style={{ boxShadow: resolvedTheme === "light" ? "0 0 0 1px rgba(245,158,11,0.15)" : "0 0 12px rgba(245,158,11,0.08)" }}
+                  >
+                    {restaurantId && restaurantBranding ? (
+                      <>
+                        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900">
+                          <img
+                            src={restaurantBranding.image_url || getRestaurantFallback(restaurantId)}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = getRestaurantFallback(restaurantId);
+                            }}
+                          />
+                        </div>
+                        <span
+                          className={`min-w-0 truncate text-[11px] font-semibold sm:text-xs ${
+                            resolvedTheme === "light" ? "text-amber-950" : "text-amber-200/95"
+                          }`}
+                        >
+                          {restaurantBranding.name}
+                        </span>
+                      </>
+                    ) : (
+                      <span className={`px-1 text-xs font-semibold ${resolvedTheme === "light" ? "text-amber-950" : "text-amber-300"}`}>
+                        Restaurant
                       </span>
-                    </>
-                  ) : (
-                    <span className={`px-1 text-xs font-semibold ${resolvedTheme === "light" ? "text-amber-950" : "text-amber-300"}`}>Restaurant</span>
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="border border-white/[0.08] bg-zinc-800 text-[11px] text-zinc-100">
-                {restaurantBranding?.name ?? "Restaurant"}
-              </TooltipContent>
-            </Tooltip>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="border border-white/[0.08] bg-zinc-800 text-[11px] text-zinc-100">
+                  {restaurantBranding?.name ?? "Restaurant"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {isAdmin && <RestaurantSwitcher layout="bar" />}
 
             <ThemeIconToggle
               className={
                 resolvedTheme === "light"
-                  ? "border-amber-500/45 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  ? "border-amber-500/45 bg-amber-50 text-amber-800 hover:bg-amber-100"
                   : ""
               }
             />
-
-            {isAdmin && <RestaurantSwitcher />}
           </div>
 
           <nav className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1 sm:justify-start md:justify-center">

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
-import { Building2, ChevronLeft, Loader2, Plus, Save, Store, Users } from "lucide-react";
+import { ArrowLeft, Building2, Loader2, Plus, Save, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,8 +72,31 @@ function emptyForm(): Partial<RestaurantRow> {
   };
 }
 
+/** Match partner portal nav chip (readable in light + dark). */
+function portalNavModeTab(active: boolean) {
+  return cn(
+    "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold tracking-tight transition-colors sm:px-3 sm:text-sm",
+    active
+      ? "border-zinc-300/80 bg-zinc-200/90 text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none"
+      : "border-transparent text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-500 dark:hover:bg-white/[0.04] dark:hover:text-zinc-300",
+  );
+}
+
+function portalListRowSelected(active: boolean) {
+  return cn(
+    "w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
+    active
+      ? "border border-zinc-300/80 bg-zinc-200/85 text-zinc-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-100"
+      : "text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-300 dark:hover:bg-white/5",
+  );
+}
+
+const portalPrimaryCtaClass =
+  "gap-1.5 !bg-amber-500 !font-semibold !text-zinc-950 shadow-sm hover:!bg-amber-400";
+
 export default function AdminPortalPage() {
   const { session, isAdmin } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [restaurants, setRestaurants] = useState<RestaurantRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -385,53 +411,49 @@ export default function AdminPortalPage() {
   if (!session || !isAdmin) return null;
 
   return (
-    <div className="flex min-h-screen flex-col text-zinc-100">
-      <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
-            <a
-              href="/"
-              className="inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-amber-400"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Site
-            </a>
-            <a
-              href="/partner-portal"
-              className="inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-amber-400"
-            >
-              <Store className="h-4 w-4" />
-              Partner portal
-            </a>
-          </div>
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-amber-500/90" />
-            <h1 className="text-lg font-bold tracking-tight text-white">Rasvia admin</h1>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="hover-red-override border-white/15 bg-zinc-900/80 text-zinc-200 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white"
-            onClick={() => supabase.auth.signOut()}
+    <div className="flex min-h-screen flex-col bg-background text-zinc-100">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-white/[0.08] bg-background/95 shadow-[0_1px_0_rgba(0,0,0,0.25)] backdrop-blur-md dark:shadow-[0_1px_0_rgba(0,0,0,0.4)]">
+        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 sm:px-6">
+          <a
+            href="/partner-portal"
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm font-semibold text-zinc-800 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-900 dark:text-zinc-200 dark:hover:text-amber-100"
           >
-            Sign out
-          </Button>
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            Back
+          </a>
+          <div className="flex min-w-0 items-center justify-center gap-2">
+            <Building2 className="h-5 w-5 shrink-0 text-amber-500/90" />
+            <h1 className="truncate text-lg font-bold tracking-tight text-foreground">Admin Portal</h1>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <ThemeIconToggle
+              className={
+                resolvedTheme === "light"
+                  ? "border-amber-500/45 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  : "border-white/15 bg-zinc-900/85"
+              }
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="hover-red-override border-white/15 bg-zinc-900/80 text-zinc-200 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white dark:bg-zinc-900/80"
+              onClick={() => supabase.auth.signOut()}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1600px] flex-wrap gap-2 border-b border-white/10 px-4 py-2 sm:px-6">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap gap-2 border-b border-white/[0.08] px-4 py-2 sm:px-6">
         <button
           type="button"
           onClick={() => {
             setAdminMode("restaurants");
             setSelectedUserId(null);
           }}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            adminMode === "restaurants"
-              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
-              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-          }`}
+          className={portalNavModeTab(adminMode === "restaurants")}
         >
           <Building2 className="h-4 w-4" />
           Restaurants
@@ -442,11 +464,7 @@ export default function AdminPortalPage() {
             setAdminMode("users");
             setSelectedId(null);
           }}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            adminMode === "users"
-              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
-              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-          }`}
+          className={portalNavModeTab(adminMode === "users")}
         >
           <Users className="h-4 w-4" />
           Users
@@ -458,11 +476,7 @@ export default function AdminPortalPage() {
             setSelectedId(null);
             setSelectedUserId(null);
           }}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            adminMode === "groups"
-              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/40"
-              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-          }`}
+          className={portalNavModeTab(adminMode === "groups")}
         >
           <Users className="h-4 w-4" />
           Groups
@@ -490,11 +504,7 @@ export default function AdminPortalPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedUserId(p.id)}
-                        className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                          selectedUserId === p.id
-                            ? "bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/30"
-                            : "text-zinc-300 hover:bg-white/5"
-                        }`}
+                        className={portalListRowSelected(selectedUserId === p.id)}
                       >
                         <span className="font-medium">{profileLabel(p)}</span>
                         <span className="mt-0.5 block font-mono text-[10px] text-zinc-600">{p.id}</span>
@@ -568,13 +578,7 @@ export default function AdminPortalPage() {
         <aside className="flex w-full shrink-0 flex-col gap-3 border-b border-white/10 pb-4 lg:w-[360px] lg:border-b-0 lg:border-r lg:border-white/10 lg:pr-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Groups</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="h-8 gap-1 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25"
-              onClick={openCreateGroupEditor}
-            >
+            <Button type="button" size="sm" onClick={openCreateGroupEditor} className={cn("h-8", portalPrimaryCtaClass)}>
               <Plus className="h-3.5 w-3.5" />
               Create Group
             </Button>
@@ -600,7 +604,7 @@ export default function AdminPortalPage() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-8 border-sky-500/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
+                        className="h-8 border-zinc-300/90 bg-zinc-100 text-sm font-medium text-zinc-900 hover:bg-zinc-200 dark:border-white/15 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
                         onClick={() => openEditGroupEditor(g.key, g.members.map((m) => m.id))}
                       >
                         Edit
@@ -609,7 +613,7 @@ export default function AdminPortalPage() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-8 border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                        className="h-8 border-red-600/40 bg-red-100 text-sm font-medium text-red-900 hover:bg-red-200/90 dark:border-red-500/35 dark:bg-red-500/15 dark:text-red-100 dark:hover:bg-red-500/25"
                         onClick={() => {
                           if (window.confirm(`Delete group "${g.key}"?`)) {
                             void handleDeleteGroup(g.key);
@@ -662,11 +666,7 @@ export default function AdminPortalPage() {
                                 prev.includes(r.id) ? prev.filter((id) => id !== r.id) : [...prev, r.id],
                               )
                             }
-                            className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                              checked
-                                ? "bg-sky-500/15 text-sky-100 ring-1 ring-sky-500/30"
-                                : "text-zinc-300 hover:bg-white/5"
-                            }`}
+                            className={portalListRowSelected(checked)}
                           >
                             <span className="font-medium">{r.name}</span>
                             <span className="mt-0.5 block text-xs text-zinc-500">ID {r.id}</span>
@@ -683,7 +683,7 @@ export default function AdminPortalPage() {
                   type="button"
                   disabled={groupSaving}
                   onClick={() => void handleSaveGroupEditor()}
-                  className="gap-2 bg-sky-600 text-black hover:bg-sky-500"
+                  className={cn("gap-2", portalPrimaryCtaClass)}
                 >
                   {groupSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {groupEditorMode === "create" ? "Create group" : "Save group"} ({groupEditorRestaurantIds.length})
@@ -711,13 +711,7 @@ export default function AdminPortalPage() {
         <aside className="flex min-h-0 w-full shrink-0 flex-col border-b border-white/10 bg-zinc-950/60 lg:w-[320px] lg:flex-shrink-0 lg:self-stretch lg:border-b-0 lg:border-r lg:border-white/10">
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 lg:px-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Restaurants</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="h-8 gap-1 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-              onClick={() => setSelectedId("new")}
-            >
+            <Button type="button" size="sm" onClick={() => setSelectedId("new")} className={cn("h-8", portalPrimaryCtaClass)}>
               <Plus className="h-3.5 w-3.5" />
               New
             </Button>
@@ -734,11 +728,7 @@ export default function AdminPortalPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedId(r.id)}
-                      className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                        selectedId === r.id
-                          ? "bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/30"
-                          : "text-zinc-300 hover:bg-white/5"
-                      }`}
+                      className={portalListRowSelected(selectedId === r.id)}
                     >
                       <span className="font-medium">{r.name}</span>
                       <span className="mt-0.5 block text-xs text-zinc-500">ID {r.id}</span>

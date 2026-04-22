@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Switch } from "@/components/ui/switch";
 import { WaitTimeWidget } from "@/components/WaitTimeWidget";
 import { useTheme } from "@/context/ThemeContext";
+import { cn } from "@/lib/utils";
 
 import {
   Dialog,
@@ -96,11 +97,25 @@ export default function StatusBar({ embedded = false }: { embedded?: boolean }) 
               checked={waitlistOpen}
               onCheckedChange={handleSwitchChange}
               disabled={isToggleDisabled}
-              className={`${
+              className={cn(
+                "disabled:cursor-not-allowed disabled:opacity-40",
                 waitlistOpen && !isToggleDisabled
-                  ? "data-[state=checked]:bg-emerald-600/45 data-[state=checked]:border-emerald-500/20"
-                  : "data-[state=unchecked]:bg-zinc-800"
-              } disabled:cursor-not-allowed disabled:opacity-40`}
+                  ? "data-[state=checked]:border-emerald-500/30 data-[state=checked]:bg-emerald-600"
+                  : !isToggleDisabled
+                    ? isLight
+                      ? "data-[state=unchecked]:border-zinc-400/40 data-[state=unchecked]:bg-zinc-300"
+                      : "data-[state=unchecked]:border-zinc-600/50 data-[state=unchecked]:bg-zinc-800"
+                    : "data-[state=unchecked]:bg-zinc-800",
+              )}
+              thumbClassName={
+                !isToggleDisabled && !waitlistOpen
+                  ? isLight
+                    ? "data-[state=unchecked]:!bg-zinc-800 data-[state=unchecked]:!ring-zinc-900/20"
+                    : "data-[state=unchecked]:!bg-zinc-500 data-[state=unchecked]:!ring-zinc-950/50"
+                  : !isToggleDisabled && waitlistOpen
+                    ? "data-[state=checked]:!bg-white data-[state=checked]:!shadow-sm dark:data-[state=checked]:!bg-zinc-50"
+                    : undefined
+              }
             />
             <motion.span
               animate={{ opacity: 1 }}

@@ -12,7 +12,6 @@ import TeamRolesPanel from "@/components/dashboard/TeamRolesPanel";
 import PartnerProfilePanel from "@/components/dashboard/PartnerProfilePanel";
 import RestaurantMediaCarousel from "@/components/dashboard/RestaurantMediaCarousel";
 import { useDashboard } from "@/context/DashboardContext";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   Dialog,
   DialogContent,
@@ -152,19 +151,14 @@ function fmt12(time24: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type SettingsLeftTab = "restaurant" | "partner";
-type SettingsRightTab = "hours" | "team";
-type SettingsMobileTab = SettingsLeftTab | SettingsRightTab;
+type SettingsTab = "restaurant" | "partner" | "hours" | "team";
 
 export default function SettingsPanel() {
   const { restaurantId, isAdmin, isRestaurantOwner } = useAuth();
   const { setActiveView } = useDashboard();
-  const isLg = useMediaQuery("(min-width: 1024px)");
   const showTeamSection = isAdmin || isRestaurantOwner;
 
-  const [leftTab, setLeftTab] = useState<SettingsLeftTab>("restaurant");
-  const [rightTab, setRightTab] = useState<SettingsRightTab>("hours");
-  const [mobileTab, setMobileTab] = useState<SettingsMobileTab>("restaurant");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("restaurant");
   const [showRemoveImageConfirm, setShowRemoveImageConfirm] = useState(false);
 
   useEffect(() => {
@@ -174,8 +168,7 @@ export default function SettingsPanel() {
         sessionStorage.removeItem("rasvia:open_settings_panel");
         setActiveView("settings");
         if (v === "partner") {
-          setLeftTab("partner");
-          setMobileTab("partner");
+          setActiveTab("partner");
         }
       }
     } catch {
@@ -610,77 +603,34 @@ export default function SettingsPanel() {
       active ? "border border-white/15 bg-white/[0.08] text-zinc-100" : "border border-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300"
     }`;
 
-  const syncMobileToSplit = (t: SettingsMobileTab) => {
-    setMobileTab(t);
-    if (t === "restaurant" || t === "partner") setLeftTab(t);
-    if (t === "hours" || t === "team") setRightTab(t);
-  };
-
-  const restaurantHidden = (isLg ? leftTab !== "restaurant" : mobileTab !== "restaurant") ? "hidden" : "";
-  const partnerHidden = (isLg ? leftTab !== "partner" : mobileTab !== "partner") ? "hidden" : "";
-  const hoursHidden = (isLg ? rightTab !== "hours" : mobileTab !== "hours") ? "hidden" : "";
-  const teamHidden = (isLg ? rightTab !== "team" : mobileTab !== "team") ? "hidden" : "";
-
-  /** On small screens the layout is stacked; hide the entire column that isn't active so flex-1 doesn't leave a blank half. */
-  const mobileShowsLeftColumn = mobileTab === "restaurant" || mobileTab === "partner";
-  const mobileShowsRightColumn = mobileTab === "hours" || mobileTab === "team";
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="sticky top-0 z-20 shrink-0 border-b border-white/[0.08] bg-background/95 px-3 py-2 backdrop-blur-md sm:px-4">
-        <div className="grid grid-cols-2 gap-1.5 lg:hidden">
-          <button type="button" onClick={() => syncMobileToSplit("restaurant")} className={tabBtn(mobileTab === "restaurant")}>
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-1.5 sm:gap-1">
+          <button type="button" onClick={() => setActiveTab("restaurant")} className={tabBtn(activeTab === "restaurant")}>
             Restaurant
           </button>
-          <button type="button" onClick={() => syncMobileToSplit("partner")} className={tabBtn(mobileTab === "partner")}>
+          <button type="button" onClick={() => setActiveTab("partner")} className={tabBtn(activeTab === "partner")}>
             Partner
           </button>
-          <button type="button" onClick={() => syncMobileToSplit("hours")} className={tabBtn(mobileTab === "hours")}>
+          <button type="button" onClick={() => setActiveTab("hours")} className={tabBtn(activeTab === "hours")}>
             Hours
           </button>
           <button
             type="button"
-            onClick={() => syncMobileToSplit("team")}
+            onClick={() => setActiveTab("team")}
             disabled={!showTeamSection}
-            className={`${tabBtn(mobileTab === "team")} ${!showTeamSection ? "cursor-not-allowed opacity-40" : ""}`}
+            className={cn(tabBtn(activeTab === "team"), !showTeamSection && "cursor-not-allowed opacity-40")}
           >
             Team
           </button>
         </div>
-        <div className="hidden items-center justify-between gap-4 lg:flex">
-          <div className="flex flex-wrap gap-1">
-            <button type="button" onClick={() => setLeftTab("restaurant")} className={tabBtn(leftTab === "restaurant")}>
-              Restaurant
-            </button>
-            <button type="button" onClick={() => setLeftTab("partner")} className={tabBtn(leftTab === "partner")}>
-              Partner
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            <button type="button" onClick={() => setRightTab("hours")} className={tabBtn(rightTab === "hours")}>
-              Hours
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightTab("team")}
-              disabled={!showTeamSection}
-              className={`${tabBtn(rightTab === "team")} ${!showTeamSection ? "cursor-not-allowed opacity-40" : ""}`}
-            >
-              Team
-            </button>
-          </div>
-        </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col border-white/[0.06] lg:w-1/2 lg:border-r",
-            !isLg && !mobileShowsLeftColumn && "hidden",
-          )}
-        >
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <div className={`mx-auto w-full max-w-xl space-y-8 ${restaurantHidden}`}>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-5">
+          <div className={activeTab === "restaurant" ? "space-y-8" : "hidden"}>
+            <div className="mx-auto w-full space-y-8">
         {/* ── Restaurant Profile ─────────────────────────────────────── */}
         <div className="space-y-6">
           <div className="flex items-start justify-between">
@@ -721,20 +671,22 @@ export default function SettingsPanel() {
                 />
                 <div className="relative group">
                   {draft.imageUrl ? (
-                    <div className="relative rounded-xl overflow-hidden border border-white/10">
+                    <div className="relative isolate overflow-hidden rounded-xl border border-white/10">
                       <FallbackImage
                         src={draft.imageUrl}
                         fallbackSrc={restaurantId ? getRestaurantFallback(restaurantId) : ""}
                         alt="Restaurant"
-                        className="w-full h-48 object-cover"
+                        className="relative z-0 block h-48 w-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <div
+                        className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-3 bg-black/45 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100"
+                      >
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => imageInputRef.current?.click()}
                           disabled={imageUploading}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-700 border border-zinc-500/40 text-zinc-50 text-xs font-semibold hover:bg-zinc-600 transition-colors shadow-sm"
+                          className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/95 px-3 py-2 text-xs font-semibold text-zinc-900 shadow-md backdrop-blur-sm transition-colors hover:bg-white dark:border-zinc-500/40 dark:bg-zinc-800/95 dark:text-zinc-50 dark:hover:bg-zinc-700"
                         >
                           <Upload size={13} strokeWidth={1.5} />
                           Replace
@@ -744,14 +696,14 @@ export default function SettingsPanel() {
                           type="button"
                           onClick={() => setShowRemoveImageConfirm(true)}
                           disabled={imageUploading}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-950/55 text-red-200/95 text-xs font-semibold shadow-sm transition-colors hover:border-red-500/45 hover:bg-red-950/75 hover:text-red-100"
+                          className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-red-500/50 bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-colors hover:bg-red-500"
                         >
                           <Trash2 size={13} strokeWidth={1.5} />
                           Remove
                         </motion.button>
                       </div>
                       {imageUploading && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
                           <Loader2 size={24} strokeWidth={1.5} className="text-amber-500 animate-spin" />
                         </div>
                       )}
@@ -1043,22 +995,14 @@ export default function SettingsPanel() {
         <div className="border-t border-white/5 pt-6">
           <StripeConnect />
         </div>
-            </div>
-
-            <div className={partnerHidden}>
-              <PartnerProfilePanel embedded />
-            </div>
           </div>
-        </div>
+          </div>
 
-        <div
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col lg:w-1/2",
-            !isLg && !mobileShowsRightColumn && "hidden",
-          )}
-        >
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <div className={`mx-auto w-full max-w-xl space-y-8 ${hoursHidden}`}>
+          <div className={activeTab === "partner" ? "" : "hidden"}>
+            <PartnerProfilePanel embedded />
+          </div>
+
+          <div className={activeTab === "hours" ? "space-y-8" : "hidden"}>
 
         {/* ── Operating Hours ────────────────────────────────────────── */}
         <div id="settings-hours" className="scroll-mt-28 space-y-4 border-t border-white/5 pt-6 first:border-t-0 first:pt-0">
@@ -1252,21 +1196,19 @@ export default function SettingsPanel() {
             </div>
           )}
         </div>
-
-            </div>
-
-        <div className={`mx-auto w-full max-w-xl ${teamHidden}`}>
-          {/* ── Team & Roles (restaurant owners & platform admins) ───── */}
-          <div className="space-y-4 border-t border-white/5 pt-6">
-            {showTeamSection ? (
-              <TeamRolesPanel />
-            ) : (
-              <p className="text-sm text-zinc-500">
-                Team management is available to restaurant owners and platform admins.
-              </p>
-            )}
           </div>
-        </div>
+
+          <div className={activeTab === "team" ? "" : "hidden"}>
+            {/* ── Team & Roles (restaurant owners & platform admins) ───── */}
+            <div className="space-y-4 border-t border-white/5 pt-6 first:border-t-0 first:pt-0">
+              {showTeamSection ? (
+                <TeamRolesPanel />
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Team management is available to restaurant owners and platform admins.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

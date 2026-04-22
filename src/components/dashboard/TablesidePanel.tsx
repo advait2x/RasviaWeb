@@ -771,15 +771,34 @@ function SessionCard({
 function statusBadge(status: PartySession["status"]) {
   switch (status) {
     case "open":
-      return { label: "Open", className: "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300" };
+      return {
+        label: "Open",
+        className:
+          "border-emerald-600/45 bg-emerald-100 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/[0.08] dark:text-emerald-300",
+      };
     case "locked":
-      return { label: "Locked", className: "border-amber-500/30 bg-amber-500/[0.08] text-amber-300" };
+      return {
+        label: "Locked",
+        className:
+          "border-amber-600/40 bg-amber-100 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/[0.08] dark:text-amber-300",
+      };
     case "paying":
-      return { label: "Paying", className: "border-blue-500/30 bg-blue-500/[0.08] text-blue-300" };
+      return {
+        label: "Paying",
+        className:
+          "border-blue-600/40 bg-blue-100 text-blue-950 dark:border-blue-500/30 dark:bg-blue-500/[0.08] dark:text-blue-300",
+      };
     case "submitted":
-      return { label: "Sent", className: "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300" };
+      return {
+        label: "Sent",
+        className:
+          "border-emerald-600/45 bg-emerald-100 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/[0.08] dark:text-emerald-300",
+      };
     default:
-      return { label: status, className: "border-white/10 bg-zinc-800/50 text-zinc-300" };
+      return {
+        label: status,
+        className: "border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-zinc-800/50 dark:text-zinc-300",
+      };
   }
 }
 
@@ -1031,7 +1050,7 @@ function SessionDetail({
               type="button"
               disabled={!canHost || items.length === 0 || lockBusy}
               onClick={handleLock}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/[0.16] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-600/45 bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-200/90 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/[0.08] dark:text-amber-300 dark:hover:bg-amber-500/[0.16]"
             >
               {lockBusy ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
               Lock cart for payment
@@ -1041,7 +1060,7 @@ function SessionDetail({
               type="button"
               disabled={!canHost || lockBusy}
               onClick={handleUnlock}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200/90 disabled:opacity-50 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200 dark:hover:bg-zinc-800/80"
             >
               {lockBusy ? <Loader2 size={13} className="animate-spin" /> : <Unlock size={13} />}
               Unlock cart
@@ -1052,7 +1071,7 @@ function SessionDetail({
             type="button"
             onClick={onEnd}
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/[0.06] px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/[0.14] disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-600/35 bg-red-100 px-3 py-2 text-xs font-semibold text-red-900 hover:bg-red-200/90 disabled:opacity-50 dark:border-red-500/25 dark:bg-red-500/[0.06] dark:text-red-300 dark:hover:bg-red-500/[0.14]"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
             End session
@@ -1146,18 +1165,18 @@ function SessionDetail({
                   onClick={() => handleSetMode(mode)}
                   className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-colors ${
                     active
-                      ? "border-amber-500/40 bg-amber-500/[0.08]"
-                      : "border-white/8 bg-zinc-900/40 hover:border-white/15"
+                      ? "border-amber-600/50 bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/[0.08]"
+                      : "border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-white/8 dark:bg-zinc-900/40 dark:hover:border-white/15"
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
                   <span
                     className={`text-xs font-semibold ${
-                      active ? "text-amber-200" : "text-zinc-200"
+                      active ? "text-amber-950 dark:text-amber-200" : "text-zinc-900 dark:text-zinc-200"
                     }`}
                   >
                     {modeLabel}
                   </span>
-                  <span className="text-[10px] leading-tight text-zinc-500">{hint}</span>
+                  <span className="text-[10px] leading-tight text-zinc-600 dark:text-zinc-500">{hint}</span>
                 </button>
               );
             })}

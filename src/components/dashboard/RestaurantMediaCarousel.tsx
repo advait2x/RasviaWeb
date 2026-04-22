@@ -338,7 +338,7 @@ export default function RestaurantMediaCarousel() {
               whileTap={{ scale: 0.98 }}
               onClick={() => void saveCarousel()}
               disabled={carouselSaving}
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/15 px-4 py-2.5 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-700/40 bg-amber-600/90 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-sm transition-colors hover:border-amber-600/50 hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {carouselSaving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} strokeWidth={2} />}
               {carouselSaving ? "Saving…" : "Save carousel"}
