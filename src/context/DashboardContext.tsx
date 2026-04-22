@@ -6,8 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 const VALID_NAV_VIEWS: NavView[] = [
-  "dashboard", "waitlist", "floorplan", "orders", "menu",
-  "settings", "pos", "kds", "reports", "kiosk",
+  "dashboard", "waitlist", "orders", "tableside", "menu",
+  "settings", "kds", "reports", "kiosk",
 ];
 
 const PARTNER_INITIAL_VIEW_KEY = "rasvia:partner_initial_view";
@@ -937,10 +937,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           const sessionId = String(row.id ?? "");
           const hostName = (row.host_name as string) ?? (row.name as string) ?? "A guest";
           const partySize = (row.party_size as number) ?? 0;
-
-          toast(`New group session started`, {
-            description: `${hostName} created a group${partySize > 0 ? ` Ã‚Â· Party of ${partySize}` : ""}`,
-          });
 
           setNotifications((prev) => [
             {

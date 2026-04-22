@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import {
-  fetchSnapshot, joinSession, addItem, updateItemQuantity, removeItem,
+  fetchSnapshot, joinSession, credsFromJoinResult, addItem, updateItemQuantity, removeItem,
   setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
   startCheckout, cancelSession, leaveSession, CheckoutError,
   formatCents, totalCartCents, paymentForMember, memberById,
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   savePartyCreds, loadPartyCreds, clearPartyCreds,
-  saveLastDisplayName, loadLastDisplayName,
 } from "@/lib/party-credentials";
 import { subscribeToParty } from "@/lib/party-realtime";
 import { PartyLedger, memberInitials } from "@/components/party/PartyLedger";
@@ -132,13 +131,60 @@ export default function JoinBridge() {
     setCredsLoaded(true);
   }, [sessionId]);
 
-  // Pre-fill nameInput with the last display name this browser used so a
-  // returning user doesn't have to retype their name for every new party.
+  // Pre-fill nameInput from the signed-in user's profile (first + last name
+  // if both are set, else any available display_name / full_name metadata).
+  // We deliberately do NOT fall back to a device-cached "last display name"
+  // here, since that leaks whatever name the previous user of this browser
+  // typed to the next person who joins a group order — when signed out the
+  // field should start blank and make them type their own name.
   useEffect(() => {
     if (nameInput.trim().length > 0) return;
-    const last = loadLastDisplayName();
-    if (last) setNameInput(last);
-    // run once on mount — pre-fill is a best-effort initial value.
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled || !user) return;
+        const meta: Record<string, unknown> = user.user_metadata ?? {};
+        const metaFirst = typeof meta.first_name === "string" ? meta.first_name : "";
+        const metaLast = typeof meta.last_name === "string" ? meta.last_name : "";
+        let candidate = [metaFirst, metaLast].filter(Boolean).join(" ").trim();
+        if (!candidate) {
+          const metaFull = (
+            (typeof meta.full_name === "string" ? meta.full_name : "") ||
+            (typeof meta.name === "string" ? meta.name : "") ||
+            (typeof meta.display_name === "string" ? meta.display_name : "")
+          ).trim();
+          candidate = metaFull;
+        }
+        if (!candidate) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name, full_name, display_name")
+            .eq("id", user.id)
+            .maybeSingle();
+          const p = (profile as {
+            first_name?: string | null;
+            last_name?: string | null;
+            full_name?: string | null;
+            display_name?: string | null;
+          } | null) ?? null;
+          if (p) {
+            const first = (p.first_name ?? "").trim();
+            const last = (p.last_name ?? "").trim();
+            candidate = [first, last].filter(Boolean).join(" ")
+              || (p.full_name ?? "").trim()
+              || (p.display_name ?? "").trim();
+          }
+        }
+        if (cancelled) return;
+        if (candidate) setNameInput(candidate);
+      } catch {
+        /* ignore — stay blank */
+      }
+    })();
+    return () => { cancelled = true; };
+    // Run once on mount — pre-fill is a best-effort initial value; if the
+    // user starts typing their own name we stop overriding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -229,11 +275,11 @@ export default function JoinBridge() {
     setJoinError(null);
     setJoining(true);
     try {
+      const existing = loadPartyCreds(sessionId);
       const result = await joinSession(supabase, sessionId, name);
-      const next: PartyCreds = { sessionId, memberId: result.member_id, memberToken: result.member_token };
+      const next = credsFromJoinResult(sessionId, result, existing);
       setCreds(next);
       savePartyCreds(next);
-      saveLastDisplayName(name);
       await loadAll();
     } catch (err) {
       // Surface the error in-page too — a Sonner toast in the bottom-right
@@ -553,6 +599,97 @@ export default function JoinBridge() {
             </button>
           </div>
         </div>
+      </Layout>
+    );
+  }
+
+  // Tableside (staff-managed) — guests can't add items, the waiter takes the
+  // order on their dashboard. Show a compact "hang tight" view with the
+  // table roster and whatever is already on the guest's check.
+  if (session.staff_managed && !isHost) {
+    const myItems = items.filter((it) => it.added_by_member_id === creds.memberId);
+    const mySubtotal = myItems.reduce(
+      (sum, it) => sum + Math.round(Number(it.menu_item?.price ?? 0) * 100) * Math.max(1, it.quantity),
+      0,
+    );
+    return (
+      <Layout
+        restaurantName={restaurant?.name ?? "Tableside"}
+        subtitle={`${members.length} at the table · waiter is taking the order`}
+        onBack={() => window.history.back()}
+      >
+        <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
+            <div className="flex items-center gap-2 text-sm font-bold text-amber-300">
+              <PartyPopper className="h-4 w-4" />
+              You're on the table
+            </div>
+            <p className="mt-1 text-sm text-zinc-300">
+              Just tell your server what you'd like — they'll add it to your check from their tablet.
+              When the waiter locks the cart, your "Pay my share" button will appear here.
+            </p>
+          </div>
+
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">At the table</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {members.map((m, idx) => (
+                <MemberChip
+                  key={m.id}
+                  member={m}
+                  index={idx}
+                  isSelf={m.id === creds.memberId}
+                  itemCount={items.filter((it) => it.added_by_member_id === m.id).reduce((s, it) => s + (it.quantity ?? 1), 0)}
+                  onClick={() => setViewingMemberId(m.id)}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Your items</h3>
+              <span className="text-sm font-semibold text-zinc-300">{formatCents(mySubtotal)}</span>
+            </div>
+            {myItems.length === 0 ? (
+              <p className="mt-2 rounded-xl border border-dashed border-white/10 bg-zinc-900/40 px-3 py-4 text-center text-xs text-zinc-500">
+                Nothing on your check yet — flag down your server and they'll add it here.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {myItems.map((it) => (
+                  <li
+                    key={it.id}
+                    className="flex items-center gap-3 rounded-xl border border-white/5 bg-zinc-900/70 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-zinc-100">
+                        {it.menu_item?.name ?? "Item"}
+                        {it.quantity > 1 ? <span className="text-zinc-500"> ×{it.quantity}</span> : null}
+                      </div>
+                      {it.special_requests ? (
+                        <div className="truncate text-[11px] italic text-zinc-500">
+                          "{it.special_requests}"
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="whitespace-nowrap font-mono text-sm text-zinc-300">
+                      {formatCents(Math.round(Number(it.menu_item?.price ?? 0) * 100) * Math.max(1, it.quantity))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <MemberItemsModal
+          memberId={viewingMemberId}
+          members={members}
+          items={items}
+          selfMemberId={creds.memberId}
+          onClose={() => setViewingMemberId(null)}
+        />
       </Layout>
     );
   }

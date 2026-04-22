@@ -467,7 +467,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 function ModifiersManager() {
   const { restaurantId, hasPermission } = useAuth();
-  const canManageMods = hasPermission("manage_modifiers") || hasPermission("manage_menu");
+  const canManageMods = hasPermission("manage_menu");
   const [modifiers, setModifiers] = useState<ItemModifier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

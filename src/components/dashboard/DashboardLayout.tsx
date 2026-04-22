@@ -5,7 +5,6 @@ import { Permission } from "@/types/dashboard";
 import { ShieldX, Loader2 } from "lucide-react";
 import PartnerDashboardChrome from "./PartnerDashboardChrome";
 import WaitlistFeed from "./WaitlistFeed";
-import FloorPlan from "./FloorPlan";
 import OrdersPanel from "./OrdersPanel";
 import TablesidePanel from "./TablesidePanel";
 import MenuManager from "./MenuManager";
@@ -13,7 +12,6 @@ import DashboardOverview from "./DashboardOverview";
 import SettingsPanel from "./SettingsPanel";
 import KioskPage from "@/pages/KioskPage";
 
-const POSTerminal = lazy(() => import("@/components/pos/POSTerminal"));
 const KitchenDisplay = lazy(() => import("@/components/pos/KitchenDisplay"));
 const SalesReports = lazy(() => import("@/components/pos/SalesReports"));
 
@@ -25,13 +23,6 @@ function LazyFallback() {
   );
 }
 
-function LazyPOS() {
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <POSTerminal />
-    </Suspense>
-  );
-}
 function LazyKDS() {
   return (
     <Suspense fallback={<LazyFallback />}>
@@ -50,12 +41,10 @@ function LazyReports() {
 const VIEW_COMPONENTS: Record<string, React.FC> = {
   dashboard: DashboardOverview,
   waitlist: WaitlistFeed,
-  floorplan: FloorPlan,
   orders: OrdersPanel,
   tableside: TablesidePanel,
   menu: MenuManager,
   settings: SettingsPanel,
-  pos: LazyPOS,
   kds: LazyKDS,
   reports: LazyReports,
   kiosk: KioskPage,
@@ -64,12 +53,10 @@ const VIEW_COMPONENTS: Record<string, React.FC> = {
 const VIEW_PERMISSIONS: Record<string, Permission> = {
   dashboard: "view_dashboard",
   waitlist: "manage_waitlist",
-  floorplan: "view_floorplan",
   orders: "view_orders",
   tableside: "manage_orders",
   menu: "view_menu",
   settings: "view_settings",
-  pos: "access_pos",
   kds: "access_kds",
   reports: "view_reports",
   kiosk: "access_kiosk",
@@ -141,10 +128,9 @@ export default function DashboardLayout() {
     const viewOrder = [
       "dashboard",
       "kiosk",
-      "pos",
       "waitlist",
-      "floorplan",
       "orders",
+      "tableside",
       "kds",
       "menu",
       "reports",
