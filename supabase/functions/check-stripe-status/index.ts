@@ -108,11 +108,14 @@ serve(async (req) => {
 
     const account = await stripe.accounts.retrieve(stripeAccountId)
 
+    const currentlyDue = (account as any).requirements?.currently_due ?? []
+
     return new Response(
       JSON.stringify({ 
         charges_enabled: account.charges_enabled,
         payouts_enabled: account.payouts_enabled,
-        details_submitted: account.details_submitted
+        details_submitted: account.details_submitted,
+        requirements_currently_due: currentlyDue,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )

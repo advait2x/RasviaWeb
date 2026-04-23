@@ -300,7 +300,7 @@ async function handlePartyV2(args: {
 
   const { data: restaurant, error: restaurantError } = await supabase
     .from('restaurants')
-    .select('id, name, stripe_account_id')
+    .select('id, name, stripe_account_id, platform_fee_bps')
     .eq('id', sessionRow.restaurant_id)
     .maybeSingle()
   if (restaurantError || !restaurant) return json({ error: 'Restaurant not found.' }, 404)
@@ -317,6 +317,8 @@ async function handlePartyV2(args: {
   const amountCents = Math.round(paymentRow.amount_cents)
   const targetLabel = isCovering ? 'Host-covered share' : 'Your share'
   const memberLabel = sanitizeLabel(authedMember.display_name, 'Guest', 80)
+  const platformFeeBps = Number(restaurant.platform_fee_bps ?? 0)
+  const applicationFeeCents = Math.round((amountCents * platformFeeBps) / 10000)
 
   const successUrl = `${redirectBaseUrl}?status=success&session_id={CHECKOUT_SESSION_ID}&return_url_base=${encodeURIComponent(returnUrlBase)}`
   const cancelUrl = `${redirectBaseUrl}?status=cancel&return_url_base=${encodeURIComponent(returnUrlBase)}`
@@ -345,10 +347,13 @@ async function handlePartyV2(args: {
         party_member_id: targetMemberId,
         party_payment_id: paymentRow.id,
         covered_by_member_id: isCovering ? partyMemberId : '',
+        restaurant_id: String(sessionRow.restaurant_id),
       },
       payment_intent_data: {
-        application_fee_amount: 0,
-        transfer_data: { destination: stripeAccountId },
+        application_fee_amount: applicationFeeCents,
+        transfer_data: {
+          destination: stripeAccountId,
+        },
         metadata: {
           party_session_id: partySessionId,
           party_member_id: targetMemberId,
@@ -462,6 +467,7 @@ async function handleSoloOrLegacyParty(args: {
       const veg = Boolean(row.menu_items?.is_vegetarian)
       if (!Number.isFinite(basePrice) || basePrice <= 0) continue
       fullItems.push({ menu_item_id: row.menu_item_id ?? null, name: itemName, price: Number(basePrice.toFixed(2)), quantity: qty, is_vegetarian: veg })
+      // stripe_tax_code not needed — restaurant handles tax
       if (!normalizedPayer) continue
       const ownerName = sanitizeLabel(row.added_by_name, '', 60)
       const splitMembers = parseSplitMembers(row.special_requests)
@@ -553,7 +559,7 @@ async function handleSoloOrLegacyParty(args: {
 
   const { data: restaurant, error: restaurantError } = await supabase
     .from('restaurants')
-    .select('id, name, stripe_account_id')
+    .select('id, name, stripe_account_id, platform_fee_bps')
     .eq('id', restaurantId)
     .maybeSingle()
   if (restaurantError || !restaurant) return json({ error: 'Restaurant not found.' }, 404)
@@ -569,24 +575,36 @@ async function handleSoloOrLegacyParty(args: {
   const successUrl = `${redirectBaseUrl}?status=success&session_id={CHECKOUT_SESSION_ID}&return_url_base=${encodeURIComponent(returnUrlBase)}`
   const cancelUrl = `${redirectBaseUrl}?status=cancel&return_url_base=${encodeURIComponent(returnUrlBase)}`
 
+  const subtotalCents = Math.round(subtotal * 100)
+  const platformFeeBps = Number(restaurant.platform_fee_bps ?? 0)
+  const applicationFeeCents = Math.round((subtotalCents * platformFeeBps) / 10000)
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{
+      line_items: orderItems.map((item) => ({
         price_data: {
           currency: 'usd',
-          product_data: { name: `Order at ${sanitizeLabel(restaurant.name, 'Rasvia Partner', 120)}` },
-          unit_amount: Math.round(subtotal * 100),
+          product_data: {
+            name: item.name,
+          },
+          unit_amount: Math.round(item.price * 100),
         },
-        quantity: 1,
-      }],
+        quantity: item.quantity,
+      })),
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { party_session_id: partySessionId || '', customer_name: customerName },
+      metadata: {
+        party_session_id: partySessionId || '',
+        customer_name: customerName,
+        restaurant_id: String(restaurantId),
+      },
       payment_intent_data: {
-        application_fee_amount: 0,
-        transfer_data: { destination: stripeAccountId },
+        application_fee_amount: applicationFeeCents,
+        transfer_data: {
+          destination: stripeAccountId,
+        },
       },
     })
     if (!session?.url) return json({ error: 'Stripe did not return a checkout URL.' }, 500)

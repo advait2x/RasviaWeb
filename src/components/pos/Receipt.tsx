@@ -112,7 +112,7 @@ export default function Receipt({ order, open, onClose, restaurantName = "Restau
           </div>
           ${discountRow}
           <div class="row">
-            <span>Tax (8.25%)</span>
+            <span>Tax</span>
             <span>$${escapeHtml(order.tax.toFixed(2))}</span>
           </div>
           <div class="line"></div>
@@ -207,7 +207,7 @@ export default function Receipt({ order, open, onClose, restaurantName = "Restau
               </div>
             )}
             <div className="flex justify-between mb-0.5">
-              <span>Tax (8.25%)</span>
+              <span>Tax</span>
               <span>${order.tax.toFixed(2)}</span>
             </div>
 

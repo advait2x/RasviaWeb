@@ -41,7 +41,8 @@ const MEAL_FILTERS: { value: MealTime; label: string; icon: typeof Coffee; color
     { value: "specials", label: "Specials", icon: Star, color: "bg-amber-500/10 border-amber-500/30 text-amber-400" },
 ];
 
-const TAX_RATE = 0.0825;
+// Fallback estimate for optimistic display. Actual tax from Stripe Tax API.
+const FALLBACK_TAX_RATE = 0.0825;
 
 // Same auto-formatting the kiosk walk-in modal uses so staff get consistent
 // digits-only, (xxx) xxx-xxxx formatted phone entry across the dashboard.
@@ -91,7 +92,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
     }, [menuItems, mealFilter, search]);
 
     const cartSubtotal = cart.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0);
-    const cartTax = Math.round(cartSubtotal * TAX_RATE * 100) / 100;
+    const cartTax = Math.round(cartSubtotal * FALLBACK_TAX_RATE * 100) / 100;
     const cartTotal = Math.round((cartSubtotal + cartTax) * 100) / 100;
     const cartItemCount = cart.reduce((sum, c) => sum + c.quantity, 0);
 
@@ -590,7 +591,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                     <span className="text-sm text-zinc-300 tabular-nums">${cartSubtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-zinc-500">Tax (8.25%)</span>
+                                    <span className="text-xs text-zinc-500">Tax (Est.)</span>
                                     <span className="text-sm text-zinc-300 tabular-nums">${cartTax.toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center justify-between pt-1">

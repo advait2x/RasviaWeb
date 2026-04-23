@@ -308,3 +308,56 @@ policies across the shared Supabase project. Highlights:
 
 ### After finishing
 Once you finish your work after a prompt, modify this file with any relevant information to aid future agents.
+
+## Connected Account Tax (Seller-of-Record) — April 2026
+
+Rasvia uses a **seller-of-record** model where the **connected restaurant account**
+is responsible for collecting and remitting sales tax. The platform does NOT act
+as a marketplace facilitator for tax purposes. The platform only collects a
+platform fee via `application_fee_amount`.
+
+### Architecture invariants
+
+- **The restaurant's connected Stripe account handles tax.** The platform does
+  NOT use `automatic_tax`, `tax_code`, or `tax_behavior` on checkout sessions.
+- `transfer_data.destination = stripeAccountId` with NO explicit `amount` — the
+  full charge (minus `application_fee_amount`) goes to the connected account.
+- `application_fee_amount = subtotal * platform_fee_bps / 10000` (currently 0
+  by default; plumbed for future activation).
+- The `calculate-tax` edge function has been **removed** — it was only needed
+  for the marketplace facilitator model.
+- POS/cash orders use `FALLBACK_TAX_RATE = 0.0825` in `DashboardContext.tsx`,
+  `POSTerminal.tsx`, and `TakeOrderModal.tsx` for display only. Restaurants
+  should configure their own tax rates in their Stripe dashboard.
+
+### Database columns added (`seller_of_record_tax` migration)
+
+| Table | Column | Purpose |
+|-------|--------|---------|
+| `restaurants` | `street_address`, `city`, `state`, `postal_code`, `country` | Restaurant address for display/search |
+| `restaurants` | `platform_fee_bps` (default 0) | Per-restaurant platform fee in basis points |
+| `orders` | `platform_fee_cents` | Application fee recorded from webhook |
+| `orders` | `transfer_amount_cents` | Transfer amount audit |
+| `party_payments` | `platform_fee_cents` | Group-order platform fee audit |
+
+### Edge function behavior
+
+- `create-stripe-account` — requests `card_payments` + `transfers` capabilities.
+  Does NOT request `tax_reporting_us_1099_k`.
+- `check-stripe-status` — returns `charges_enabled`, `payouts_enabled`,
+  `details_submitted`, and `requirements_currently_due`.
+- `create-checkout` — simple line items (no tax_code, no tax_behavior, no
+  automatic_tax). Uses `transfer_data.destination` with `application_fee_amount`.
+- `stripe-webhook` — persists `platform_fee_cents` only. No tax transaction
+  booking.
+- `calculate-tax` — **REMOVED** (was marketplace facilitator only).
+
+### Restaurant setup
+
+For tax to work correctly:
+1. Each restaurant must configure **Stripe Tax** within their own connected
+   Stripe account dashboard.
+2. `platform_fee_bps` defaults to 0 (no platform take). Update per-restaurant
+   as needed.
+3. Deploy all edge functions and run the migration.
+

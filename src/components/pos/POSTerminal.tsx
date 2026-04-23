@@ -14,7 +14,8 @@ import HeldOrdersList from "./HeldOrdersList";
 import TableQuickSelect from "./TableQuickSelect";
 import Receipt from "./Receipt";
 
-const TAX_RATE = 0.0825;
+// Fallback estimate for optimistic display. Actual tax from Stripe Tax API.
+const FALLBACK_TAX_RATE = 0.0825;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -53,7 +54,7 @@ export default function POSTerminal() {
       (s, i) => s + (i.unitPrice + i.modifiers.reduce((a, m) => a + m.priceAdjustment, 0)) * i.quantity,
       0,
     );
-    const t = sub * TAX_RATE;
+    const t = sub * FALLBACK_TAX_RATE;
     return { subtotal: sub, tax: t, total: sub + t };
   }, [cart, currentOrder]);
 

@@ -264,7 +264,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [pastOrdersLoading, setPastOrdersLoading] = useState(false);
   const [pastOrdersFilter, setPastOrdersFilter] = useState<PastOrdersFilter>(DEFAULT_PAST_ORDERS_FILTER);
 
-  const TAX_RATE = 0.0825;
+  // FALLBACK_TAX_RATE is used for POS / cash order display. Online checkout tax
+  // is handled by the restaurant's connected Stripe account — the platform does
+  // not compute or collect tax.
+  const FALLBACK_TAX_RATE = 0.0825;
 
   // Prevent notification spam on first load
   const waitlistInitialized = useRef(false);
@@ -773,7 +776,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Order helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-  const TAX_RATE_LOCAL = TAX_RATE; // keep reference accessible inside closures
+  const FALLBACK_TAX_RATE_LOCAL = FALLBACK_TAX_RATE;
 
   // DB and app now both use 'pending' Ã¢â‚¬â€ no mapping needed
 
@@ -809,7 +812,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       };
     });
     const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-    const tax = Math.round(subtotal * TAX_RATE_LOCAL * 100) / 100;
+    const tax = Math.round(subtotal * FALLBACK_TAX_RATE_LOCAL * 100) / 100;
     return {
       id: String(row.id),
       tableId: (meta.tableId as string) ?? "",
@@ -961,7 +964,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const recalcOrderTotals = (items: OrderItem[]): { subtotal: number; tax: number; total: number } => {
     const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
-    const tax = Math.round(subtotal * TAX_RATE_LOCAL * 100) / 100;
+    const tax = Math.round(subtotal * FALLBACK_TAX_RATE_LOCAL * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
     return { subtotal, tax, total };
   };
@@ -1296,7 +1299,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const items = o.items.map((i) => i.id === itemId ? { ...i, voided: true } : i);
       const activeItems = items.filter((i) => !i.voided && !i.comped);
       const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-      const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+      const tax = Math.round(subtotal * FALLBACK_TAX_RATE * 100) / 100;
       return { ...o, items, voidTotal: (o.voidTotal ?? 0) + originalAmount, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
     }));
     toast("Item voided", { description: `${item.menuItemName} Ã¢â‚¬â€ ${reason}` });
@@ -1312,7 +1315,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const items = o.items.map((i) => i.id === itemId ? { ...i, comped: true, compReason: reason } : i);
       const activeItems = items.filter((i) => !i.voided && !i.comped);
       const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-      const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+      const tax = Math.round(subtotal * FALLBACK_TAX_RATE * 100) / 100;
       return { ...o, items, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
     }));
     toast("Item comped");
@@ -1364,7 +1367,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const newDiscounts = [...(o.discounts ?? []), discountEntry];
         const totalDiscount = newDiscounts.reduce((s, d) => s + d.appliedAmount, 0);
         const taxable = o.subtotal - totalDiscount;
-        const tax = Math.round(Math.max(0, taxable) * TAX_RATE * 100) / 100;
+        const tax = Math.round(Math.max(0, taxable) * FALLBACK_TAX_RATE * 100) / 100;
         return { ...o, discounts: newDiscounts, discountTotal: totalDiscount, tax, total: Math.round((Math.max(0, taxable) + tax) * 100) / 100 };
       }));
     }
@@ -1381,7 +1384,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const newDiscounts = (o.discounts ?? []).filter((d) => d.id !== discountId);
       const totalDiscount = newDiscounts.reduce((s, d) => s + d.appliedAmount, 0);
       const taxable = o.subtotal - totalDiscount;
-      const tax = Math.round(Math.max(0, taxable) * TAX_RATE * 100) / 100;
+      const tax = Math.round(Math.max(0, taxable) * FALLBACK_TAX_RATE * 100) / 100;
       return { ...o, discounts: newDiscounts, discountTotal: totalDiscount, tax, total: Math.round((Math.max(0, taxable) + tax) * 100) / 100 };
     }));
 
