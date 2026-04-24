@@ -1109,7 +1109,7 @@ function CartStrip(props: {
             );
           })() : (
             <div className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 text-center text-sm font-semibold text-zinc-500">
-              {props.hostDeciding ? "Host is deciding how to pay" : "Waiting on host…"}
+              {props.hostDeciding ? "Host is deciding how to pay..." : "Waiting on host…"}
             </div>
           )}
         </div>

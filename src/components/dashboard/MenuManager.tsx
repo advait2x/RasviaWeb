@@ -1189,8 +1189,8 @@ export default function MenuManager() {
               className={cn(
                 "px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-colors",
                 active
-                  ? "border-amber-500/35 bg-amber-500/12 text-amber-300"
-                  : "border-white/8 bg-zinc-800/40 text-zinc-500 hover:text-zinc-300"
+                  ? "border-amber-500/35 bg-amber-500/12 text-amber-600 dark:text-amber-300"
+                  : "border-black/10 dark:border-white/8 bg-zinc-100 dark:bg-zinc-800/40 text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
               )}
             >
               {option.label}
@@ -1309,10 +1309,10 @@ export default function MenuManager() {
 
                     {isCustomStripeTaxCode(item.stripeTaxCode) && (
                       <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                        <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
                           Tax Override
                         </span>
-                        <span className="text-[10px] font-mono text-zinc-500">
+                        <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-500">
                           {normalizeStripeTaxCode(item.stripeTaxCode)}
                         </span>
                       </div>

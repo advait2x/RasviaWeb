@@ -896,11 +896,11 @@ export default function SettingsPanel() {
                             "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all",
                             cuisinePurgeMode
                               ? purged
-                                ? "border-rose-400/60 bg-rose-500/20 text-rose-100 line-through opacity-90"
-                                : "border-white/8 bg-zinc-800/60 text-zinc-400 hover:border-rose-400/35 hover:text-rose-200"
+                                ? "border-rose-400/60 bg-rose-500/20 text-rose-700 dark:text-rose-100 line-through opacity-90"
+                                : "border-black/10 dark:border-white/8 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-500 dark:text-zinc-400 hover:border-rose-400/35 hover:text-rose-600 dark:hover:text-rose-200"
                               : active
-                                ? "border-amber-500/40 bg-amber-500/15 text-amber-400"
-                                : "border-white/8 bg-zinc-800/60 text-zinc-500 hover:border-white/15 hover:text-zinc-300",
+                                ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                : "border-black/10 dark:border-white/8 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-500 hover:border-black/20 dark:hover:border-white/15 hover:text-zinc-800 dark:hover:text-zinc-300",
                             !editing && "cursor-default",
                           )}
                         >

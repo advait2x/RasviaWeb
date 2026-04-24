@@ -311,7 +311,7 @@ function HostDashboardMockup() {
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
           <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">Waitlist</span>
-          <span className="rounded-full bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-500">3 waiting</span>
+          <span className="rounded-full bg-zinc-700/80 dark:bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-300 dark:text-zinc-500">3 waiting</span>
         </div>
         <div className="h-5 w-16 rounded-md bg-zinc-700/50 animate-pulse" />
       </div>
@@ -737,27 +737,26 @@ export default function LandingPage() {
   }, [audience]);
 
   useEffect(() => {
-    const area = heroGlowAreaRef.current;
-    if (!area) return;
     let raf = 0;
     let cancelled = false;
+    // Track the cursor in viewport coords. The glow element is `fixed` at
+    // `top: 1/3` and `left: 50%`, with an initial `translate(-50%, -50%)`.
+    // So its centre rests at (50vw, 33vh). We shift it so its centre lands
+    // exactly on the cursor: offsetX = cursorX - 50vw, offsetY = cursorY - 33vh.
     const onMove = (e: MouseEvent) => {
-      const r = area.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height * 0.25;
       glowTarget.current = {
-        x: (e.clientX - cx) * 0.42,
-        y: (e.clientY - cy) * 0.32,
+        x: e.clientX - window.innerWidth / 2,
+        y: e.clientY - window.innerHeight / 3,
       };
     };
-    const lerp = 0.11;
+    const lerp = 0.14;   // higher = snappier catch-up while still smooth
     const tick = () => {
       if (cancelled) return;
       glowPos.current.x += (glowTarget.current.x - glowPos.current.x) * lerp;
       glowPos.current.y += (glowTarget.current.y - glowPos.current.y) * lerp;
       const el = heroGlowRef.current;
       if (el) {
-        el.style.transform = `translate(calc(-50% + ${glowPos.current.x}px), ${glowPos.current.y}px)`;
+        el.style.transform = `translate(calc(-50% + ${glowPos.current.x}px), calc(-50% + ${glowPos.current.y}px))`;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -789,19 +788,22 @@ export default function LandingPage() {
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden text-zinc-100">
+      {/* Page-wide cursor glow — fixed so it tracks the mouse anywhere on the page */}
+      <div
+        ref={heroGlowRef}
+        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.07] will-change-transform"
+        style={{
+          zIndex: -1,
+          background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
+          filter: "blur(70px)",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+
       <Navbar />
 
       <main className="w-full py-12 pt-28">
         <div ref={heroGlowAreaRef} className="mx-auto max-w-7xl px-6 relative overflow-hidden">
-          <div
-            ref={heroGlowRef}
-            className="pointer-events-none absolute -top-32 left-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07] will-change-transform"
-            style={{
-              background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
-              filter: "blur(60px)",
-              transform: "translate(-50%, 0px)",
-            }}
-          />
 
           <section className="relative grid gap-10 lg:grid-cols-2 lg:items-start">
             <div>

@@ -43,7 +43,7 @@ export const DASH_HEADER_DOT = "relative inline-flex h-2 w-2 rounded-full bg-amb
 
 /** Nav item count badges (orders, waitlist) */
 export const DASH_NAV_COUNT_BADGE =
-  "absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-amber-500/35 bg-amber-500/25 px-1 text-[10px] font-semibold tabular-nums text-amber-100 ring-1 ring-amber-400/20";
+  "absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-amber-500/35 bg-amber-500/25 px-1 text-[10px] font-semibold tabular-nums text-amber-800 dark:text-amber-100 ring-1 ring-amber-400/20";
 
 /** Unread / emphasis pill (notifications preview) */
 export const DASH_BADGE_UNREAD =
