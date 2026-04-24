@@ -4,6 +4,8 @@ import { Users, Phone, ShoppingBag, Utensils, Package } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { TableInfo, OrderType } from "@/types/dashboard";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 interface POSNewOrderModalProps {
   open: boolean;
@@ -188,7 +190,10 @@ export default function POSNewOrderModal({ open, onClose, tables, onConfirm }: P
               whileTap={{ scale: 0.95 }}
               onClick={handleConfirm}
               disabled={orderType === "dine_in" && !selectedTableId}
-              className="flex-1 py-3 rounded-xl bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className={cn(
+                "flex-1 rounded-xl py-3 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                DASH_PRIMARY_CTA,
+              )}
             >
               Start Order
             </motion.button>

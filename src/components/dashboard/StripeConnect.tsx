@@ -4,6 +4,8 @@ import { CreditCard, CheckCircle2, Loader2, ExternalLink, AlertTriangle } from "
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { DASH_BTN_ADD } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -178,7 +180,10 @@ export default function StripeConnect() {
                             whileHover={{ scale: 1.02 }}
                             onClick={handleConnectClick}
                             disabled={actionLoading}
-                            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors flex-shrink-0 shadow-lg shadow-amber-500/20 min-w-[140px]"
+                            className={cn(
+                                "flex min-w-[140px] flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-lg transition-colors dark:shadow-amber-500/20",
+                                DASH_BTN_ADD,
+                            )}
                         >
                             {actionLoading ? (
                                 <Loader2 size={14} className="animate-spin" />

@@ -14,14 +14,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  DASH_BTN_ADD,
+  DASH_MONEY_EMPHASIS,
+  DASH_PAST_FILTER_SELECTED,
+  ORDER_PILL_GROUP,
+  ORDER_PILL_REFUND_FULL,
+  ORDER_PILL_REFUND_PARTIAL,
+  ORDER_STATUS_PILL,
+} from "@/lib/dashboardUi";
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; icon: typeof Clock }> = {
-  pending: { label: "Pending", color: "bg-yellow-500/10 border-yellow-500/30 text-yellow-400", icon: Clock },
-  preparing: { label: "Preparing", color: "bg-blue-500/10 border-blue-500/30 text-blue-400", icon: Clock },
-  ready: { label: "Ready", color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400", icon: CheckCircle2 },
-  served: { label: "Served", color: "bg-violet-500/10 border-violet-500/30 text-violet-400", icon: CheckCircle2 },
-  completed: { label: "Completed", color: "bg-zinc-700/30 border-zinc-600/30 text-zinc-300", icon: CheckCircle2 },
-  cancelled: { label: "Cancelled", color: "bg-red-500/10 border-red-500/30 text-red-400", icon: XCircle },
+const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: typeof Clock }> = {
+  pending: { label: "Pending", icon: Clock },
+  preparing: { label: "Preparing", icon: Clock },
+  ready: { label: "Ready", icon: CheckCircle2 },
+  served: { label: "Served", icon: CheckCircle2 },
+  completed: { label: "Completed", icon: CheckCircle2 },
+  cancelled: { label: "Cancelled", icon: XCircle },
 };
 
 const RANGE_OPTIONS: { value: PastOrdersRange; label: string }[] = [
@@ -267,8 +277,8 @@ export default function PastOrdersView() {
               }}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 pastOrdersFilter.range === value
-                  ? "bg-amber-500/15 text-amber-400"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? DASH_PAST_FILTER_SELECTED
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
               }`}
             >
               {label}
@@ -279,11 +289,12 @@ export default function PastOrdersView() {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowFilters((v) => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors",
             showFilters
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-              : "bg-zinc-800 border-white/10 text-zinc-400 hover:bg-zinc-700"
-          }`}
+              ? DASH_BTN_ADD
+              : "bg-zinc-200/50 border border-zinc-300/40 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-700",
+          )}
         >
           <Filter size={13} strokeWidth={1.5} />
           More
@@ -430,7 +441,7 @@ export default function PastOrdersView() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-zinc-100">#{order.id} · {order.guestName}</p>
                       {order.partySessionId && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-purple-500/30 bg-purple-500/10 text-purple-300">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${ORDER_PILL_GROUP}`}>
                           Group
                         </span>
                       )}
@@ -444,7 +455,7 @@ export default function PastOrdersView() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                    <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${ORDER_STATUS_PILL[order.status]}`}>
                       <StatusIcon size={10} strokeWidth={1.5} />
                       {cfg.label}
                     </span>
@@ -470,19 +481,19 @@ export default function PastOrdersView() {
 
                 <div className="flex items-center justify-between pt-1.5 border-t border-white/5 gap-2 flex-wrap">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-amber-400 tabular-nums">
+                    <span className={cn("text-sm font-bold tabular-nums", DASH_MONEY_EMPHASIS)}>
                       ${order.total.toFixed(2)}
                     </span>
                     {order.tipAmount != null && order.tipAmount > 0 && (
-                      <span className="text-xs text-emerald-400">+${order.tipAmount.toFixed(2)} tip</span>
+                      <span className="text-xs text-emerald-800 dark:text-emerald-400">+${order.tipAmount.toFixed(2)} tip</span>
                     )}
                     {fullyRefunded && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-300">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${ORDER_PILL_REFUND_FULL}`}>
                         Fully refunded
                       </span>
                     )}
                     {partiallyRefunded && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${ORDER_PILL_REFUND_PARTIAL}`}>
                         ${(refundedCents / 100).toFixed(2)} refunded
                       </span>
                     )}

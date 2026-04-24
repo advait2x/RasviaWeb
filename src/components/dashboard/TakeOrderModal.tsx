@@ -14,6 +14,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { DASH_BTN_ADD } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -641,7 +643,10 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => canProceedFromTable && setStep("items")}
                                 disabled={!canProceedFromTable}
-                                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className={cn(
+                                    "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                    DASH_BTN_ADD,
+                                )}
                             >
                                 Next
                                 <ArrowRight size={14} strokeWidth={2} />
@@ -652,7 +657,10 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => cart.length > 0 && setStep("review")}
                                 disabled={cart.length === 0}
-                                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className={cn(
+                                    "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                    DASH_BTN_ADD,
+                                )}
                             >
                                 Review ({cartItemCount})
                                 <ArrowRight size={14} strokeWidth={2} />
@@ -662,7 +670,10 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleConfirm}
-                                className="flex items-center gap-2 px-6 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors amber-glow-sm"
+                                className={cn(
+                                    "amber-glow-sm flex items-center gap-2 rounded-lg px-6 py-2 text-sm font-semibold transition-colors",
+                                    DASH_BTN_ADD,
+                                )}
                             >
                                 <Check size={14} strokeWidth={2} />
                                 Confirm — Cash

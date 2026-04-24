@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Store, MapPin, Phone, UtensilsCrossed, FileText,
   Check, X, Loader2, AlertTriangle, Plus, Pencil, Clock,
-  ImageIcon, Upload, Trash2,
+  ImageIcon, Upload, Trash2, MinusCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import TeamRolesPanel from "@/components/dashboard/TeamRolesPanel";
 import PartnerProfilePanel from "@/components/dashboard/PartnerProfilePanel";
 import RestaurantMediaCarousel from "@/components/dashboard/RestaurantMediaCarousel";
 import { useDashboard } from "@/context/DashboardContext";
+import { useTheme } from "@/context/ThemeContext";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,7 @@ import StripeConnect from "@/components/dashboard/StripeConnect";
 import { getRestaurantFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
 import { cn } from "@/lib/utils";
-import { DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
+import { DASH_BTN_ADD, DASH_BTN_ADD_XS, DASH_SOFT_DESTRUCTIVE_BTN, DASH_SIGN_OUT_BUTTON } from "@/lib/dashboardUi";
 
 // ── Phone formatting ─────────────────────────────────────────────────────────
 
@@ -55,7 +57,8 @@ interface RestaurantProfile {
   cuisineTags: string[];
   description: string;
   imageUrl: string;
-  chainGroupKey: string;
+  /** Default cuisine option labels hidden for this restaurant (partner dashboard). */
+  cuisineExclusions: string[];
 }
 
 const DEFAULT_CUISINE_OPTIONS = [
@@ -79,12 +82,9 @@ const DEFAULT_CUISINE_OPTIONS = [
   "Biryani",
   "Dosa & Idli",
   "Indo-Chinese",
-  "Coastal",
   "Vegetarian",
-  "Vegan",
   "Jain",
   "Thali",
-  "Mithai & Desserts",
 ];
 
 interface TimePeriod {
@@ -115,7 +115,7 @@ const empty = (): RestaurantProfile => ({
   cuisineTags: [],
   description: "",
   imageUrl: "",
-  chainGroupKey: "",
+  cuisineExclusions: [],
 });
 
 function parseHoursRows(rows: Record<string, unknown>[]): OperatingHours {
@@ -156,6 +156,7 @@ type SettingsTab = "restaurant" | "partner" | "hours" | "team";
 export default function SettingsPanel() {
   const { restaurantId, isAdmin, isRestaurantOwner } = useAuth();
   const { setActiveView } = useDashboard();
+  const { resolvedTheme } = useTheme();
   const showTeamSection = isAdmin || isRestaurantOwner;
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("restaurant");
@@ -180,12 +181,16 @@ export default function SettingsPanel() {
   const [profile, setProfile] = useState<RestaurantProfile>(empty());
   const [draft, setDraft] = useState<RestaurantProfile>(empty());
   const [loading, setLoading] = useState(true);
-  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherValue, setOtherValue] = useState("");
   const otherInputRef = useRef<HTMLInputElement>(null);
+  const [cuisinePurgeMode, setCuisinePurgeMode] = useState(false);
+  const [cuisinePurgeMarks, setCuisinePurgeMarks] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
-  const [imageUploading, setImageUploading] = useState(false);
+  const [imageStage, setImageStage] = useState<"none" | "new" | "remove">("none");
+  const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null);
+  const pendingImageFileRef = useRef<File | null>(null);
+  const [restaurantImageLightbox, setRestaurantImageLightbox] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showWaitlistSettingsDialog, setShowWaitlistSettingsDialog] = useState(false);
@@ -195,7 +200,6 @@ export default function SettingsPanel() {
   const [communityImagesEnabled, setCommunityImagesEnabled] = useState(true);
   const [savedCommunityImagesEnabled, setSavedCommunityImagesEnabled] = useState(true);
   const [communityImagesSettingAvailable, setCommunityImagesSettingAvailable] = useState(true);
-  const [phoneEditing, setPhoneEditing] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
 
   // Operating hours
@@ -217,10 +221,7 @@ export default function SettingsPanel() {
   const fetchProfile = useCallback(async () => {
     if (!restaurantId) return;
 
-    const [profileRes, cuisinesRes] = await Promise.all([
-      supabase.from("restaurants").select("*").eq("id", restaurantId).maybeSingle(),
-      supabase.from("restaurants").select("cuisine_tags").not("cuisine_tags", "is", null),
-    ]);
+    const profileRes = await supabase.from("restaurants").select("*").eq("id", restaurantId).maybeSingle();
 
     if (profileRes.error) {
       console.error("fetchProfile failed:", profileRes.error.message);
@@ -229,6 +230,9 @@ export default function SettingsPanel() {
     }
 
     const row = profileRes.data as Record<string, unknown> | null;
+    const ex: string[] = Array.isArray((row as { cuisine_tag_exclusions?: unknown })?.cuisine_tag_exclusions)
+      ? ((row as { cuisine_tag_exclusions: string[] }).cuisine_tag_exclusions)
+      : [];
     const p: RestaurantProfile = {
       name: String(row?.name ?? row?.restaurant_name ?? ""),
       address: String(row?.address ?? row?.location ?? ""),
@@ -236,7 +240,7 @@ export default function SettingsPanel() {
       cuisineTags: Array.isArray(row?.cuisine_tags) ? (row.cuisine_tags as string[]) : [],
       description: String(row?.description ?? row?.bio ?? ""),
       imageUrl: String(row?.image_url ?? ""),
-      chainGroupKey: String(row?.chain_group_key ?? ""),
+      cuisineExclusions: ex,
     };
     setProfile(p);
     setDraft(p);
@@ -259,31 +263,27 @@ export default function SettingsPanel() {
     setMaxWaitlistSize(maxWait);
     setSavedMaxWaitlistSize(maxWait);
 
-    const dbTags: string[] = [];
-    if (!cuisinesRes.error && cuisinesRes.data) {
-      const allTags = (cuisinesRes.data as { cuisine_tags: unknown }[])
-        .flatMap((r) => Array.isArray(r.cuisine_tags) ? (r.cuisine_tags as string[]) : [])
-        .map((t) => t?.trim())
-        .filter(Boolean);
-      dbTags.push(...allTags);
-    }
-    const merged = [...new Set([...DEFAULT_CUISINE_OPTIONS, ...dbTags])].sort();
-    setCuisineOptions(merged);
-
     setLoading(false);
   }, [restaurantId]);
 
   useEffect(() => { if (showOtherInput) otherInputRef.current?.focus(); }, [showOtherInput]);
 
   const commitOther = () => {
+    if (cuisinePurgeMode) return;
     const val = otherValue.trim();
     if (val) {
-      setCuisineOptions((prev) => prev.includes(val) ? prev : [...prev, val].sort());
       setDraft((d) => ({ ...d, cuisineTags: d.cuisineTags.includes(val) ? d.cuisineTags : [...d.cuisineTags, val] }));
     }
     setOtherValue("");
     setShowOtherInput(false);
   };
+
+  const cuisineOptionList = useMemo(() => {
+    const ex = new Set(draft.cuisineExclusions);
+    const fromDefaults = DEFAULT_CUISINE_OPTIONS.filter((d) => !ex.has(d));
+    const customOnRestaurant = draft.cuisineTags.filter((t) => !DEFAULT_CUISINE_OPTIONS.includes(t));
+    return [...new Set([...fromDefaults, ...customOnRestaurant])].sort((a, b) => a.localeCompare(b));
+  }, [draft.cuisineExclusions, draft.cuisineTags]);
 
   const toggleTag = (tag: string) => {
     setDraft((d) => ({
@@ -292,66 +292,32 @@ export default function SettingsPanel() {
     }));
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onRestaurantImagePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !restaurantId) return;
-
-    setImageUploading(true);
-    try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `restaurants/${restaurantId}/profile.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("restaurant-images")
-        .upload(path, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("restaurant-images")
-        .getPublicUrl(path);
-
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update({ image_url: publicUrl })
-        .eq("id", restaurantId);
-
-      if (updateError) throw updateError;
-
-      setProfile((p) => ({ ...p, imageUrl: publicUrl }));
-      setDraft((d) => ({ ...d, imageUrl: publicUrl }));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
-      setSaveError(msg);
-      setTimeout(() => setSaveError(null), 4000);
-    } finally {
-      setImageUploading(false);
-      if (imageInputRef.current) imageInputRef.current.value = "";
-    }
+    if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+    const url = URL.createObjectURL(file);
+    pendingImageFileRef.current = file;
+    setImageObjectUrl(url);
+    setImageStage("new");
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
-  const performImageRemove = async () => {
-    if (!restaurantId) return;
+  const applyStagedImageRemove = () => {
+    if (imageObjectUrl) {
+      URL.revokeObjectURL(imageObjectUrl);
+      setImageObjectUrl(null);
+    }
+    pendingImageFileRef.current = null;
+    setImageStage("remove");
     setShowRemoveImageConfirm(false);
-    setImageUploading(true);
-    try {
-      const { error } = await supabase
-        .from("restaurants")
-        .update({ image_url: null })
-        .eq("id", restaurantId);
-      if (error) throw error;
-
-      setProfile((p) => ({ ...p, imageUrl: "" }));
-      setDraft((d) => ({ ...d, imageUrl: "" }));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to remove image";
-      setSaveError(msg);
-      setTimeout(() => setSaveError(null), 4000);
-    } finally {
-      setImageUploading(false);
-    }
   };
+
+  const displayRestaurantImage = useMemo(() => {
+    if (imageStage === "remove") return null;
+    if (imageObjectUrl) return imageObjectUrl;
+    return draft.imageUrl.trim() || null;
+  }, [imageStage, imageObjectUrl, draft.imageUrl]);
 
   // ── Fetch operating hours from restaurant_hours table ────────────────────
   const fetchHours = useCallback(async () => {
@@ -376,7 +342,9 @@ export default function SettingsPanel() {
 
   const isDirty =
     JSON.stringify(draft) !== JSON.stringify(profile) ||
-    (communityImagesSettingAvailable && communityImagesEnabled !== savedCommunityImagesEnabled);
+    stripPhoneDigits(phoneDraft) !== stripPhoneDigits(profile.phone) ||
+    (communityImagesSettingAvailable && communityImagesEnabled !== savedCommunityImagesEnabled) ||
+    imageStage !== "none";
 
   const handleSave = async () => {
     if (!restaurantId) return;
@@ -387,11 +355,27 @@ export default function SettingsPanel() {
       address: draft.address.trim(),
       cuisine_tags: draft.cuisineTags,
       description: draft.description.trim(),
-      chain_group_key: draft.chainGroupKey.trim() || null,
       phone_number: stripPhoneDigits(phoneDraft) || null,
+      cuisine_tag_exclusions: draft.cuisineExclusions,
     };
     if (communityImagesSettingAvailable) {
       patch.accept_community_image_contributions = communityImagesEnabled;
+    }
+    if (imageStage === "new" && pendingImageFileRef.current) {
+      const file = pendingImageFileRef.current;
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${restaurantId}/profile-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("restaurant-images").upload(path, file, { upsert: true, contentType: file.type || "image/jpeg" });
+      if (upErr) {
+        setSaveError(upErr.message);
+        setSaving(false);
+        setShowConfirm(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("restaurant-images").getPublicUrl(path);
+      patch.image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+    } else if (imageStage === "remove") {
+      patch.image_url = null;
     }
     const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurantId);
     setSaving(false);
@@ -399,21 +383,43 @@ export default function SettingsPanel() {
     if (error) {
       setSaveError(error.message);
     } else {
-      setProfile({ ...draft, phone: stripPhoneDigits(phoneDraft) });
+      if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+      pendingImageFileRef.current = null;
+      setImageObjectUrl(null);
+      setImageStage("none");
+      let imageUrl = draft.imageUrl;
+      if (typeof patch.image_url === "string") imageUrl = patch.image_url;
+      if (patch.image_url === null) imageUrl = "";
+      const next: RestaurantProfile = {
+        ...draft,
+        phone: stripPhoneDigits(phoneDraft),
+        imageUrl,
+      };
+      setProfile(next);
+      setDraft(next);
       setSavedCommunityImagesEnabled(communityImagesEnabled);
       setEditing(false);
+      setCuisinePurgeMode(false);
+      setCuisinePurgeMarks([]);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     }
   };
 
   const handleDiscard = () => {
+    setRestaurantImageLightbox(null);
+    if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+    pendingImageFileRef.current = null;
+    setImageObjectUrl(null);
+    setImageStage("none");
     setDraft({ ...profile });
     setPhoneDraft(formatPhoneForDisplay(profile.phone));
     setCommunityImagesEnabled(savedCommunityImagesEnabled);
     setEditing(false);
     setShowOtherInput(false);
     setOtherValue("");
+    setCuisinePurgeMode(false);
+    setCuisinePurgeMarks([]);
   };
 
   // Operating hours handlers
@@ -594,9 +600,29 @@ export default function SettingsPanel() {
   }[] = [
       { key: "name", label: "Restaurant Name", icon: Store, placeholder: "e.g. The Golden Fork" },
       { key: "address", label: "Address", icon: MapPin, placeholder: "123 Main St, City, State ZIP" },
-      { key: "chainGroupKey", label: "Chain Group Key", icon: Store, placeholder: "e.g. saravanaa-bhavan" },
       { key: "description", label: "Description", icon: FileText, placeholder: "Brief description of your restaurant...", multiline: true },
     ];
+
+  const toggleCuisinePurgeMark = (tag: string) => {
+    setCuisinePurgeMarks((m) => (m.includes(tag) ? m.filter((x) => x !== tag) : [...m, tag]));
+  };
+
+  const applyCuisinePurge = () => {
+    if (cuisinePurgeMarks.length === 0) {
+      setCuisinePurgeMode(false);
+      return;
+    }
+    setDraft((d) => {
+      const ex = new Set(d.cuisineExclusions);
+      const nextTags = d.cuisineTags.filter((t) => !cuisinePurgeMarks.includes(t));
+      for (const m of cuisinePurgeMarks) {
+        if (DEFAULT_CUISINE_OPTIONS.includes(m)) ex.add(m);
+      }
+      return { ...d, cuisineTags: nextTags, cuisineExclusions: [...ex] };
+    });
+    setCuisinePurgeMarks([]);
+    setCuisinePurgeMode(false);
+  };
 
   const tabBtn = (active: boolean) =>
     `rounded-lg px-3 py-2 text-[11px] font-semibold tracking-tight transition-colors sm:text-xs ${
@@ -626,6 +652,42 @@ export default function SettingsPanel() {
           </button>
         </div>
       </div>
+      <AnimatePresence>
+        {isDirty && editing ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className={cn(
+              "border-b px-3 py-2 text-center",
+              resolvedTheme === "light"
+                ? "border-amber-300/60 bg-amber-100/90"
+                : "border-amber-500/20 bg-amber-500/[0.08]",
+            )}
+          >
+            <p
+              className={cn(
+                "text-[11px] font-medium leading-snug sm:text-xs",
+                resolvedTheme === "light" ? "text-amber-950/95" : "text-amber-100/90",
+              )}
+            >
+              Unsaved changes: your updates are not live for guests until you select{" "}
+              <span
+                className={cn("font-semibold", resolvedTheme === "light" ? "text-amber-950" : "text-amber-50")}
+              >
+                Save Changes
+              </span>
+              . Use{" "}
+              <span
+                className={cn("font-semibold", resolvedTheme === "light" ? "text-amber-950" : "text-amber-50")}
+              >
+                Cancel
+              </span>{" "}
+              to revert.
+            </p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-5">
@@ -641,7 +703,10 @@ export default function SettingsPanel() {
             {!loading && !editing && (
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setEditing(true)}
+                onClick={() => {
+                  setPhoneDraft(formatPhoneForDisplay(profile.phone));
+                  setEditing(true);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-700 transition-colors"
               >
                 <Pencil size={12} strokeWidth={1.5} />
@@ -667,26 +732,35 @@ export default function SettingsPanel() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleImageUpload}
+                  onChange={onRestaurantImagePicked}
                 />
-                <div className="relative group">
-                  {draft.imageUrl ? (
-                    <div className="relative isolate overflow-hidden rounded-xl border border-white/10">
+                {displayRestaurantImage ? (
+                  <div className="space-y-2">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (displayRestaurantImage) setRestaurantImageLightbox(displayRestaurantImage);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && displayRestaurantImage) setRestaurantImageLightbox(displayRestaurantImage);
+                      }}
+                      className="relative isolate cursor-zoom-in overflow-hidden rounded-xl border border-white/10 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                    >
                       <FallbackImage
-                        src={draft.imageUrl}
+                        src={displayRestaurantImage}
                         fallbackSrc={restaurantId ? getRestaurantFallback(restaurantId) : ""}
                         alt="Restaurant"
-                        className="relative z-0 block h-48 w-full object-cover"
+                        className="pointer-events-none block h-48 w-full object-cover"
                       />
-                      <div
-                        className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-3 bg-black/45 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100"
-                      >
+                    </div>
+                    {editing && (
+                      <div className="flex flex-wrap items-center gap-2">
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => imageInputRef.current?.click()}
-                          disabled={imageUploading}
-                          className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/95 px-3 py-2 text-xs font-semibold text-zinc-900 shadow-md backdrop-blur-sm transition-colors hover:bg-white dark:border-zinc-500/40 dark:bg-zinc-800/95 dark:text-zinc-50 dark:hover:bg-zinc-700"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-zinc-100 transition-colors hover:bg-white/15"
                         >
                           <Upload size={13} strokeWidth={1.5} />
                           Replace
@@ -695,40 +769,35 @@ export default function SettingsPanel() {
                           whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => setShowRemoveImageConfirm(true)}
-                          disabled={imageUploading}
-                          className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-red-500/50 bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-colors hover:bg-red-500"
+                          className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold", DASH_SOFT_DESTRUCTIVE_BTN)}
                         >
                           <Trash2 size={13} strokeWidth={1.5} />
                           Remove
                         </motion.button>
                       </div>
-                      {imageUploading && (
-                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
-                          <Loader2 size={24} strokeWidth={1.5} className="text-amber-500 animate-spin" />
-                        </div>
-                      )}
+                    )}
+                  </div>
+                ) : !editing ? (
+                  <div className="flex h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border border-white/8 bg-zinc-900/50">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-zinc-800/80">
+                      <ImageIcon size={18} strokeWidth={1.5} className="text-zinc-500" />
                     </div>
-                  ) : (
-                    <motion.button
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => imageInputRef.current?.click()}
-                      disabled={imageUploading}
-                      className="w-full h-40 rounded-xl border-2 border-dashed border-white/10 bg-zinc-900/40 flex flex-col items-center justify-center gap-2 hover:border-amber-500/30 hover:bg-zinc-800/30 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {imageUploading ? (
-                        <Loader2 size={24} strokeWidth={1.5} className="text-amber-500 animate-spin" />
-                      ) : (
-                        <>
-                          <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-white/8 flex items-center justify-center">
-                            <Upload size={18} strokeWidth={1.5} className="text-zinc-500" />
-                          </div>
-                          <p className="text-xs font-medium text-zinc-500">Click to upload restaurant photo</p>
-                          <p className="text-[10px] text-zinc-600">JPG, PNG, or WebP · Max 5 MB</p>
-                        </>
-                      )}
-                    </motion.button>
-                  )}
-                </div>
+                    <p className="text-xs font-bold text-zinc-500">No image</p>
+                  </div>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/10 bg-zinc-900/40 transition-all hover:border-amber-500/30 hover:bg-zinc-800/30"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-zinc-800/80">
+                      <Upload size={18} strokeWidth={1.5} className="text-zinc-500" />
+                    </div>
+                    <p className="text-xs font-medium text-zinc-500">Click to upload restaurant photo</p>
+                    <p className="text-[10px] text-zinc-600">JPG, PNG, or WebP — saved when you use Save Changes</p>
+                  </motion.button>
+                )}
               </div>
 
               {fields.map(({ key, label, icon: Icon, placeholder, multiline }) => {
@@ -767,63 +836,28 @@ export default function SettingsPanel() {
                 );
               })}
 
-              {/* Phone number — inline edit button */}
+              {/* Phone number — only editable while profile edit mode is on */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                    <Phone size={12} strokeWidth={1.5} />
-                    Phone Number
-                  </label>
-                  {!editing && !phoneEditing && !loading && (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => { setPhoneDraft(formatPhoneForDisplay(profile.phone)); setPhoneEditing(true); }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-medium hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                    >
-                      <Pencil size={10} strokeWidth={1.5} />
-                      Edit
-                    </motion.button>
-                  )}
-                </div>
-                {phoneEditing ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={phoneDraft}
-                      onChange={(e) => setPhoneDraft(formatPhoneForDisplay(e.target.value))}
-                      placeholder="(555) 000-0000"
-                      maxLength={14}
-                      className="h-10 flex-1 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
-                      autoFocus
-                    />
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={async () => {
-                        if (!restaurantId) return;
-                        const { error } = await supabase.from("restaurants").update({ phone_number: stripPhoneDigits(phoneDraft) || null }).eq("id", restaurantId);
-                        if (error) {
-                          setSaveError(error.message);
-                          setTimeout(() => setSaveError(null), 4000);
-                          return;
-                        }
-                        setProfile((p) => ({ ...p, phone: stripPhoneDigits(phoneDraft) }));
-                        setPhoneEditing(false);
-                        setSaveSuccess(true);
-                        setTimeout(() => setSaveSuccess(false), 2500);
-                      }}
-                      className="h-10 px-3 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors"
-                    >
-                      <Check size={14} strokeWidth={2} />
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setPhoneEditing(false)}
-                      className="h-10 px-3 rounded-lg bg-zinc-800 border border-white/10 text-zinc-400 text-xs font-medium hover:bg-zinc-700 transition-colors"
-                    >
-                      <X size={14} strokeWidth={2} />
-                    </motion.button>
-                  </div>
+                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  <Phone size={12} strokeWidth={1.5} />
+                  Phone Number
+                </label>
+                {editing ? (
+                  <Input
+                    value={phoneDraft}
+                    onChange={(e) => setPhoneDraft(formatPhoneForDisplay(e.target.value))}
+                    placeholder="(555) 000-0000"
+                    maxLength={14}
+                    className="h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
+                  />
                 ) : (
-                  <p className={`text-sm px-3 py-2 rounded-lg border ${profile.phone ? "text-zinc-300 bg-zinc-900/40 border-white/5" : "text-zinc-600 bg-zinc-900/40 border-white/5 italic"}`}>
+                  <p
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      profile.phone
+                        ? "border-white/5 bg-zinc-900/40 text-zinc-300"
+                        : "border-white/5 bg-zinc-900/40 italic text-zinc-600"
+                    }`}
+                  >
                     {profile.phone ? formatPhoneForDisplay(profile.phone) : "No phone number set"}
                   </p>
                 )}
@@ -840,22 +874,35 @@ export default function SettingsPanel() {
                     <span className="text-[10px] text-zinc-500">{draft.cuisineTags.length} selected</span>
                   )}
                 </div>
-                {cuisineOptions.length === 0 && !showOtherInput ? (
-                  <p className="text-xs text-zinc-600 py-1">No tags found in Supabase yet — use "Other" to add yours.</p>
+                {cuisineOptionList.length === 0 && !showOtherInput ? (
+                  <p className="text-xs text-zinc-600 py-1">No cuisine options — use Other to add a tag.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {cuisineOptions.map((c) => {
+                    {cuisineOptionList.map((c) => {
                       const active = draft.cuisineTags.includes(c);
+                      const purged = cuisinePurgeMode && cuisinePurgeMarks.includes(c);
                       if (!editing && !active) return null;
                       return (
                         <motion.button
                           key={c}
-                          whileTap={editing ? { scale: 0.95 } : undefined}
-                          onClick={() => editing && toggleTag(c)}
-                          className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${active
-                            ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-                            : "bg-zinc-800/60 border-white/8 text-zinc-500 hover:text-zinc-300 hover:border-white/15"
-                            } ${!editing ? "cursor-default" : ""}`}
+                          type="button"
+                          whileTap={editing && !cuisinePurgeMode ? { scale: 0.95 } : undefined}
+                          onClick={() => {
+                            if (!editing) return;
+                            if (cuisinePurgeMode) toggleCuisinePurgeMark(c);
+                            else toggleTag(c);
+                          }}
+                          className={cn(
+                            "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all",
+                            cuisinePurgeMode
+                              ? purged
+                                ? "border-rose-400/60 bg-rose-500/20 text-rose-100 line-through opacity-90"
+                                : "border-white/8 bg-zinc-800/60 text-zinc-400 hover:border-rose-400/35 hover:text-rose-200"
+                              : active
+                                ? "border-amber-500/40 bg-amber-500/15 text-amber-400"
+                                : "border-white/8 bg-zinc-800/60 text-zinc-500 hover:border-white/15 hover:text-zinc-300",
+                            !editing && "cursor-default",
+                          )}
                         >
                           {c}
                         </motion.button>
@@ -884,14 +931,19 @@ export default function SettingsPanel() {
                         className="h-8 text-xs bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
                       />
                       <motion.button
+                        type="button"
                         whileTap={{ scale: 0.9 }}
                         onClick={commitOther}
                         disabled={!otherValue.trim()}
-                        className="h-8 px-3 rounded-lg bg-amber-500 text-black text-xs font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40"
+                        className={cn(
+                          DASH_BTN_ADD,
+                          "h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:opacity-40",
+                        )}
                       >
                         Add
                       </motion.button>
                       <motion.button
+                        type="button"
                         whileTap={{ scale: 0.9 }}
                         onClick={() => { setShowOtherInput(false); setOtherValue(""); }}
                         className="h-8 w-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -899,15 +951,52 @@ export default function SettingsPanel() {
                         <X size={12} strokeWidth={2} />
                       </motion.button>
                     </motion.div>
-                  ) : editing ? (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowOtherInput(true)}
-                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-amber-500/25 px-2.5 py-1 text-xs font-medium text-amber-400/90 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10"
+                  ) : editing && !cuisinePurgeMode ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowOtherInput(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-amber-500/25 px-2.5 py-1 text-xs font-medium text-amber-400/90 transition-colors hover:border-amber-500/40 hover:bg-amber-500/10"
+                      >
+                        <Plus size={11} strokeWidth={2} />
+                        Other
+                      </motion.button>
+                      <button
+                        type="button"
+                        onClick={() => { setCuisinePurgeMode(true); setCuisinePurgeMarks([]); }}
+                        className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-zinc-800/80 px-2 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:border-rose-400/30 hover:text-rose-200"
+                        title="Remove options from the list"
+                      >
+                        <MinusCircle size={12} strokeWidth={1.5} className="text-rose-300/80" />
+                        Remove list
+                      </button>
+                    </div>
+                  ) : editing && cuisinePurgeMode ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex flex-wrap items-center gap-2"
                     >
-                      <Plus size={11} strokeWidth={2} />
-                      Other
-                    </motion.button>
+                      <span className="text-[11px] font-medium text-rose-200/90">Deleting</span>
+                      <span className="text-[10px] text-zinc-500">Tap tags to mark, then confirm.</span>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        onClick={applyCuisinePurge}
+                        disabled={cuisinePurgeMarks.length === 0}
+                        className="rounded-md border border-rose-400/40 bg-rose-500/20 px-2.5 py-1 text-[11px] font-semibold text-rose-100 transition-colors enabled:hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Confirm
+                      </motion.button>
+                      <button
+                        type="button"
+                        onClick={() => { setCuisinePurgeMode(false); setCuisinePurgeMarks([]); }}
+                        className="text-[11px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </motion.div>
                   ) : null}
                 </AnimatePresence>
               </div>
@@ -978,7 +1067,10 @@ export default function SettingsPanel() {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowConfirm(true)}
                       disabled={!isDirty}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className={cn(
+                        DASH_BTN_ADD,
+                        "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                      )}
                     >
                       <Check size={14} strokeWidth={2} />
                       Save Changes
@@ -1185,7 +1277,10 @@ export default function SettingsPanel() {
                       whileTap={{ scale: 0.95 }}
                       onClick={handleSaveHours}
                       disabled={hoursSaving}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
+                      className={cn(
+                        DASH_BTN_ADD,
+                        "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60",
+                      )}
                     >
                       <Check size={14} strokeWidth={2} />
                       {hoursSaving ? "Saving..." : "Save Hours"}
@@ -1293,7 +1388,7 @@ export default function SettingsPanel() {
                 type="button"
                 onClick={() => void saveWaitlistSettingsModal()}
                 disabled={hoursSaving}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
+                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-60")}
               >
                 {hoursSaving ? "Saving..." : "Save"}
               </motion.button>
@@ -1314,12 +1409,25 @@ export default function SettingsPanel() {
                 These details will be visible to guests in the Rasvia app. Make sure everything looks correct.
               </p>
             </div>
-            <div className="w-full text-left space-y-1.5 py-2 border-t border-b border-white/5">
-              {(Object.keys(draft) as (keyof RestaurantProfile)[]).map((key) => {
-                const dVal = Array.isArray(draft[key]) ? (draft[key] as string[]).join(", ") : draft[key] as string;
-                const pVal = Array.isArray(profile[key]) ? (profile[key] as string[]).join(", ") : profile[key] as string;
+            <div className="w-full space-y-1.5 border-b border-t border-white/5 py-2 text-left">
+              {imageStage === "new" && (
+                <div className="text-xs">
+                  <span className="text-zinc-500">Profile image: </span>
+                  <span className="text-zinc-200">New photo (uploads when you save)</span>
+                </div>
+              )}
+              {imageStage === "remove" && (
+                <div className="text-xs">
+                  <span className="text-zinc-500">Profile image: </span>
+                  <span className="text-zinc-200">Remove (applies when you save)</span>
+                </div>
+              )}
+              {(["name", "address", "phone", "cuisineTags", "description", "cuisineExclusions"] as const).map((key) => {
+                const dVal = key === "phone" ? stripPhoneDigits(phoneDraft) : Array.isArray(draft[key]) ? (draft[key] as string[]).join(", ") : (draft[key] as string);
+                const pVal = key === "phone" ? profile.phone : Array.isArray(profile[key]) ? (profile[key] as string[]).join(", ") : (profile[key] as string);
                 if (dVal === pVal) return null;
-                const label = key === "cuisineTags" ? "Cuisine Tags" : key.charAt(0).toUpperCase() + key.slice(1);
+                const label =
+                  key === "cuisineTags" ? "Cuisine tags" : key === "cuisineExclusions" ? "Cuisine list options" : key.charAt(0).toUpperCase() + key.slice(1);
                 return (
                   <div key={key} className="text-xs">
                     <span className="text-zinc-500">{label}: </span>
@@ -1327,6 +1435,12 @@ export default function SettingsPanel() {
                   </div>
                 );
               })}
+              {communityImagesSettingAvailable && communityImagesEnabled !== savedCommunityImagesEnabled && (
+                <div className="text-xs">
+                  <span className="text-zinc-500">Community menu photos: </span>
+                  <span className="text-zinc-200">{communityImagesEnabled ? "Enabled" : "Disabled"}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 w-full pt-1">
               <motion.button
@@ -1340,7 +1454,7 @@ export default function SettingsPanel() {
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
+                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-60")}
               >
                 {saving ? "Saving..." : "Confirm"}
               </motion.button>
@@ -1362,10 +1476,10 @@ export default function SettingsPanel() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 text-white hover:bg-red-500 focus:ring-red-600"
+              className={DASH_SIGN_OUT_BUTTON}
               onClick={(e) => {
                 e.preventDefault();
-                void performImageRemove();
+                applyStagedImageRemove();
               }}
             >
               Remove image
@@ -1373,6 +1487,36 @@ export default function SettingsPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {restaurantImageLightbox && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              role="button"
+              tabIndex={0}
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4"
+              onClick={() => setRestaurantImageLightbox(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" || e.key === "Enter") setRestaurantImageLightbox(null);
+              }}
+            >
+              <button
+                type="button"
+                className="absolute right-4 top-4 rounded-lg border border-white/15 bg-zinc-900/90 p-2 text-zinc-200 hover:bg-zinc-800"
+                onClick={() => setRestaurantImageLightbox(null)}
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+              <img
+                src={restaurantImageLightbox}
+                alt=""
+                className="max-h-[min(90vh,900px)] max-w-full rounded-xl object-contain shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

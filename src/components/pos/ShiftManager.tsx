@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 type DrawerAction = "pay_in" | "pay_out" | "tip_out";
 
@@ -123,7 +125,8 @@ export default function ShiftManager() {
             className="h-12 bg-zinc-800/60 border-white/5 text-zinc-100 text-lg tabular-nums placeholder:text-zinc-600"
           />
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleOpenShift}
-            className="w-full h-12 rounded-xl bg-amber-500 text-zinc-900 font-semibold text-sm hover:bg-amber-400 transition-colors">
+            className={cn("h-12 w-full rounded-xl text-sm font-semibold transition-colors", DASH_PRIMARY_CTA)}
+          >
             Start Shift
           </motion.button>
         </div>
@@ -204,7 +207,8 @@ export default function ShiftManager() {
           <Input placeholder="Reason (optional)" value={actionReason} onChange={(e) => setActionReason(e.target.value)}
             className="h-10 bg-zinc-800/60 border-white/5 text-zinc-100 text-sm placeholder:text-zinc-600" />
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleActionSubmit}
-            className="w-full h-12 rounded-xl bg-amber-500 text-zinc-900 font-semibold text-sm hover:bg-amber-400 transition-colors">
+            className={cn("h-12 w-full rounded-xl text-sm font-semibold transition-colors", DASH_PRIMARY_CTA)}
+          >
             Confirm
           </motion.button>
         </DialogContent>

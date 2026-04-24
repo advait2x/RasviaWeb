@@ -7,6 +7,8 @@ import { useDashboard } from "@/context/DashboardContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Check, Loader2, AlertCircle, RotateCcw, Users, Maximize2, Minimize2 } from "lucide-react";
 import ManagerPinModal from "@/components/pos/ManagerPinModal";
+import { DASH_PRIMARY_CTA, DASH_PRIMARY_SELECTED } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 type KioskView = "form" | "success";
 
@@ -376,15 +378,13 @@ function FormView({
         whileTap={{ scale: 0.97 }}
         onClick={onSubmit}
         disabled={loading}
-        className={`w-full rounded-xl font-black tracking-tight transition-all duration-200 flex items-center justify-center gap-3 shadow-xl ${
-          fullscreen ? "py-7 text-[28px] rounded-2xl" : "py-4 text-lg"
-        } ${
-          isReady && !loading
-            ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/25 cursor-pointer"
-            : loading
-            ? "bg-amber-500/70 text-black cursor-not-allowed"
-            : "bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none"
-        }`}
+        className={cn(
+          "flex w-full items-center justify-center gap-3 rounded-xl font-black tracking-tight shadow-xl transition-all duration-200",
+          fullscreen ? "rounded-2xl py-7 text-[28px]" : "py-4 text-lg",
+          isReady && !loading && cn("cursor-pointer shadow-amber-500/25", DASH_PRIMARY_CTA),
+          loading && "cursor-not-allowed bg-amber-800/75 text-amber-50 dark:bg-amber-600/80 dark:text-zinc-950",
+          !isReady && !loading && "cursor-not-allowed bg-zinc-800 text-zinc-500 shadow-none",
+        )}
       >
         {loading ? (
           <>
@@ -415,13 +415,13 @@ function PartySizeButton({
     <motion.button
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
-      className={`rounded-xl font-black transition-all duration-150 border-2 select-none ${
-        fullscreen ? "h-[88px] text-[30px] rounded-2xl" : "h-12 text-lg"
-      } ${
+      className={cn(
+        "select-none rounded-xl border-2 font-black transition-all duration-150",
+        fullscreen ? "h-[88px] rounded-2xl text-[30px]" : "h-12 text-lg",
         selected
-          ? "bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30 scale-105"
-          : "bg-zinc-900 border-zinc-700 text-zinc-200 active:bg-zinc-800"
-      }`}
+          ? cn("scale-105 shadow-lg shadow-amber-500/30", DASH_PRIMARY_SELECTED)
+          : "border-zinc-700 bg-zinc-900 text-zinc-200 active:bg-zinc-800",
+      )}
       aria-label={`Party of ${size}`}
       aria-pressed={selected}
     >

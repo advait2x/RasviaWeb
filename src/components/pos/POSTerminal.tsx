@@ -13,6 +13,8 @@ import OpenOrdersList from "./OpenOrdersList";
 import HeldOrdersList from "./HeldOrdersList";
 import TableQuickSelect from "./TableQuickSelect";
 import Receipt from "./Receipt";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 // Fallback estimate for optimistic display. Actual tax from Stripe Tax API.
 const FALLBACK_TAX_RATE = 0.0825;
@@ -277,7 +279,10 @@ export default function POSTerminal() {
               whileTap={{ scale: 0.95 }}
               onClick={isCartMode ? () => cart.length > 0 && setShowNewOrder(true) : handleSendToKitchen}
               disabled={!hasItems}
-              className="flex-[2] min-h-12 rounded-xl bg-amber-500 text-black text-xs font-bold flex items-center justify-center gap-1.5 touch-manipulation disabled:opacity-30 hover:bg-amber-400 transition-colors"
+              className={cn(
+                "flex min-h-12 flex-[2] items-center justify-center gap-1.5 rounded-xl text-xs font-bold touch-manipulation transition-colors disabled:opacity-30",
+                DASH_PRIMARY_CTA,
+              )}
             >
               <Send size={14} strokeWidth={2} />
               {isCartMode ? "Create Order" : "Send to Kitchen"}
@@ -299,7 +304,7 @@ export default function POSTerminal() {
             <Icon size={18} strokeWidth={1.5} />
             <span className="text-[10px] font-medium">{label}</span>
             {badge != null && badge > 0 && (
-              <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center px-1">
+              <span className="absolute right-2 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-800 px-1 text-[10px] font-bold text-amber-50 dark:bg-amber-500 dark:text-zinc-950">
                 {badge}
               </span>
             )}

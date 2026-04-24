@@ -18,7 +18,8 @@ import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getRestaurantFallback } from "@/lib/fallbackImages";
-import { DASH_NAV_COUNT_BADGE } from "@/lib/dashboardUi";
+import { DASH_NAV_COUNT_BADGE, DASH_BTN_ADD, DASH_SIGN_OUT_BUTTON, DASH_SIGN_OUT_TRIGGER } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 import RestaurantSwitcher from "./RestaurantSwitcher";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/context/ThemeContext";
@@ -143,7 +144,10 @@ export default function PartnerDashboardNav() {
                 <TooltipTrigger asChild>
                   <a
                     href="/admin"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-500 px-2.5 py-2 text-[11px] font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-amber-400 sm:text-xs dark:shadow-amber-500/10"
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors sm:text-xs dark:shadow-amber-500/10",
+                      DASH_BTN_ADD,
+                    )}
                   >
                     <Shield size={16} strokeWidth={1.75} className="shrink-0" />
                     <span className="hidden sm:inline">Admin</span>
@@ -219,9 +223,9 @@ export default function PartnerDashboardNav() {
               type="button"
               whileTap={{ scale: 0.97 }}
               onClick={() => setSignOutConfirmOpen(true)}
-              className="hover-red-override group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800/90 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-red-600 hover:bg-red-600 hover:text-white sm:px-3"
+              className={DASH_SIGN_OUT_TRIGGER}
             >
-              <LogOut size={15} strokeWidth={1.75} className="shrink-0 text-red-400/80 transition-colors group-hover:text-white" />
+              <LogOut size={15} strokeWidth={1.75} className="shrink-0 text-rose-300/70 transition-colors group-hover:text-rose-100" />
               <span className="max-[380px]:sr-only">Sign out</span>
             </motion.button>
           )}
@@ -239,7 +243,7 @@ export default function PartnerDashboardNav() {
           <AlertDialogFooter>
             <AlertDialogCancel className="border-white/10 bg-zinc-800 text-zinc-200 hover:bg-zinc-700">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-950/70 text-red-100 hover:bg-red-950 hover:text-white focus:ring-red-900"
+              className={DASH_SIGN_OUT_BUTTON}
               onClick={(e) => {
                 e.preventDefault();
                 setSignOutConfirmOpen(false);
@@ -249,6 +253,7 @@ export default function PartnerDashboardNav() {
                 })();
               }}
             >
+              <LogOut size={15} strokeWidth={1.75} className="shrink-0 text-rose-300/70 transition-colors group-hover:text-rose-100" />
               Sign out
             </AlertDialogAction>
           </AlertDialogFooter>

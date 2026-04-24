@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { StaffMember, RestaurantRole } from "@/types/dashboard";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 interface PinManagementProps {
   staff: StaffMember[];
@@ -244,7 +246,10 @@ export default function PinManagement({ staff, roles }: PinManagementProps) {
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSetPin}
                 disabled={saving || newPin.length < 4}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40"
+                className={cn(
+                  "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-40",
+                  DASH_PRIMARY_CTA,
+                )}
               >
                 {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Save PIN"}
               </motion.button>

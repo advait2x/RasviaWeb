@@ -39,7 +39,7 @@ import {
   hostAddItemFor,
   updateItemQuantity,
   removeItem,
-  credsFromJoinResult,
+  completeJoinCredentials,
   isPartyUnauthorizedMessage,
   type PartySession,
   type PartySnapshot,
@@ -55,6 +55,8 @@ import {
   clearPartyCreds,
 } from "@/lib/party-credentials";
 import { QRCode } from "@/lib/resolve-react-qr-code";
+import { DASH_BTN_ADD, DASH_QR_ICON_SURFACE } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 /**
  * Tableside QR (multi-session, staff-as-host)
@@ -109,6 +111,40 @@ function clearLabel(sessionId: string) {
     window.localStorage.removeItem(LABEL_KEY_PREFIX + sessionId);
   } catch {
     // ignore
+  }
+}
+
+/**
+ * `navigator.clipboard.writeText` rejects in some embedded / non-HTTPS contexts.
+ * Fall back to `execCommand('copy')` so the dashboard "Copy link" control works reliably.
+ */
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  try {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "");
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    el.style.top = "0";
+    el.setAttribute("aria-hidden", "true");
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    el.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(el);
+    return ok;
+  } catch {
+    return false;
   }
 }
 
@@ -336,7 +372,8 @@ export default function TablesidePanel() {
       try {
         const result = await joinSession(supabase, selectedId, waiterName);
         if (cancelled) return;
-        savePartyCreds(credsFromJoinResult(selectedId, result, loadPartyCreds(selectedId)));
+        const merged = await completeJoinCredentials(supabase, selectedId, result, loadPartyCreds(selectedId));
+        savePartyCreds(merged);
         // Force the creds memo above to re-read by nudging entries.
         setEntries((prev) => [...prev]);
       } catch (err) {
@@ -368,7 +405,7 @@ export default function TablesidePanel() {
       });
       // Auto-join as host so we have member_token for host-only RPCs.
       const joined = await joinSession(supabase, created.id, waiterName);
-      const hostParty = credsFromJoinResult(created.id, joined, null);
+      const hostParty = await completeJoinCredentials(supabase, created.id, joined, null);
       savePartyCreds(hostParty);
       // Default staff-run sessions to per-person (guests pay their own items)
       // since the waiter almost never eats from the check. Guest hosts
@@ -480,7 +517,7 @@ export default function TablesidePanel() {
         ) : null}
         <header className="mb-6 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/[0.06] text-amber-400">
+            <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", DASH_QR_ICON_SURFACE)}>
               <QrCode size={22} strokeWidth={1.6} />
             </div>
             <div>
@@ -502,7 +539,7 @@ export default function TablesidePanel() {
             <button
               type="button"
               onClick={() => setShowStart(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-semibold text-black shadow-[0_8px_28px_rgba(245,158,11,0.35)] transition-colors hover:bg-amber-400"
+              className={cn(DASH_BTN_ADD, "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold")}
             >
               <Plus size={14} /> New table
             </button>
@@ -591,7 +628,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-white/8 bg-zinc-950/60 p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
     >
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+      <div className={cn("mx-auto flex h-12 w-12 items-center justify-center rounded-2xl", DASH_QR_ICON_SURFACE)}>
         <QrCode size={22} />
       </div>
       <h2 className="mt-4 text-lg font-semibold text-zinc-100">No tableside sessions yet</h2>
@@ -602,7 +639,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       <button
         type="button"
         onClick={onStart}
-        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-semibold text-black shadow-[0_8px_28px_rgba(245,158,11,0.35)] transition-colors hover:bg-amber-400"
+        className={cn(DASH_BTN_ADD, "mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold")}
       >
         <Plus size={14} /> Start first table
       </button>
@@ -618,7 +655,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
 function HowItWorksStep({ n, title, body }: { n: number; title: string; body: string }) {
   return (
     <div className="rounded-xl border border-white/6 bg-zinc-900/40 p-3.5">
-      <div className="mb-2 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/15 text-[11px] font-bold text-amber-300">
+      <div className={cn("mb-2 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold", DASH_QR_ICON_SURFACE)}>
         {n}
       </div>
       <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
@@ -684,9 +721,6 @@ function StartDialog({
           }}
           className="mt-1.5 w-full rounded-lg border border-white/10 bg-zinc-800/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/40 focus:outline-none"
         />
-        <p className="mt-1.5 text-[10px] text-zinc-600">
-          Saved in this browser only so you can tell tables apart at a glance.
-        </p>
 
         {error ? (
           <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/[0.07] px-3 py-2 text-xs text-red-300">
@@ -706,9 +740,12 @@ function StartDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-black hover:bg-amber-400 disabled:opacity-50"
+            className={cn(
+              DASH_BTN_ADD,
+              "flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-50",
+            )}
           >
-            {busy ? <Loader2 size={16} className="mx-auto animate-spin" /> : "Start session"}
+            {busy ? <Loader2 size={16} className="animate-spin" /> : "Start session"}
           </button>
         </div>
       </motion.div>
@@ -862,14 +899,14 @@ function SessionDetail({
       clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = null;
     }
-    try {
-      await navigator.clipboard.writeText(joinUrl);
+    const ok = await copyTextToClipboard(joinUrl);
+    if (ok) {
       setCopyState("copied");
       copyTimeoutRef.current = setTimeout(() => {
         setCopyState("idle");
         copyTimeoutRef.current = null;
       }, 2000);
-    } catch {
+    } else {
       setCopyState("err");
       copyTimeoutRef.current = setTimeout(() => {
         setCopyState("idle");
@@ -945,7 +982,7 @@ function SessionDetail({
       if (isPartyUnauthorizedMessage(msg) && waiterName.trim()) {
         try {
           const j = await joinSession(supabase, session.id, waiterName.trim());
-          const merged = credsFromJoinResult(session.id, j, hostCreds);
+          const merged = await completeJoinCredentials(supabase, session.id, j, hostCreds);
           savePartyCreds(merged);
           onHostCredsSaved();
           await lockSession(supabase, merged);
@@ -971,7 +1008,7 @@ function SessionDetail({
       if (isPartyUnauthorizedMessage(msg) && waiterName.trim()) {
         try {
           const j = await joinSession(supabase, session.id, waiterName.trim());
-          const merged = credsFromJoinResult(session.id, j, hostCreds);
+          const merged = await completeJoinCredentials(supabase, session.id, j, hostCreds);
           savePartyCreds(merged);
           onHostCredsSaved();
           await unlockSession(supabase, merged);
@@ -1029,7 +1066,7 @@ function SessionDetail({
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80"
           >
             <Copy size={13} />
-            {copyState === "copied" ? "Copied" : copyState === "err" ? "Copy failed" : "Copy link"}
+            {copyState === "copied" ? "Copied" : copyState === "err" ? "Could not copy — select URL above" : "Copy link"}
           </button>
         </div>
         <p className="text-[10px] leading-relaxed text-zinc-500">
@@ -1343,6 +1380,8 @@ function AddItemsCard({
     });
   }, [menu, search, category]);
 
+  const canAdd = !!targetId;
+
   const inCartForTarget = useCallback(
     (menuItemId: number) => {
       if (!targetId) return 0;
@@ -1501,8 +1540,15 @@ function AddItemsCard({
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleAdd(m.id)}
-                  className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/[0.08] px-2 py-1 text-[11px] font-semibold text-amber-200 hover:bg-amber-500/[0.18]"
+                  disabled={!canAdd}
+                  title={!canAdd ? "Wait for a guest to scan the QR before adding items" : undefined}
+                  onClick={() => void handleAdd(m.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
+                    canAdd
+                      ? "border-amber-500/30 bg-amber-500/[0.08] text-amber-200 hover:bg-amber-500/[0.18]"
+                      : "cursor-not-allowed border-white/10 bg-zinc-800/50 text-zinc-500 opacity-60",
+                  )}
                 >
                   <Plus size={11} />
                   {inCart > 0 ? inCart : "Add"}
@@ -1817,7 +1863,7 @@ function SplitPopover({
         <button
           type="button"
           onClick={() => onApply(Array.from(selected))}
-          className="rounded-md bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-black hover:bg-amber-400"
+          className={cn("rounded-md px-3 py-1.5 text-[11px] font-semibold", DASH_BTN_ADD)}
         >
           Apply
         </button>

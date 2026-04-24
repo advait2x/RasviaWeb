@@ -8,9 +8,9 @@ import { useDashboard } from "@/context/DashboardContext";
 import type { Order, OrderStatus } from "@/types/dashboard";
 
 const DIET_COLORS: Record<string, string> = {
-  veg: "bg-emerald-500",
-  non_veg: "bg-red-500",
-  halal: "bg-blue-500",
+  veg: "bg-emerald-600/90",
+  non_veg: "bg-red-600/90",
+  halal: "bg-blue-600/90",
 };
 
 function playChime() {
@@ -31,9 +31,9 @@ function elapsedMin(date: Date) {
 }
 
 function timeColor(min: number) {
-  if (min < 10) return "text-emerald-400";
-  if (min < 20) return "text-amber-400";
-  return "text-red-400";
+  if (min < 10) return "text-emerald-700 dark:text-emerald-500/90";
+  if (min < 20) return "text-amber-800 dark:text-amber-600/90";
+  return "text-red-600 dark:text-red-500/90";
 }
 
 type Filter = "all" | "pending" | "preparing";
@@ -97,30 +97,30 @@ export default function KitchenDisplay() {
   ];
 
   return (
-    <div className="h-full min-h-0 bg-zinc-950 text-white p-3 flex flex-col gap-3 overflow-hidden">
-      {/* Stats */}
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden bg-zinc-100 p-3 text-zinc-900 dark:bg-stone-950 dark:text-stone-100">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-amber-400" />
-            <span className="text-sm text-zinc-400">Active</span>
-            <span className="font-semibold text-lg">{active.length}</span>
+            <Flame className="h-5 w-5 text-amber-700 dark:text-amber-600/85" />
+            <span className="text-sm text-zinc-600 dark:text-stone-500">Active</span>
+            <span className="text-lg font-semibold tabular-nums text-zinc-900 dark:text-stone-200">{active.length}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-zinc-400" />
-            <span className="text-sm text-zinc-400">Avg Wait</span>
-            <span className="font-semibold text-lg">{avgWait}m</span>
+            <Clock className="h-5 w-5 text-zinc-500 dark:text-stone-500" />
+            <span className="text-sm text-zinc-600 dark:text-stone-500">Avg Wait</span>
+            <span className="text-lg font-semibold tabular-nums text-zinc-900 dark:text-stone-200">{avgWait}m</span>
           </div>
         </div>
         <div className="flex gap-2">
           {filters.map((f) => (
             <button
               key={f.key}
+              type="button"
               onClick={() => setFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
                 filter === f.key
-                  ? "bg-white/10 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-zinc-200 text-zinc-900 ring-1 ring-zinc-400/50 dark:bg-stone-800 dark:text-stone-100 dark:ring-stone-600/50"
+                  : "text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900 dark:text-stone-500 dark:hover:bg-stone-800/50 dark:hover:text-stone-300"
               }`}
             >
               {f.label}
@@ -135,9 +135,7 @@ export default function KitchenDisplay() {
           {filtered.map((order) => {
             const min = elapsedMin(order.createdAt);
             const borderColor =
-              order.status === "pending"
-                ? "border-l-amber-500"
-                : "border-l-blue-500";
+              order.status === "pending" ? "border-l-amber-600/80" : "border-l-blue-600/80";
             const label =
               order.orderType === "takeout"
                 ? "Takeout"
@@ -152,17 +150,17 @@ export default function KitchenDisplay() {
               order.status === "pending"
                 ? {
                     label: "NEW — Not Started",
-                    dot: "bg-amber-400",
-                    text: "text-amber-300",
-                    bg: "bg-amber-500/10",
-                    border: "border-amber-500/30",
+                    dot: "bg-amber-600/90",
+                    text: "text-amber-900 dark:text-amber-500/90",
+                    bg: "bg-amber-100 dark:bg-amber-950/50",
+                    border: "border-amber-300 dark:border-amber-800/50",
                   }
                 : {
                     label: "IN PROGRESS — Cooking",
-                    dot: "bg-blue-400 animate-pulse",
-                    text: "text-blue-300",
-                    bg: "bg-blue-500/10",
-                    border: "border-blue-500/30",
+                    dot: "animate-pulse bg-blue-600 dark:bg-blue-500/80",
+                    text: "text-blue-800 dark:text-blue-400/90",
+                    bg: "bg-blue-100 dark:bg-blue-950/40",
+                    border: "border-blue-300 dark:border-blue-800/40",
                   };
 
             return (
@@ -173,7 +171,7 @@ export default function KitchenDisplay() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2 }}
-                className={`bg-zinc-900/80 border border-white/5 border-l-4 ${borderColor} rounded-xl p-3 flex flex-col gap-2.5 max-h-[72vh]`}
+                className={`flex max-h-[72vh] flex-col gap-2.5 rounded-xl border border-l-4 border-zinc-200 bg-white p-3 shadow-sm dark:border-stone-800/90 dark:bg-stone-900/90 dark:shadow-none ${borderColor}`}
               >
                 <div
                   className={`flex items-center gap-2 rounded-md border px-2 py-1 ${phase.bg} ${phase.border}`}
@@ -188,10 +186,10 @@ export default function KitchenDisplay() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-mono font-bold text-lg">
+                    <span className="font-mono text-lg font-bold text-zinc-900 dark:text-stone-100">
                       #{order.id.slice(-4)}
                     </span>
-                    <span className="ml-2 text-xs text-zinc-500 uppercase">
+                    <span className="ml-2 text-xs uppercase text-zinc-500 dark:text-stone-500">
                       {label}
                     </span>
                   </div>
@@ -200,14 +198,14 @@ export default function KitchenDisplay() {
                   </span>
                 </div>
 
-                <p className="text-sm text-zinc-400 truncate">{order.guestName}</p>
+                <p className="truncate text-sm text-zinc-600 dark:text-stone-500">{order.guestName}</p>
 
                 {order.notes && (
-                  <div className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-1.5">
-                    <p className="text-[10px] uppercase tracking-wide text-violet-300/90 font-semibold mb-0.5">
+                  <div className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1.5 dark:border-violet-800/40 dark:bg-violet-950/30">
+                    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-400/90">
                       Special Instructions
                     </p>
-                    <p className="text-[11px] text-violet-100 break-words max-h-10 overflow-hidden">
+                    <p className="max-h-10 overflow-hidden break-words text-[11px] text-violet-900 dark:text-violet-200/80">
                       {order.notes}
                     </p>
                   </div>
@@ -224,11 +222,11 @@ export default function KitchenDisplay() {
                           />
                         )}
                         <div className="min-w-0">
-                          <span className="text-sm">
+                          <span className="text-sm text-zinc-900 dark:text-stone-100">
                             {item.quantity}× {item.menuItemName}
                           </span>
                           {item.specialInstructions && (
-                            <p className="text-xs text-zinc-500 break-words max-h-10 overflow-hidden">
+                            <p className="max-h-10 overflow-hidden break-words text-xs text-zinc-600 dark:text-stone-500">
                               {item.specialInstructions}
                             </p>
                           )}
@@ -238,8 +236,9 @@ export default function KitchenDisplay() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => bump(order)}
-                  className="h-10 w-full rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-xs uppercase tracking-wider hover:bg-amber-500/25 transition-colors flex items-center justify-center gap-2 shrink-0"
+                  className="flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-amber-800/50 bg-amber-100 text-xs font-bold uppercase tracking-wider text-amber-900 transition-colors hover:bg-amber-200/90 dark:bg-amber-950/40 dark:text-amber-500/90 dark:hover:bg-amber-950/60"
                 >
                   {order.status === "pending" ? (
                     <ChefHat className="w-4 h-4" />

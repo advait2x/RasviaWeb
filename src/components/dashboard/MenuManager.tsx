@@ -23,6 +23,13 @@ import { getMenuItemFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
 import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, serializeMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
 import { toast } from "sonner";
+import {
+  DASH_AMBER_ICON_RING,
+  DASH_AMBER_LIST_SELECTED,
+  DASH_BTN_ADD,
+  DASH_BTN_ADD_SM,
+} from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 import MenuTagDialog from "./MenuTagDialog";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
@@ -336,7 +343,7 @@ function ItemFormDialog({
               <Switch
                 checked={form.inStock}
                 onCheckedChange={(v) => setForm((f) => ({ ...f, inStock: v }))}
-                className="data-[state=checked]:bg-amber-500"
+                className="data-[state=checked]:bg-amber-800 dark:data-[state=checked]:bg-amber-600"
               />
             </div>
 
@@ -409,7 +416,10 @@ function ItemFormDialog({
             whileTap={{ scale: 0.95 }}
             onClick={() => handleSave(false)}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(
+              DASH_BTN_ADD,
+              "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+            )}
           >
             <Check size={14} strokeWidth={2} />
             {saving ? "Saving..." : item ? "Save Changes" : "Add Item"}
@@ -420,7 +430,7 @@ function ItemFormDialog({
       <Dialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
         <DialogContent hideClose className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+            <div className={cn("flex h-12 w-12 items-center justify-center rounded-full border", DASH_AMBER_ICON_RING)}>
               <span className="text-2xl">🤔</span>
             </div>
             <div className="space-y-2">
@@ -440,7 +450,7 @@ function ItemFormDialog({
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleSave(true)}
-                className="flex-1 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors"
+                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors")}
               >
                 Add Anyway
               </motion.button>
@@ -540,7 +550,8 @@ function ModifiersManager() {
         </div>
         {canManageMods && (
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setEditing(null); setForm({ name: "", priceAdjustment: "", category: "Extras" }); setShowForm(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors">
+            className={cn(DASH_BTN_ADD, "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium")}
+          >
             <Plus size={14} strokeWidth={2} />New Modifier
           </motion.button>
         )}
@@ -600,7 +611,11 @@ function ModifiersManager() {
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowForm(false)}
                 className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors">Cancel</motion.button>
               <motion.button whileTap={{ scale: 0.95 }} onClick={handleSave} disabled={saving || !form.name.trim()}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40">
+                className={cn(
+                  DASH_BTN_ADD,
+                  "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-40",
+                )}
+              >
                 {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : editing ? "Save" : "Create"}
               </motion.button>
             </div>
@@ -806,7 +821,12 @@ export default function MenuManager() {
             <div className={`rounded-xl border p-3 ${isLight ? "border-zinc-300 bg-white/95 shadow-sm" : "border-white/10 bg-zinc-800/35"}`}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Menu Tag Setup</p>
-                {savingTags && <Loader2 size={13} className="text-amber-400 animate-spin" />}
+                {savingTags && (
+                  <Loader2
+                    size={13}
+                    className={cn("animate-spin", isLight ? "text-amber-700" : "text-amber-400")}
+                  />
+                )}
               </div>
               {!canEdit && (
                 <p className="mb-2 text-[11px] text-zinc-500">You do not have permission to edit tags.</p>
@@ -855,7 +875,8 @@ export default function MenuManager() {
                       {canEdit && (
                         <div className="flex items-center gap-1">
                           <button
-                            className="w-7 h-7 rounded-md border border-amber-500/35 bg-amber-500/10 text-amber-400 grid place-items-center hover:bg-amber-500/20"
+                            type="button"
+                            className={cn(DASH_BTN_ADD, "inline-flex h-7 w-7 items-center justify-center rounded-md p-0")}
                             onClick={() => {
                               setTagError(null);
                               setTagDialogTarget(tag);
@@ -909,7 +930,8 @@ export default function MenuManager() {
               </div>
               {canEdit && (
                 <button
-                  className="px-2.5 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold"
+                  type="button"
+                  className={cn(DASH_BTN_ADD_SM, "rounded-md px-2.5 py-1.5 font-semibold")}
                   onClick={() => {
                     setTagError(null);
                     setTagDialogTarget(null);
@@ -1014,10 +1036,12 @@ export default function MenuManager() {
                     <button
                       key={opt.value}
                       onClick={() => { setSortKey(opt.value); setShowSortMenu(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${sortKey === opt.value
-                          ? "text-amber-400 bg-amber-500/10"
-                          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                        }`}
+                      className={cn(
+                        "w-full px-3 py-2 text-left text-xs font-medium transition-colors",
+                        sortKey === opt.value
+                          ? DASH_AMBER_LIST_SELECTED
+                          : "text-zinc-500 hover:bg-zinc-200/90 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
+                      )}
                     >
                       {opt.label}
                     </button>
@@ -1031,7 +1055,7 @@ export default function MenuManager() {
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={openAdd}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+              className={cn(DASH_BTN_ADD, "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium")}
             >
               <Plus size={14} strokeWidth={2} />
               Add Item
@@ -1164,7 +1188,7 @@ export default function MenuManager() {
                             onCheckedChange={() => {
                               setConfirmStockItem(item);
                             }}
-                            className={`ml-1 ${item.inStock ? "data-[state=checked]:bg-amber-500" : "data-[state=unchecked]:bg-zinc-700"}`}
+                            className={`ml-1 ${item.inStock ? "data-[state=checked]:bg-amber-800 dark:data-[state=checked]:bg-amber-600" : "data-[state=unchecked]:bg-zinc-700"}`}
                           />
                         </div>
                       )}
@@ -1281,7 +1305,7 @@ export default function MenuManager() {
                   toggleMenuItem(confirmStockItem.id);
                   setConfirmStockItem(null);
                 }}
-                className="flex-1 py-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-semibold hover:bg-amber-500/25 transition-colors"
+                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2.5 text-sm font-semibold")}
               >
                 Confirm
               </motion.button>

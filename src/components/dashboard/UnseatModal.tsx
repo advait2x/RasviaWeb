@@ -11,6 +11,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { DASH_BTN_ADD } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 const TIP_PRESETS = [15, 18, 20, 25];
 
@@ -258,7 +260,10 @@ export default function UnseatModal({ open, onClose, tableId }: UnseatModalProps
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={handleConfirm}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors amber-glow-sm"
+                        className={cn(
+                            "amber-glow-sm flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors",
+                            DASH_BTN_ADD,
+                        )}
                     >
                         <Check size={14} strokeWidth={2} />
                         Confirm & Clear Table

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { MapPin, Clock, Star, X } from "lucide-react";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 type Restaurant = {
   id: number;
@@ -114,10 +116,10 @@ export default function RestaurantSharePreview() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
       {showBanner && (
-        <div className="sticky top-0 z-50 w-full border-b border-amber-500 bg-amber-500">
-          <div className="mx-auto max-w-5xl px-4 py-2 flex items-center justify-between gap-3">
-            <div className="text-sm text-black font-medium">Order within the Rasvia app for the full experience.</div>
-            <button onClick={() => setShowBanner(false)} className="text-black hover:text-zinc-900">
+        <div className={cn("sticky top-0 z-50 w-full border-b border-amber-800/50 dark:border-amber-500/50", DASH_PRIMARY_CTA)}>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2">
+            <div className="text-sm font-medium text-amber-50 dark:text-zinc-950">Order within the Rasvia app for the full experience.</div>
+            <button type="button" onClick={() => setShowBanner(false)} className="text-amber-50/90 hover:text-amber-100 dark:text-zinc-950/90 dark:hover:text-zinc-900">
               <X size={16} />
             </button>
           </div>

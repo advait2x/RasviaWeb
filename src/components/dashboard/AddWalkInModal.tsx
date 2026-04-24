@@ -6,6 +6,8 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import { DASH_BTN_ADD } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 interface AddWalkInModalProps {
   open: boolean;
@@ -175,7 +177,10 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
               whileTap={{ scale: 0.97 }}
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className={cn(
+                DASH_BTN_ADD,
+                "flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-colors disabled:opacity-50",
+              )}
             >
               {loading ? (
                 <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />

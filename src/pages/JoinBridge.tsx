@@ -9,11 +9,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DASH_PRIMARY_CTA, DASH_PRIMARY_SELECTED } from "@/lib/dashboardUi";
 import { supabase } from "@/lib/supabase";
 import {
-  fetchSnapshot, joinSession, credsFromJoinResult, addItem, updateItemQuantity, removeItem,
+  fetchSnapshot, joinSession, completeJoinCredentials, addItem, updateItemQuantity, removeItem,
   setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
-  startCheckout, cancelSession, leaveSession, CheckoutError,
+  startCheckout, cancelSession, leaveSession, CheckoutError, setHostInReview,
   formatCents, totalCartCents, paymentForMember, memberById,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
@@ -117,6 +118,12 @@ export default function JoinBridge() {
   const me = creds ? members.find((m) => m.id === creds.memberId) ?? null : null;
   const isHost = me?.role === "host";
   const myPayment = creds ? paymentForMember(payments, creds.memberId) : null;
+  const hostInReview = session?.host_in_review === true;
+  const nonHostCartLocked = !isHost && hostInReview;
+
+  const showCartLockToast = useCallback(() => {
+    toast.info("Cart locked. Host is currently deciding how the bill should be paid.");
+  }, []);
 
   // ── Boot: load creds, initial snapshot, restaurant + menu ──────────────
   useEffect(() => {
@@ -245,6 +252,23 @@ export default function JoinBridge() {
     setView((prev) => (prev === "review" ? "review" : "browse"));
   }, [session?.status]);
 
+  useEffect(() => {
+    if (!sessionId || !isHost) return;
+    if (view !== "review" || session?.status !== "open") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await setHostInReview(supabase, sessionId, true);
+      } catch (e) {
+        if (!cancelled) console.warn("setHostInReview", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      void setHostInReview(supabase, sessionId, false).catch(() => {});
+    };
+  }, [sessionId, isHost, view, session?.status]);
+
   // Acknowledge Stripe redirect
   useEffect(() => {
     if (!checkoutStatus || checkoutAckRef.current) return;
@@ -277,7 +301,7 @@ export default function JoinBridge() {
     try {
       const existing = loadPartyCreds(sessionId);
       const result = await joinSession(supabase, sessionId, name);
-      const next = credsFromJoinResult(sessionId, result, existing);
+      const next = await completeJoinCredentials(supabase, sessionId, result, existing);
       setCreds(next);
       savePartyCreds(next);
       await loadAll();
@@ -298,6 +322,10 @@ export default function JoinBridge() {
   };
 
   const handleAddItem = (menuItemId: number) => {
+    if (nonHostCartLocked) {
+      showCartLockToast();
+      return;
+    }
     // Optimistically bump the badge so the UI responds instantly — Supabase's
     // RPC round-trip can take a few hundred ms which feels laggy otherwise.
     setPendingAdds((prev) => ({ ...prev, [menuItemId]: (prev[menuItemId] ?? 0) + 1 }));
@@ -319,8 +347,16 @@ export default function JoinBridge() {
       "Could not add item",
     );
   };
-  const handleChangeQty = (item: PartyItem, delta: number) =>
-    wrapMutation(() => updateItemQuantity(supabase, creds!, item.id, Math.max(0, item.quantity + delta)), "Could not update item");
+  const handleChangeQty = (item: PartyItem, delta: number) => {
+    if (nonHostCartLocked) {
+      showCartLockToast();
+      return;
+    }
+    return wrapMutation(
+      () => updateItemQuantity(supabase, creds!, item.id, Math.max(0, item.quantity + delta)),
+      "Could not update item",
+    );
+  };
   const handleRemoveItem = (item: PartyItem) =>
     wrapMutation(() => removeItem(supabase, creds!, item.id), "Could not remove item");
   const handleSetMode = async (mode: PaymentMode) => {
@@ -477,7 +513,8 @@ export default function JoinBridge() {
               <button
                 type="button" disabled={busy} onClick={handlePayMyShare}
                 className={cn(
-                  "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400",
+                  "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold transition",
+                  DASH_PRIMARY_CTA,
                   busy && "opacity-60",
                 )}
               >
@@ -551,7 +588,9 @@ export default function JoinBridge() {
                   whileTap={{ scale: 0.98 }}
                   className={cn(
                     "flex items-start gap-3 rounded-2xl border p-4 text-left transition",
-                    mode === m.key ? "border-amber-500 bg-amber-500/10" : "border-white/10 bg-zinc-900 hover:border-white/20",
+                    mode === m.key
+                      ? "border-amber-800/60 bg-amber-800/10 dark:border-amber-500/50 dark:bg-amber-500/10"
+                      : "border-white/10 bg-zinc-900 hover:border-white/20",
                   )}
                 >
                   <div className="flex-1">
@@ -593,7 +632,11 @@ export default function JoinBridge() {
             <button type="button" onClick={() => setView("browse")} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Back</button>
             <button
               type="button" disabled={busy} onClick={handleLock}
-              className={cn("flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-zinc-900 hover:bg-amber-400", busy && "opacity-60")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold",
+                DASH_PRIMARY_CTA,
+                busy && "opacity-60",
+              )}
             >
               <Lock className="h-4 w-4" /> {busy ? "Locking…" : "Lock cart & start collecting"}
             </button>
@@ -735,7 +778,16 @@ export default function JoinBridge() {
 
         <CategoryChips menu={menu} active={category} onChange={setCategory} />
 
-        <MenuList items={items} menu={menu} search={search} category={category} pendingAdds={pendingAdds} onAdd={handleAddItem} />
+        <MenuList
+          items={items}
+          menu={menu}
+          search={search}
+          category={category}
+          pendingAdds={pendingAdds}
+          onAdd={handleAddItem}
+          cartLocked={nonHostCartLocked}
+          onCartLocked={showCartLockToast}
+        />
       </div>
 
       <CartStrip
@@ -745,6 +797,8 @@ export default function JoinBridge() {
         members={members}
         selfMemberId={creds.memberId}
         isHost={isHost}
+        hostDeciding={hostInReview}
+        guestCartLocked={nonHostCartLocked}
         onChangeQty={handleChangeQty}
         onRemove={handleRemoveItem}
         onReview={() => setView("review")}
@@ -871,7 +925,7 @@ function CategoryPill({ label, active, onClick }: { label: string; active: boole
       type="button" onClick={onClick}
       className={cn(
         "inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold leading-none transition",
-        active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
+        active ? DASH_PRIMARY_SELECTED : "border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
       )}
     >
       {label}
@@ -879,7 +933,10 @@ function CategoryPill({ label, active, onClick }: { label: string; active: boole
   );
 }
 
-function MenuList({ items, menu, search, category, pendingAdds, onAdd }: { items: PartyItem[]; menu: MenuItemRow[]; search: string; category: string | null; pendingAdds: Record<number, number>; onAdd: (id: number) => void }) {
+function MenuList({ items, menu, search, category, pendingAdds, onAdd, cartLocked, onCartLocked }: {
+  items: PartyItem[]; menu: MenuItemRow[]; search: string; category: string | null; pendingAdds: Record<number, number>;
+  onAdd: (id: number) => void; cartLocked: boolean; onCartLocked: () => void;
+}) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return menu.filter((m) => {
@@ -891,7 +948,13 @@ function MenuList({ items, menu, search, category, pendingAdds, onAdd }: { items
   return (
     <ul className="mt-4 space-y-2">
       {filtered.map((m) => (
-        <MenuRow key={m.id} item={m} inCartCount={cartCountFor(items, m.id) + (pendingAdds[m.id] ?? 0)} onAdd={() => onAdd(m.id)} />
+        <MenuRow
+          key={m.id}
+          item={m}
+          inCartCount={cartCountFor(items, m.id) + (pendingAdds[m.id] ?? 0)}
+          onAdd={() => (cartLocked ? onCartLocked() : onAdd(m.id))}
+          cartLocked={cartLocked}
+        />
       ))}
       {filtered.length === 0 ? (
         <li className="flex flex-col items-center gap-2 py-14 text-center text-sm text-zinc-500">
@@ -904,11 +967,14 @@ function MenuList({ items, menu, search, category, pendingAdds, onAdd }: { items
   );
 }
 
-function MenuRow({ item, inCartCount, onAdd }: { item: MenuItemRow; inCartCount: number; onAdd: () => void }) {
+function MenuRow({ item, inCartCount, onAdd, cartLocked }: { item: MenuItemRow; inCartCount: number; onAdd: () => void; cartLocked: boolean }) {
   return (
     <motion.li
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 rounded-2xl border border-white/5 bg-zinc-900/70 p-3"
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border border-white/5 p-3",
+        cartLocked ? "cursor-not-allowed bg-zinc-950/80 opacity-50" : "bg-zinc-900/70",
+      )}
     >
       {item.image_url ? (
         <img src={item.image_url} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />
@@ -923,10 +989,13 @@ function MenuRow({ item, inCartCount, onAdd }: { item: MenuItemRow; inCartCount:
       {/* Tap feedback: instant scale on press + bumping badge on count change
           so the button feels as snappy as the native mobile button. */}
       <motion.button
-        type="button" onClick={onAdd}
-        whileTap={{ scale: 0.85 }}
+        type="button" onClick={onAdd} disabled={cartLocked}
+        whileTap={cartLocked ? undefined : { scale: 0.85 }}
         transition={{ type: "spring", stiffness: 500, damping: 25 }}
-        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-zinc-900 shadow-lg transition-colors hover:bg-amber-400"
+        className={cn(
+          "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-lg transition-colors",
+          cartLocked ? "cursor-not-allowed bg-zinc-700" : DASH_PRIMARY_CTA,
+        )}
       >
         <Plus className="h-5 w-5" strokeWidth={3} />
         <AnimatePresence>
@@ -951,6 +1020,7 @@ function MenuRow({ item, inCartCount, onAdd }: { item: MenuItemRow; inCartCount:
 function CartStrip(props: {
   items: PartyItem[]; menu: MenuItemRow[]; pendingAdds: Record<number, number>;
   members: PartyMember[]; selfMemberId: string; isHost: boolean;
+  hostDeciding?: boolean; guestCartLocked?: boolean;
   onChangeQty: (item: PartyItem, delta: number) => void;
   onRemove: (item: PartyItem) => void;
   onReview: () => void;
@@ -991,7 +1061,7 @@ function CartStrip(props: {
                   <li className="py-6 text-center text-sm text-zinc-500">No items yet — add something from the menu.</li>
                 ) : (
                   props.items.map((it) => {
-                    const canEdit = it.added_by_member_id === props.selfMemberId || props.isHost;
+                    const canEdit = (it.added_by_member_id === props.selfMemberId || props.isHost) && !props.guestCartLocked;
                     const owner = memberById(props.members, it.added_by_member_id);
                     return (
                       <li key={it.id} className="flex items-center gap-2 border-b border-white/5 py-2 last:border-0">
@@ -1028,8 +1098,9 @@ function CartStrip(props: {
               <button
                 type="button" disabled={disabled} onClick={props.onReview}
                 className={cn(
-                  "flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400",
-                  disabled && "cursor-not-allowed opacity-50 hover:bg-amber-500",
+                  "flex-1 rounded-xl px-4 py-2.5 text-sm font-bold",
+                  DASH_PRIMARY_CTA,
+                  disabled && "cursor-not-allowed opacity-50",
                 )}
                 title={needsGuests ? "Share the link so others can join before checking out." : undefined}
               >
@@ -1037,8 +1108,8 @@ function CartStrip(props: {
               </button>
             );
           })() : (
-            <div className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-center text-sm font-semibold text-zinc-500">
-              Waiting on host…
+            <div className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 text-center text-sm font-semibold text-zinc-500">
+              {props.hostDeciding ? "Host is deciding how to pay" : "Waiting on host…"}
             </div>
           )}
         </div>
@@ -1067,7 +1138,7 @@ function AssignRow({ item, members, onAssign }: { item: PartyItem; members: Part
             onClick={() => { setPendingId(m.id); onAssign(m.id); }}
             className={cn(
               "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition",
-              currentId === m.id ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+              currentId === m.id ? DASH_PRIMARY_SELECTED : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
             )}
           >
             {m.display_name.split(" ")[0]}
@@ -1110,7 +1181,7 @@ function SplitRow({ item, members, onSetSplit }: { item: PartyItem; members: Par
               onClick={() => toggle(m.id)}
               className={cn(
                 "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition",
-                active ? "border-amber-500 bg-amber-500 text-zinc-900" : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+                active ? DASH_PRIMARY_SELECTED : "border-white/10 bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
               )}
             >
               {m.display_name.split(" ")[0]}
@@ -1141,7 +1212,7 @@ function CheckoutUnavailableDialog({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-zinc-900 hover:bg-amber-400"
+            className={cn("inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold", DASH_PRIMARY_CTA)}
           >
             Got it
           </button>
@@ -1310,7 +1381,7 @@ function NameEntryScreen({
         )}
         <button
           type="button" disabled={joining} onClick={onJoin}
-          className={cn("mt-4 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 transition hover:bg-amber-400", joining && "opacity-60")}
+          className={cn("mt-4 w-full rounded-xl px-5 py-3 text-base font-bold transition", DASH_PRIMARY_CTA, joining && "opacity-60")}
         >
           {joining ? "Joining…" : hasPrefill ? `Continue as ${nameInput.trim()}` : "Join"}
         </button>
@@ -1329,7 +1400,7 @@ function OpenInAppOverlay({ restaurantName, sessionId, onContinueWeb }: { restau
         </div>
         <h2 className="mt-4 text-xl font-black">Open in the Rasvia app?</h2>
         <p className="mt-2 text-sm text-zinc-400">You're joining a group order at {restaurantName}. The full experience is on mobile.</p>
-        <a href={deepLink} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">Open app</a>
+        <a href={deepLink} className={cn("mt-5 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>Open app</a>
         <button type="button" onClick={onContinueWeb} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Continue in browser</button>
       </motion.div>
     </div>
@@ -1370,7 +1441,7 @@ function SuccessScreen({ snapshot, restaurant, creds, onDone }: { snapshot: Part
           ) : null}
           <PartyLedger members={snapshot.members} payments={snapshot.payments} selfMemberId={creds.memberId} isHost={me?.role === "host"} />
         </div>
-        <button type="button" onClick={onDone} className="mt-8 w-full rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">Done</button>
+        <button type="button" onClick={onDone} className={cn("mt-8 w-full rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>Done</button>
       </div>
     </Layout>
   );
@@ -1416,7 +1487,7 @@ function CancelledScreen({ restaurantName, onHome }: { restaurantName: string | 
         {restaurantName ? `The host cancelled the group order at ${restaurantName}.` : "The host cancelled this group order."}
         {" "}Any paid shares have been refunded.
       </p>
-      <button type="button" onClick={onHome} className="mt-6 rounded-xl bg-amber-500 px-5 py-3 text-base font-bold text-zinc-900 hover:bg-amber-400">
+      <button type="button" onClick={onHome} className={cn("mt-6 rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>
         Back to home
       </button>
     </div>
@@ -1437,7 +1508,7 @@ function FullScreenMessage({ title, body }: { title: string; body: string }) {
       <AlertCircle className="h-8 w-8 text-red-400" />
       <h2 className="text-xl font-bold text-zinc-100">{title}</h2>
       <p className="max-w-sm text-sm text-zinc-400">{body}</p>
-      <a href="/" className="mt-3 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-900 hover:bg-amber-400">Back to home</a>
+      <a href="/" className={cn("mt-3 rounded-xl px-5 py-2.5 text-sm font-bold", DASH_PRIMARY_CTA)}>Back to home</a>
     </div>
   );
 }

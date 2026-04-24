@@ -6,6 +6,7 @@ import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, Loader2, Plus, Save, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,8 +92,7 @@ function portalListRowSelected(active: boolean) {
   );
 }
 
-const portalPrimaryCtaClass =
-  "gap-1.5 !bg-amber-500 !font-semibold !text-zinc-950 shadow-sm hover:!bg-amber-400";
+const portalPrimaryCtaClass = cn("gap-1.5 font-semibold", DASH_PRIMARY_CTA);
 
 export default function AdminPortalPage() {
   const { session, isAdmin } = useAuth();
@@ -564,7 +564,7 @@ export default function AdminPortalPage() {
                   type="button"
                   disabled={userSaving}
                   onClick={() => void handleSaveUser()}
-                  className="gap-2 bg-amber-600 text-black hover:bg-amber-500"
+                  className={cn("gap-2", DASH_PRIMARY_CTA)}
                 >
                   {userSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Save profile
@@ -944,7 +944,7 @@ export default function AdminPortalPage() {
                     type="button"
                     disabled={saving}
                     onClick={() => void handleSave()}
-                    className="gap-2 bg-amber-600 text-black hover:bg-amber-500"
+                    className={cn("gap-2", DASH_PRIMARY_CTA)}
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {selectedId === "new" ? "Create restaurant" : "Save changes"}

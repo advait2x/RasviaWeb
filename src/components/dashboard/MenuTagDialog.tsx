@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DASH_BTN_ADD_SM } from "@/lib/dashboardUi";
 import { DEFAULT_MENU_TAGS, MenuTagConfig, slugifyTag } from "@/lib/menu-tags";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 const TAG_COLOR_PRESETS = DEFAULT_MENU_TAGS.map((tag) => ({
@@ -209,7 +211,7 @@ export default function MenuTagDialog({
                 type="checkbox"
                 checked={enabled}
                 onChange={(e) => setEnabled(e.target.checked)}
-                className="accent-amber-500"
+                className="accent-amber-600 dark:accent-amber-500"
               />
               Enabled (shown in filters)
             </label>
@@ -231,7 +233,7 @@ export default function MenuTagDialog({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={busy}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-500/30 bg-amber-500/15 text-amber-400 text-xs font-semibold hover:bg-amber-500/25 disabled:opacity-60"
+            className={cn(DASH_BTN_ADD_SM, "flex items-center gap-2 px-3 py-1.5 rounded-md font-semibold disabled:opacity-60")}
           >
             {busy && <Loader2 size={12} className="animate-spin" />}
             {mode === "create" ? "Add Tag" : "Save"}

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Menu, Pause, Play, X } from "lucide-react";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 /** Smooth-scroll to a section id, accounting for the fixed navbar height. */
 function scrollToSection(id: string) {
@@ -721,6 +723,10 @@ export default function LandingPage() {
   const [audience, setAudience] = useState<"business" | "consumer">("business");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const heroGlowAreaRef = useRef<HTMLDivElement | null>(null);
+  const heroGlowRef = useRef<HTMLDivElement | null>(null);
+  const glowPos = useRef({ x: 0, y: 0 });
+  const glowTarget = useRef({ x: 0, y: 0 });
   const activeSlides = useMemo(
     () => (audience === "business" ? BUSINESS_FEATURES : CONSUMER_FEATURES),
     [audience]
@@ -729,6 +735,40 @@ export default function LandingPage() {
   useEffect(() => {
     setCurrentIndex(0);
   }, [audience]);
+
+  useEffect(() => {
+    const area = heroGlowAreaRef.current;
+    if (!area) return;
+    let raf = 0;
+    let cancelled = false;
+    const onMove = (e: MouseEvent) => {
+      const r = area.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height * 0.25;
+      glowTarget.current = {
+        x: (e.clientX - cx) * 0.42,
+        y: (e.clientY - cy) * 0.32,
+      };
+    };
+    const lerp = 0.11;
+    const tick = () => {
+      if (cancelled) return;
+      glowPos.current.x += (glowTarget.current.x - glowPos.current.x) * lerp;
+      glowPos.current.y += (glowTarget.current.y - glowPos.current.y) * lerp;
+      const el = heroGlowRef.current;
+      if (el) {
+        el.style.transform = `translate(calc(-50% + ${glowPos.current.x}px), ${glowPos.current.y}px)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, []);
 
   useEffect(() => {
     if (paused || activeSlides.length <= 1) return;
@@ -752,12 +792,14 @@ export default function LandingPage() {
       <Navbar />
 
       <main className="w-full py-12 pt-28">
-        <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
+        <div ref={heroGlowAreaRef} className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <div
-            className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07]"
+            ref={heroGlowRef}
+            className="pointer-events-none absolute -top-32 left-1/2 h-[600px] w-[min(900px,100%)] rounded-full opacity-[0.07] will-change-transform"
             style={{
               background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
               filter: "blur(60px)",
+              transform: "translate(-50%, 0px)",
             }}
           />
 
@@ -921,7 +963,12 @@ export default function LandingPage() {
                 }`}
               >
                 {tier.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-500 px-3 py-0.5 text-[11px] font-bold text-black">
+                  <div
+                    className={cn(
+                      "absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-300/50 px-3 py-0.5 text-[11px] font-bold",
+                      DASH_PRIMARY_CTA,
+                    )}
+                  >
                     Most Popular
                   </div>
                 )}

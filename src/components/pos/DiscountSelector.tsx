@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useDashboard } from "@/context/DashboardContext";
 import type { Discount } from "@/types/dashboard";
 import ManagerPinModal from "./ManagerPinModal";
+import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 interface DiscountSelectorProps {
   open: boolean;
@@ -127,7 +129,10 @@ export default function DiscountSelector({ open, onClose, onApply }: DiscountSel
                     whileTap={{ scale: 0.95 }}
                     onClick={handleCustomApply}
                     disabled={!customValue || parseFloat(customValue) <= 0}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 transition-colors disabled:opacity-40"
+                    className={cn(
+                      "flex-1 rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-40",
+                      DASH_PRIMARY_CTA,
+                    )}
                   >
                     Apply
                   </motion.button>

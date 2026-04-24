@@ -13,7 +13,8 @@ import {
     DialogContent,
 } from "@/components/ui/dialog";
 import PinManagement from "@/components/pos/PinManagement";
-import { DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
+import { DASH_BTN_ADD, DASH_BTN_ADD_XS } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -694,7 +695,10 @@ export default function TeamRolesPanel() {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleSaveRole}
                                 disabled={roleSaving || (!editingRole?.is_owner && !roleDraft.name.trim())}
-                                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className={cn(
+                                    "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                    DASH_BTN_ADD,
+                                )}
                             >
                                 {roleSaving ? (
                                     <Loader2 size={16} className="animate-spin mx-auto" />
@@ -758,7 +762,10 @@ export default function TeamRolesPanel() {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleInviteStaff}
                                 disabled={inviting || !inviteEmail.trim() || !inviteRoleId}
-                                className="flex-1 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className={cn(
+                                    "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                    DASH_BTN_ADD,
+                                )}
                             >
                                 {inviting ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Add Staff"}
                             </motion.button>

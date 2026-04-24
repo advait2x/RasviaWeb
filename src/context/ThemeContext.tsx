@@ -46,6 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.setAttribute("data-theme-mode", mode);
     root.setAttribute("data-theme", nextResolved);
     root.style.colorScheme = nextResolved;
+    root.classList.toggle("dark", nextResolved === "dark");
     root.classList.add("theme-ready");
     window.localStorage.setItem(THEME_MODE_KEY, mode);
   }, [mode]);

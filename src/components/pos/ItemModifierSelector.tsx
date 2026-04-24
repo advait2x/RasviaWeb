@@ -4,6 +4,8 @@ import { Settings2, X, Check, Plus } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useDashboard } from "@/context/DashboardContext";
 import type { ItemModifier, MenuItem } from "@/types/dashboard";
+import { DASH_PRIMARY_CTA, DASH_PRIMARY_SELECTED } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 interface ItemModifierSelectorProps {
   open: boolean;
@@ -87,10 +89,13 @@ export default function ItemModifierSelector({ open, onClose, menuItem, onConfir
                             : "bg-zinc-800/40 border-white/5 hover:border-white/10"
                         }`}
                       >
-                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? "bg-amber-500 border-amber-500" : "border-zinc-600"
-                        }`}>
-                          {isSelected && <Check size={12} strokeWidth={2.5} className="text-black" />}
+                        <div
+                          className={cn(
+                            "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border",
+                            isSelected ? DASH_PRIMARY_SELECTED : "border-zinc-600",
+                          )}
+                        >
+                          {isSelected && <Check size={12} strokeWidth={2.5} className="text-amber-50 dark:text-zinc-950" />}
                         </div>
                         <span className="flex-1 text-sm text-zinc-100">{mod.name}</span>
                         {mod.priceAdjustment !== 0 && (
@@ -126,7 +131,7 @@ export default function ItemModifierSelector({ open, onClose, menuItem, onConfir
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={handleConfirm}
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 transition-colors"
+              className={cn("flex-1 rounded-xl py-2.5 text-sm font-bold transition-colors", DASH_PRIMARY_CTA)}
             >
               <Plus size={14} className="inline mr-1" />
               Add to Order

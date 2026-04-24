@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Copy, LogOut, Mail, Phone, Save, Shield, User, Building2, Clock3, BellRing } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { DASH_BTN_ADD } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 
 type ProfileRow = {
   full_name: string | null;
@@ -243,7 +245,10 @@ export default function PartnerProfilePanel({ embedded = false }: { embedded?: b
               type="button"
               onClick={saveName}
               disabled={!canSaveName || saving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/60 bg-amber-500 px-4 text-sm font-semibold text-black hover:bg-amber-400 transition-colors dark:bg-amber-500/15 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/25 disabled:opacity-45"
+              className={cn(
+                "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:opacity-45",
+                DASH_BTN_ADD,
+              )}
             >
               <Save size={15} /> {saving ? "Saving..." : "Save Name"}
             </button>

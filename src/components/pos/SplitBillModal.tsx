@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Split, X, Check } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DASH_PRIMARY_CTA, DASH_PRIMARY_SELECTED } from "@/lib/dashboardUi";
+import { cn } from "@/lib/utils";
 import type { Order } from "@/types/dashboard";
 
 interface SplitBillModalProps {
@@ -71,10 +73,13 @@ export default function SplitBillModal({ open, onClose, order, onSplit }: SplitB
                       : "bg-zinc-800/40 border-white/5 hover:border-white/10"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? "bg-amber-500 border-amber-500" : "border-zinc-600"
-                  }`}>
-                    {isSelected && <Check size={12} strokeWidth={2.5} className="text-black" />}
+                  <div
+                    className={cn(
+                      "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border",
+                      isSelected ? DASH_PRIMARY_SELECTED : "border-zinc-600",
+                    )}
+                  >
+                    {isSelected && <Check size={12} strokeWidth={2.5} className="text-amber-50 dark:text-zinc-950" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-xs text-zinc-500 tabular-nums">{item.quantity}x </span>
@@ -107,7 +112,10 @@ export default function SplitBillModal({ open, onClose, order, onSplit }: SplitB
               whileTap={{ scale: 0.95 }}
               onClick={handleSplit}
               disabled={selectedIds.size === 0}
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-bold hover:bg-amber-400 transition-colors disabled:opacity-40"
+              className={cn(
+                "flex-1 rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-40",
+                DASH_PRIMARY_CTA,
+              )}
             >
               Split ({selectedIds.size} items)
             </motion.button>

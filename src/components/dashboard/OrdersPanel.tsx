@@ -15,16 +15,29 @@ import {
     Dialog,
     DialogContent,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import {
+    DASH_BTN_ADD,
+    DASH_MONEY_EMPHASIS,
+    ORDER_DIET_PILL,
+    ORDER_FILTER_CHIP_OFF,
+    ORDER_MEAL_PILLS,
+    ORDER_PILL_NOTIFY_DONE,
+    ORDER_PILL_NOTIFY_PENDING,
+    ORDER_PILL_TYPE_PRE,
+    ORDER_PILL_TYPE_TAKEOUT,
+    ORDER_STATUS_PILL,
+} from "@/lib/dashboardUi";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; icon: typeof Clock }> = {
-    pending: { label: "Pending", color: "bg-yellow-500/10 border-yellow-500/30 text-yellow-400", icon: Clock },
-    preparing: { label: "Preparing", color: "bg-blue-500/10 border-blue-500/30 text-blue-400", icon: ChefHat },
-    ready: { label: "Ready", color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400", icon: CheckCircle2 },
-    served: { label: "Served", color: "bg-violet-500/10 border-violet-500/30 text-violet-400", icon: CheckCircle2 },
-    completed: { label: "Completed", color: "bg-zinc-700/30 border-zinc-600/30 text-zinc-400", icon: CheckCircle2 },
-    cancelled: { label: "Cancelled", color: "bg-red-500/10 border-red-500/30 text-red-400", icon: XCircle },
+const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: typeof Clock }> = {
+    pending: { label: "Pending", icon: Clock },
+    preparing: { label: "Preparing", icon: ChefHat },
+    ready: { label: "Ready", icon: CheckCircle2 },
+    served: { label: "Served", icon: CheckCircle2 },
+    completed: { label: "Completed", icon: CheckCircle2 },
+    cancelled: { label: "Cancelled", icon: XCircle },
 };
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -65,10 +78,10 @@ function getTimeSince(date: Date): string {
 
 function getTimeColor(date: Date): string {
     const mins = Math.floor((Date.now() - date.getTime()) / 60000);
-    if (mins < 10) return "text-emerald-400";
-    if (mins < 20) return "text-blue-400";
-    if (mins < 35) return "text-amber-400";
-    return "text-red-400";
+    if (mins < 10) return "text-emerald-800 dark:text-emerald-400";
+    if (mins < 20) return "text-sky-800 dark:text-blue-400";
+    if (mins < 35) return "text-amber-800 dark:text-amber-400";
+    return "text-red-800 dark:text-red-400";
 }
 
 export default function OrdersPanel() {
@@ -180,7 +193,7 @@ export default function OrdersPanel() {
                 <div>
                     <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Orders</h2>
                     {activeCount > 0 && (
-                        <p className="text-xs text-amber-400 mt-0.5">
+                        <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
                             {activeCount} active order{activeCount > 1 ? "s" : ""}
                         </p>
                     )}
@@ -193,22 +206,24 @@ export default function OrdersPanel() {
                         <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setShowFilters((v) => !v)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${showFilters || hasAnyFilter
-                                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                                : "bg-zinc-800 border-white/10 text-zinc-400 hover:bg-zinc-700"
-                                }`}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors",
+                                showFilters || hasAnyFilter
+                                    ? DASH_BTN_ADD
+                                    : "border border-zinc-300/40 bg-zinc-200/50 text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700",
+                            )}
                         >
                             <Filter size={13} strokeWidth={1.5} />
                             Filters
                             {hasAnyFilter && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-700 dark:bg-amber-500" />
                             )}
                         </motion.button>
                     )}
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setShowTakeOrder(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                        className={cn(DASH_BTN_ADD, "px-3 py-2")}
                     >
                         <Plus size={14} strokeWidth={2} />
                         New Order
@@ -237,10 +252,10 @@ export default function OrdersPanel() {
                             {count > 0 && (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                     tab === key
-                                        ? "bg-amber-500/20 text-amber-400"
+                                        ? "bg-amber-200/90 text-amber-950 dark:bg-amber-500/20 dark:text-amber-400"
                                         : key === "preorders"
                                             ? "bg-red-500 text-white"
-                                            : "bg-zinc-700/60 text-zinc-500"
+                                            : "bg-zinc-300/60 text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500"
                                     }`}>
                                     {count}
                                 </span>
@@ -280,10 +295,8 @@ export default function OrdersPanel() {
                                             )
                                         }
                                         className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${dietFilter.includes(value)
-                                            ? value === "veg" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                                : value === "halal" ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                                                    : "bg-red-500/10 border-red-500/30 text-red-400"
-                                            : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
+                                            ? ORDER_DIET_PILL[value]
+                                            : ORDER_FILTER_CHIP_OFF
                                             }`}
                                     >
                                         <Icon size={10} strokeWidth={1.5} />
@@ -308,7 +321,7 @@ export default function OrdersPanel() {
                                                         prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
                                                     )
                                                 }
-                                                className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${statusFilter.includes(s) ? cfg.color : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
+                                                className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${statusFilter.includes(s) ? ORDER_STATUS_PILL[s] : ORDER_FILTER_CHIP_OFF
                                                     }`}
                                             >
                                                 {cfg.label}
@@ -332,11 +345,8 @@ export default function OrdersPanel() {
                                             )
                                         }
                                         className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all ${mealFilter.includes(value)
-                                            ? value === "breakfast" ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                                                : value === "lunch" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                                    : value === "dinner" ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
-                                                        : "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                                            : "bg-zinc-800/40 border-white/8 text-zinc-500 hover:text-zinc-300"
+                                            ? ORDER_MEAL_PILLS[value as keyof typeof ORDER_MEAL_PILLS]
+                                            : ORDER_FILTER_CHIP_OFF
                                             }`}
                                     >
                                         <Icon size={10} strokeWidth={1.5} />
@@ -405,7 +415,7 @@ export default function OrdersPanel() {
                                     exit={{ opacity: 0, scale: 0.97 }}
                                     transition={{ duration: 0.15, delay: index * 0.02 }}
                                     className={`rounded-xl border bg-zinc-800/40 hover:border-white/10 transition-all duration-200 p-3 ${order.orderType !== "dine_in"
-                                        ? "border-purple-500/20 border-l-2 border-l-purple-500/50"
+                                        ? "border-violet-200/40 border-l-2 border-l-violet-600/45 dark:border-purple-500/20 dark:border-l-purple-500/50"
                                         : "border-white/5"
                                         }`}
                                 >
@@ -428,10 +438,9 @@ export default function OrdersPanel() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {order.orderType !== "dine_in" && (
-                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${order.orderType === "pre_order"
-                                                    ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
-                                                    : "bg-purple-500/10 border-purple-500/20 text-purple-400"
-                                                    }`}>
+                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                                    order.orderType === "pre_order" ? ORDER_PILL_TYPE_PRE : ORDER_PILL_TYPE_TAKEOUT
+                                                }`}>
                                                     {order.orderType === "pre_order" ? "Pre-Order" : "Takeout"}
                                                 </span>
                                             )}
@@ -444,8 +453,8 @@ export default function OrdersPanel() {
                                                         ? `Notified at ${order.customerNotifiedAt.toLocaleTimeString()}`
                                                         : "Notify customer order is ready"}
                                                     className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold transition-all ${order.customerNotifiedAt
-                                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                                                            : "bg-amber-500/10 border-amber-500/40 text-amber-400 animate-pulse"
+                                                            ? ORDER_PILL_NOTIFY_DONE
+                                                            : ORDER_PILL_NOTIFY_PENDING
                                                         }`}
                                                 >
                                                     {order.customerNotifiedAt
@@ -456,7 +465,7 @@ export default function OrdersPanel() {
                                                     </span>
                                                 </motion.button>
                                             )}
-                                            <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${statusCfg.color}`}>
+                                            <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${ORDER_STATUS_PILL[order.status]}`}>
                                                 <StatusIcon size={10} strokeWidth={1.5} />
                                                 {statusCfg.label}
                                             </span>
@@ -465,13 +474,13 @@ export default function OrdersPanel() {
 
                                     {/* Phone & notification info for takeout/pre-orders */}
                                     {order.orderType !== "dine_in" && order.customerPhone && (
-                                        <div className="flex items-center justify-between mb-1.5 py-1 px-2 rounded-md bg-purple-500/5 border border-purple-500/15">
+                                        <div className="flex items-center justify-between mb-1.5 py-1 px-2 rounded-md bg-violet-100/35 border border-violet-200/50 dark:bg-purple-500/5 dark:border-purple-500/15">
                                             <div className="flex items-center gap-1.5">
-                                                <Phone size={10} strokeWidth={1.5} className="text-purple-400" />
-                                                <span className="text-xs text-purple-300 font-medium tabular-nums">{order.customerPhone}</span>
+                                                <Phone size={10} strokeWidth={1.5} className="text-violet-800 dark:text-purple-400" />
+                                                <span className="text-xs text-violet-900 font-medium tabular-nums dark:text-purple-300">{order.customerPhone}</span>
                                             </div>
                                             {order.customerNotifiedAt && (
-                                                <span className="text-[10px] text-emerald-400">
+                                                <span className="text-[10px] text-emerald-800 dark:text-emerald-400">
                                                     Notified {order.customerNotifiedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                 </span>
                                             )}
@@ -495,7 +504,7 @@ export default function OrdersPanel() {
                                                         <span className="text-zinc-500 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
                                                     </div>
                                                     {item.specialInstructions && (
-                                                        <p className="text-[10px] text-violet-300 mt-0.5 pl-5 break-words max-h-8 overflow-y-auto pr-1">
+                                                        <p className="text-[10px] text-violet-800 mt-0.5 pl-5 break-words max-h-8 overflow-y-auto pr-1 dark:text-violet-300">
                                                             Note: {item.specialInstructions}
                                                         </p>
                                                     )}
@@ -507,11 +516,11 @@ export default function OrdersPanel() {
                                         </div>
                                     )}
                                     {order.notes && (
-                                        <div className="mb-2 rounded-md border border-violet-500/20 bg-violet-500/5 px-2.5 py-2">
-                                            <p className="text-[10px] uppercase tracking-wide text-violet-300/90 font-semibold mb-0.5">
+                                        <div className="mb-2 rounded-md border border-violet-200/50 bg-violet-50/60 dark:border-violet-500/20 dark:bg-violet-500/5 px-2.5 py-2">
+                                            <p className="text-[10px] uppercase tracking-wide text-violet-800 font-semibold mb-0.5 dark:text-violet-300/90">
                                                 Special Instructions
                                             </p>
-                                            <p className="text-[11px] text-violet-100 break-words max-h-14 overflow-y-auto pr-1">
+                                            <p className="text-[11px] text-violet-950 break-words max-h-14 overflow-y-auto pr-1 dark:text-violet-100">
                                                 {order.notes}
                                             </p>
                                         </div>
@@ -520,11 +529,11 @@ export default function OrdersPanel() {
                                     {/* Footer */}
                                     <div className="flex items-center justify-between pt-1.5 border-t border-white/5">
                                         <div className="flex items-center gap-3">
-                                            <span className="text-sm font-bold text-amber-400 tabular-nums">
+                                            <span className={cn("text-sm font-bold tabular-nums", DASH_MONEY_EMPHASIS)}>
                                                 ${order.total.toFixed(2)}
                                             </span>
                                             {order.tipAmount != null && order.tipAmount > 0 && (
-                                                <span className="text-xs text-emerald-400">
+                                                <span className="text-xs text-emerald-800 dark:text-emerald-400">
                                                     +${order.tipAmount.toFixed(2)} tip
                                                 </span>
                                             )}
@@ -547,7 +556,7 @@ export default function OrdersPanel() {
                                                 <motion.button
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/20 transition-colors"
+                                                    className={cn(DASH_BTN_ADD, "flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold")}
                                                 >
                                                     <ArrowRight size={11} strokeWidth={2} />
                                                     {STATUS_CONFIG[NEXT_STATUS[order.status]!].label}
