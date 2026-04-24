@@ -11,6 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -47,10 +54,30 @@ interface FormState {
   description: string;
   price: string;
   imageUrl: string;
+  stripeTaxCode: string;
   mealTimes: MealTime[];
   inStock: boolean;
   isVegetarian: boolean;
   isHalal: boolean;
+}
+
+const DEFAULT_STRIPE_TAX_CODE = "txcd_40060003";
+const CUSTOM_TAX_PRESET_VALUE = "__custom__";
+const STRIPE_TAX_CODE_PRESETS = [
+  { value: DEFAULT_STRIPE_TAX_CODE, label: "Immediate Consumption", description: "Prepared foods, heated foods, dispensed drinks" },
+  { value: "txcd_40040000", label: "Retail Grocery", description: "Food for non-immediate consumption" },
+  { value: "txcd_41060006", label: "Coffee / Tea / Cocoa", description: "Milk, coffee, tea, or cocoa beverages" },
+  { value: "txcd_41040002", label: "Soft Drinks", description: "Carbonated sweetened beverages" },
+] as const;
+
+type TaxCodeFilter = "all" | "default" | "custom";
+
+function normalizeStripeTaxCode(code?: string | null) {
+  return code?.trim() || DEFAULT_STRIPE_TAX_CODE;
+}
+
+function isCustomStripeTaxCode(code?: string | null) {
+  return normalizeStripeTaxCode(code) !== DEFAULT_STRIPE_TAX_CODE;
 }
 
 const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
@@ -58,6 +85,7 @@ const emptyForm = (menuTags: MenuTagConfig[]): FormState => ({
   description: "",
   price: "",
   imageUrl: "",
+  stripeTaxCode: DEFAULT_STRIPE_TAX_CODE,
   mealTimes: [],
   inStock: true,
   isVegetarian: false,
@@ -70,6 +98,7 @@ function itemToForm(item: MenuItem): FormState {
     description: item.description,
     price: item.price != null ? String(item.price) : "",
     imageUrl: item.imageUrl ?? "",
+    stripeTaxCode: item.stripeTaxCode || DEFAULT_STRIPE_TAX_CODE,
     mealTimes: item.mealTimes,
     inStock: item.inStock,
     isVegetarian: item.isVegetarian === true,
@@ -109,6 +138,11 @@ function ItemFormDialog({
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const selectedTaxPresetValue = STRIPE_TAX_CODE_PRESETS.some(
+    (preset) => preset.value === normalizeStripeTaxCode(form.stripeTaxCode)
+  )
+    ? normalizeStripeTaxCode(form.stripeTaxCode)
+    : CUSTOM_TAX_PRESET_VALUE;
 
   const toggleMealTime = (mt: MealTime) => {
     setForm((f) => {
@@ -182,6 +216,7 @@ function ItemFormDialog({
         description: form.description.trim(),
         price: form.price ? parseFloat(form.price) : null,
         imageUrl: form.imageUrl.trim() || null,
+        stripeTaxCode: form.stripeTaxCode.trim() || DEFAULT_STRIPE_TAX_CODE,
         mealTimes: form.mealTimes,
         inStock: form.inStock,
         isVegetarian: form.isVegetarian,
@@ -276,6 +311,42 @@ function ItemFormDialog({
                   <X size={11} strokeWidth={2} /> Price is required
                 </p>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Stripe Tax Code
+              </label>
+              <Select
+                value={selectedTaxPresetValue}
+                onValueChange={(value) => {
+                  if (value === CUSTOM_TAX_PRESET_VALUE) return;
+                  setForm((f) => ({ ...f, stripeTaxCode: value }));
+                }}
+              >
+                <SelectTrigger className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100">
+                  <SelectValue placeholder="Choose a common tax preset" />
+                </SelectTrigger>
+                <SelectContent className="border-white/10 bg-zinc-900 text-zinc-100">
+                  {STRIPE_TAX_CODE_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM_TAX_PRESET_VALUE}>
+                    Custom / enter manually
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                value={form.stripeTaxCode}
+                onChange={(e) => setForm((f) => ({ ...f, stripeTaxCode: e.target.value }))}
+                placeholder={DEFAULT_STRIPE_TAX_CODE}
+                className="h-10 bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
+              />
+              <p className="text-[11px] leading-relaxed text-zinc-500">
+                Defaults to <span className="font-mono">{DEFAULT_STRIPE_TAX_CODE}</span> for prepared food. Pick a preset or keep typing a custom Stripe product tax code.
+              </p>
             </div>
 
             {/* Image */}
@@ -637,6 +708,7 @@ export default function MenuManager() {
   const [menuTab, setMenuTab] = useState<"items" | "modifiers" | "tags">("items");
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
+  const [taxCodeFilter, setTaxCodeFilter] = useState<TaxCodeFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -732,6 +804,11 @@ export default function MenuManager() {
         (m) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)
       );
     }
+    if (taxCodeFilter === "default") {
+      items = items.filter((m) => !isCustomStripeTaxCode(m.stripeTaxCode));
+    } else if (taxCodeFilter === "custom") {
+      items = items.filter((m) => isCustomStripeTaxCode(m.stripeTaxCode));
+    }
     return [...items].sort((a, b) => {
       switch (sortKey) {
         case "name_asc": return a.name.localeCompare(b.name);
@@ -740,9 +817,10 @@ export default function MenuManager() {
         case "price_desc": return (b.price ?? 0) - (a.price ?? 0);
       }
     });
-  }, [menuItems, search, activeFilters, sortKey]);
+  }, [menuItems, search, activeFilters, sortKey, taxCodeFilter]);
 
   const outOfStock = menuItems.filter((m) => !m.inStock).length;
+  const customTaxOverrides = menuItems.filter((m) => isCustomStripeTaxCode(m.stripeTaxCode)).length;
 
   const handleSave = async (data: Omit<MenuItem, "id">, force?: boolean) => {
     if (editingItem) {
@@ -1011,6 +1089,11 @@ export default function MenuManager() {
               {outOfStock} item{outOfStock > 1 ? "s" : ""} 86'd
             </p>
           )}
+          {customTaxOverrides > 0 && (
+            <p className="text-xs text-amber-400/90 mt-0.5">
+              {customTaxOverrides} item{customTaxOverrides > 1 ? "s" : ""} with tax overrides
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Sort */}
@@ -1089,6 +1172,31 @@ export default function MenuManager() {
             Clear
           </button>
         )}
+      </div>
+
+      <div className="px-5 pb-3 flex flex-wrap gap-1.5">
+        {([
+          { value: "all", label: "All Tax Codes" },
+          { value: "default", label: "Default Only" },
+          { value: "custom", label: "Overrides" },
+        ] as const).map((option) => {
+          const active = taxCodeFilter === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setTaxCodeFilter(option.value)}
+              className={cn(
+                "px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-colors",
+                active
+                  ? "border-amber-500/35 bg-amber-500/12 text-amber-300"
+                  : "border-white/8 bg-zinc-800/40 text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -1197,6 +1305,17 @@ export default function MenuManager() {
                     {/* Description */}
                     {item.description && (
                       <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{item.description}</p>
+                    )}
+
+                    {isCustomStripeTaxCode(item.stripeTaxCode) && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                          Tax Override
+                        </span>
+                        <span className="text-[10px] font-mono text-zinc-500">
+                          {normalizeStripeTaxCode(item.stripeTaxCode)}
+                        </span>
+                      </div>
                     )}
 
                     {/* Meal time badges — dedupe by tag label so legacy rows

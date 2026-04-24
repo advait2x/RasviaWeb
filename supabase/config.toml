@@ -33,6 +33,12 @@ verify_jwt = false
 # JWT is verified manually in-function via supabase.auth.getUser(token)
 entrypoint = "./functions/create-stripe-account/index.ts"
 
+[functions.manage-tax-settings]
+enabled = true
+verify_jwt = false
+# JWT is verified manually in-function via supabase.auth.getUser(token)
+entrypoint = "./functions/manage-tax-settings/index.ts"
+
 [functions.cancel-party-session]
 enabled = true
 verify_jwt = false

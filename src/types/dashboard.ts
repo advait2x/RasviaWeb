@@ -55,6 +55,8 @@ export interface MenuItem {
   description: string;
   price: number | null;
   imageUrl: string | null;
+  /** Stripe Tax product tax code used by checkout line items. */
+  stripeTaxCode: string;
   mealTimes: MealTime[];
   inStock: boolean;
   dietType?: DietType;

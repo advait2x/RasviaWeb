@@ -161,6 +161,8 @@ function mapRow(row: Record<string, unknown>): WaitlistEntry {
 }
 
 function mapMenuItem(row: Record<string, unknown>): MenuItem {
+  const stripeTaxCodeRaw = typeof row.stripe_tax_code === "string" ? row.stripe_tax_code.trim() : "";
+  const stripeTaxCode = stripeTaxCodeRaw || "txcd_40060003";
   // Dedupe duplicate tag keys (e.g. legacy rows that stored "entree" twice
   // or had both the old category and a matching menu tag).
   const rawTags = ((row.meal_times as string[]) ?? []) as MealTime[];
@@ -195,6 +197,7 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     description: (row.description as string) ?? "",
     price: row.price != null ? Number(row.price) : null,
     imageUrl: (row.image_url as string) ?? null,
+    stripeTaxCode,
     mealTimes,
     inStock: (row.in_stock as boolean) ?? true,
     isVegetarian: isVeg,
@@ -590,6 +593,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       description: data.description,
       price: data.price,
       image_url: data.imageUrl,
+      stripe_tax_code: data.stripeTaxCode,
       meal_times: data.mealTimes,
       in_stock: data.inStock,
       is_vegetarian: data.isVegetarian === true,
@@ -607,6 +611,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (data.description !== undefined) patch.description = data.description;
     if (data.price !== undefined) patch.price = data.price;
     if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
+    if (data.stripeTaxCode !== undefined) patch.stripe_tax_code = data.stripeTaxCode;
     if (data.mealTimes !== undefined) patch.meal_times = data.mealTimes;
     if (data.inStock !== undefined) patch.in_stock = data.inStock;
     if (data.isVegetarian !== undefined) patch.is_vegetarian = data.isVegetarian;

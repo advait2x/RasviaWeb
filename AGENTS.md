@@ -84,7 +84,8 @@ RasviaWeb/
 │       ├── payment-redirect/    # Post-payment redirect handler
 │       ├── stripe-webhook/      # Stripe webhook handler
 │       ├── create-stripe-account/  # Stripe Connect onboarding
-│       └── check-stripe-status/ # Check Stripe account status
+│       ├── check-stripe-status/ # Check Stripe account status
+│       └── manage-tax-settings/ # Owner/admin Stripe Tax address + registration management
 ├── public/                      # Static assets
 ├── index.html                   # HTML entry point
 ├── vite.config.ts               # Vite configuration
@@ -124,6 +125,7 @@ The `AuthContext` cascade:
 - **Stripe Connect** for restaurant payouts (Express accounts)
 - `create-stripe-account` — Creates Express account + generates onboarding link
 - `check-stripe-status` — Checks payout capability by `restaurant_id` (server resolves Stripe account id)
+- `manage-tax-settings` — Reads and updates Stripe Tax head-office settings + US registrations for a restaurant's connected account
 - `create-checkout` — Creates Checkout Sessions for customer payments
 - `stripe-webhook` — Handles `checkout.session.completed` events
 - `payment-redirect` — Post-checkout 302 redirect to app/web
@@ -133,7 +135,7 @@ The `AuthContext` cascade:
 All edge functions that modify data or access sensitive APIs:
 - Verify JWT identity with `supabase.auth.getUser(token)` when the endpoint requires authenticated access
 - Use `SUPABASE_SERVICE_ROLE_KEY` for admin database operations
-- Restrict `create-stripe-account` and `check-stripe-status` by restaurant scope (admin or owner)
+- Restrict `create-stripe-account`, `check-stripe-status`, and `manage-tax-settings` by restaurant scope (admin or owner)
 - `create-checkout` must compute payout destination and totals server-side (never trust client amount/account/user fields)
 - `create-checkout` guest path is limited to valid open `party_session_id` flows only
 - `payment-redirect` must use parsed URL allowlisting (`rasvia://`, rasvia.com, localhost) to prevent open redirects
@@ -312,52 +314,89 @@ Once you finish your work after a prompt, modify this file with any relevant inf
 ## Connected Account Tax (Seller-of-Record) — April 2026
 
 Rasvia uses a **seller-of-record** model where the **connected restaurant account**
-is responsible for collecting and remitting sales tax. The platform does NOT act
-as a marketplace facilitator for tax purposes. The platform only collects a
-platform fee via `application_fee_amount`.
+is responsible for collecting and remitting sales tax. Checkout tax is based on
+the **restaurant's configured location/rate**, not the customer's billing or
+shipping address. The platform only collects a platform fee via
+`application_fee_amount`.
 
 ### Architecture invariants
 
-- **The restaurant's connected Stripe account handles tax.** The platform does
-  NOT use `automatic_tax`, `tax_code`, or `tax_behavior` on checkout sessions.
+- **Checkout uses a fixed restaurant tax rate.** `restaurants.sales_tax_rate_bps`
+  stores the configured sales tax rate in basis points (for example `825` =
+  `8.25%`), and checkout applies that rate to every line item regardless of the
+  customer's address.
+- `restaurants.stripe_manual_tax_rate_id` caches the connected-account Stripe
+  Tax Rate object used in Checkout. `create-checkout` recreates it if it's
+  missing or invalid.
+- Each line item still uses `tax_behavior: 'exclusive'` (tax added on top of
+  price). `menu_items.stripe_tax_code` is still stored for Stripe Tax records /
+  future use, but Checkout no longer depends on `automatic_tax`.
+- RasviaWeb's menu editor now exposes `menu_items.stripe_tax_code` per item so
+  restaurants can override the default tax classification without touching SQL.
+- The web menu editor also includes a small preset picker (`Immediate
+  Consumption`, `Retail Grocery`, `Coffee / Tea / Cocoa`, `Soft Drinks`) plus a
+  `Default Only` / `Overrides` filter and `Tax Override` badge in the menu list.
 - `transfer_data.destination = stripeAccountId` with NO explicit `amount` — the
   full charge (minus `application_fee_amount`) goes to the connected account.
 - `application_fee_amount = subtotal * platform_fee_bps / 10000` (currently 0
-  by default; plumbed for future activation).
+  by default; plumbed for future activation). Computed on pre-tax subtotal.
 - The `calculate-tax` edge function has been **removed** — it was only needed
-  for the marketplace facilitator model.
+  for the old marketplace facilitator model.
 - POS/cash orders use `FALLBACK_TAX_RATE = 0.0825` in `DashboardContext.tsx`,
-  `POSTerminal.tsx`, and `TakeOrderModal.tsx` for display only. Restaurants
-  should configure their own tax rates in their Stripe dashboard.
+  `POSTerminal.tsx`, and `TakeOrderModal.tsx` for display only.
 
-### Database columns added (`seller_of_record_tax` migration)
+### Database columns
 
 | Table | Column | Purpose |
 |-------|--------|---------|
 | `restaurants` | `street_address`, `city`, `state`, `postal_code`, `country` | Restaurant address for display/search |
 | `restaurants` | `platform_fee_bps` (default 0) | Per-restaurant platform fee in basis points |
+| `restaurants` | `sales_tax_rate_bps` (default 0) | Fixed checkout sales tax rate in basis points |
+| `restaurants` | `stripe_manual_tax_rate_id` | Cached platform-account Stripe Tax Rate id used by Checkout |
+| `menu_items` | `stripe_tax_code` (default `txcd_40060003`) | Stripe product tax code for Stripe Tax |
 | `orders` | `platform_fee_cents` | Application fee recorded from webhook |
+| `orders` | `tax_cents` | Actual tax collected from Checkout |
 | `orders` | `transfer_amount_cents` | Transfer amount audit |
 | `party_payments` | `platform_fee_cents` | Group-order platform fee audit |
+| `party_payments` | `tax_cents` | Tax on group-order member shares |
 
 ### Edge function behavior
 
 - `create-stripe-account` — requests `card_payments` + `transfers` capabilities.
-  Does NOT request `tax_reporting_us_1099_k`.
 - `check-stripe-status` — returns `charges_enabled`, `payouts_enabled`,
   `details_submitted`, and `requirements_currently_due`.
-- `create-checkout` — simple line items (no tax_code, no tax_behavior, no
-  automatic_tax). Uses `transfer_data.destination` with `application_fee_amount`.
-- `stripe-webhook` — persists `platform_fee_cents` only. No tax transaction
-  booking.
+  Keep this function on `npm:stripe`; the old `esm.sh/...target=deno` bundle
+  can crash on Supabase Edge Runtime / Deno 2 with
+  `Deno.core.runMicrotasks() is not supported in this environment`.
+- `manage-tax-settings` — owner/admin dashboard endpoint that stores the
+  restaurant's structured tax address in `restaurants.*address*`, updates the
+  connected account `tax.settings.head_office`, creates US
+  `state_sales_tax` registrations, and syncs the restaurant's fixed checkout
+  tax rate into a platform-account Stripe Tax Rate object.
+  Tax registration list/create calls are made against Stripe's REST
+  `/v1/tax/registrations` endpoint because the pinned `npm:stripe@^13.10.0`
+  edge runtime SDK exposes `tax.settings` but not `tax.registrations`
+  consistently.
+- `create-checkout` — attaches a fixed `tax_rates: [stripe_manual_tax_rate_id]`
+  to each line item when `sales_tax_rate_bps > 0`. Uses
+  `transfer_data.destination` with `application_fee_amount`. Because Checkout
+  runs as a platform destination charge, the manual Stripe Tax Rate object must
+  exist on the platform account, not on the connected restaurant account.
+  If the new restaurant tax-rate columns have not been migrated yet,
+  `create-checkout` falls back to zero checkout tax instead of failing.
+- `stripe-webhook` — persists `platform_fee_cents` and `tax_cents` (from
+  `session.total_details.amount_tax`).
 - `calculate-tax` — **REMOVED** (was marketplace facilitator only).
 
 ### Restaurant setup
 
 For tax to work correctly:
-1. Each restaurant must configure **Stripe Tax** within their own connected
-   Stripe account dashboard.
-2. `platform_fee_bps` defaults to 0 (no platform take). Update per-restaurant
+1. Set the restaurant's exact checkout sales tax rate in RasviaWeb. Checkout
+   uses that fixed rate and ignores the customer's address for tax purposes.
+2. Keep the restaurant address current; it's used for billing records and for
+   labeling the platform-account Stripe Tax Rate object that Checkout applies.
+3. Stripe Tax registrations in the dashboard are optional recordkeeping; they
+   no longer determine checkout tax.
+4. `platform_fee_bps` defaults to 0 (no platform take). Update per-restaurant
    as needed.
-3. Deploy all edge functions and run the migration.
-
+5. Deploy all edge functions and run the migration.
