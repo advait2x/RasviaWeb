@@ -36,6 +36,8 @@ export type PartyItem = {
   special_requests: string | null;
   split_member_ids: string[];
   assigned_payer_id: string | null;
+  /** Line sales tax in cents, set on lock from Stripe Tax. */
+  tax_cents?: number;
   created_at: string;
   menu_item?: {
     id: number;
