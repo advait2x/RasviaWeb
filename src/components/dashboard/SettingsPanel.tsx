@@ -217,6 +217,7 @@ export default function SettingsPanel() {
   const [savedWaitlistEarlyMinutes, setSavedWaitlistEarlyMinutes] = useState(30);
   const [maxWaitlistSize, setMaxWaitlistSize] = useState(15);
   const [savedMaxWaitlistSize, setSavedMaxWaitlistSize] = useState(15);
+  const [removePeriodConfirm, setRemovePeriodConfirm] = useState<{ day: string; idx: number } | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!restaurantId) return;
@@ -345,6 +346,10 @@ export default function SettingsPanel() {
     stripPhoneDigits(phoneDraft) !== stripPhoneDigits(profile.phone) ||
     (communityImagesSettingAvailable && communityImagesEnabled !== savedCommunityImagesEnabled) ||
     imageStage !== "none";
+
+  const isDirtyHours =
+    editingHours &&
+    JSON.stringify(hoursDraft) !== JSON.stringify(hours ?? defaultHours());
 
   const handleSave = async () => {
     if (!restaurantId) return;
@@ -653,7 +658,7 @@ export default function SettingsPanel() {
         </div>
       </div>
       <AnimatePresence>
-        {isDirty && editing ? (
+        {(isDirty && editing) || isDirtyHours ? (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -1196,8 +1201,8 @@ export default function SettingsPanel() {
                             {dayData.periods.length > 1 && (
                               <button
                                 type="button"
-                                onClick={() => removePeriod(day, idx)}
-                                className="h-8 px-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-[11px]"
+                                onClick={() => setRemovePeriodConfirm({ day, idx })}
+                                className="h-8 px-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-700 text-[11px] dark:text-red-300 dark:border-red-500/30 hover:bg-red-500/20 transition-colors"
                               >
                                 Remove
                               </button>
@@ -1388,7 +1393,7 @@ export default function SettingsPanel() {
                 type="button"
                 onClick={() => void saveWaitlistSettingsModal()}
                 disabled={hoursSaving}
-                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-60")}
+                className="flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 bg-amber-500 hover:bg-amber-400 text-zinc-900"
               >
                 {hoursSaving ? "Saving..." : "Save"}
               </motion.button>
@@ -1483,6 +1488,35 @@ export default function SettingsPanel() {
               }}
             >
               Remove image
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove period confirmation */}
+      <AlertDialog open={removePeriodConfirm !== null} onOpenChange={(o) => { if (!o) setRemovePeriodConfirm(null); }}>
+        <AlertDialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-100">Remove this period?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              This time slot will be removed from this day's hours when you save.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-zinc-800 text-zinc-200 hover:bg-zinc-700">
+              Keep it
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={DASH_SIGN_OUT_BUTTON}
+              onClick={(e) => {
+                e.preventDefault();
+                if (removePeriodConfirm) {
+                  removePeriod(removePeriodConfirm.day, removePeriodConfirm.idx);
+                  setRemovePeriodConfirm(null);
+                }
+              }}
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

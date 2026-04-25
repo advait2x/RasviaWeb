@@ -93,6 +93,7 @@ export function parseRestaurantMenuTags(raw: unknown): MenuTagConfig[] {
 
 export function normalizeMenuItemTags(raw: string[] | null | undefined, tags: MenuTagConfig[]): string[] {
   const known = new Set(tags.map((t) => t.key));
+  const positionMap = new Map(tags.map((t, idx) => [t.key, t.position ?? idx]));
   const out: string[] = [];
   const seen = new Set<string>();
 
@@ -104,6 +105,9 @@ export function normalizeMenuItemTags(raw: string[] | null | undefined, tags: Me
     out.push(mapped);
     seen.add(mapped);
   }
+
+  // Always display in the order defined in the menu tags submenu (by position)
+  out.sort((a, b) => (positionMap.get(a) ?? 999) - (positionMap.get(b) ?? 999));
 
   return out;
 }

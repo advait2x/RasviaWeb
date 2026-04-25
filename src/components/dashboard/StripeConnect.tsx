@@ -161,6 +161,7 @@ export default function StripeConnect() {
   const [taxAddressForm, setTaxAddressForm] = useState<TaxAddressForm>(EMPTY_ADDRESS_FORM);
   const [salesTaxRateForm, setSalesTaxRateForm] = useState<SalesTaxRateForm>({ percent: "" });
   const [selectedRegistrationState, setSelectedRegistrationState] = useState<string>("");
+  const [editingBilling, setEditingBilling] = useState(false);
 
   const registeredStates = useMemo(
     () => new Set(taxSnapshot?.registrations.map((registration) => registration.state).filter(Boolean)),
@@ -364,11 +365,11 @@ export default function StripeConnect() {
         body: {
           action: "update_head_office",
           restaurant_id: restaurantId,
-          street_address: taxAddressForm.streetAddress,
-          city: taxAddressForm.city,
-          state: taxAddressForm.state.toUpperCase(),
-          postal_code: taxAddressForm.postalCode,
-          country: taxAddressForm.country.toUpperCase(),
+          street_address: taxAddressForm.streetAddress.trim(),
+          city: taxAddressForm.city.trim(),
+          state: taxAddressForm.state.trim().toUpperCase(),
+          postal_code: taxAddressForm.postalCode.trim(),
+          country: taxAddressForm.country.trim().toUpperCase(),
         },
       });
 
@@ -436,6 +437,15 @@ export default function StripeConnect() {
             Stripe payouts run on the restaurant&apos;s connected account. Checkout tax uses the fixed rate configured for this restaurant.
           </p>
         </div>
+        {canManageBilling && !loading && (
+          <button
+            type="button"
+            onClick={() => setEditingBilling((v) => !v)}
+            className="rounded-lg border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+          >
+            {editingBilling ? "Done" : "Edit"}
+          </button>
+        )}
       </div>
 
       <div className="rounded-xl border border-white/8 bg-zinc-800/40 p-4">
@@ -557,7 +567,7 @@ export default function StripeConnect() {
               Checkout uses a fixed tax rate configured for the restaurant&apos;s location. Customer billing or shipping addresses do not change the tax charged.
             </p>
           </div>
-          {canManageBilling && stripeAccountId ? (
+          {canManageBilling && stripeAccountId && editingBilling ? (
             <button
               type="button"
               onClick={() => void refreshTaxSnapshot(true)}
@@ -614,47 +624,49 @@ export default function StripeConnect() {
               </div>
             ) : null}
 
-            <div className="space-y-3 rounded-lg border border-white/10 bg-zinc-800/40 p-3">
-              <div>
-                <p className="text-sm font-semibold text-zinc-100">Checkout Tax Rate</p>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  Set the exact sales tax rate to charge for this restaurant&apos;s location. Rasvia applies this fixed rate at checkout regardless of the customer&apos;s address.
+            {editingBilling && (
+              <div className="space-y-3 rounded-lg border border-white/10 bg-zinc-800/40 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">Checkout Tax Rate</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Set the exact sales tax rate to charge for this restaurant&apos;s location. Rasvia applies this fixed rate at checkout regardless of the customer&apos;s address.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_auto] md:items-end">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Sales Tax Rate (%)
+                    </label>
+                    <Input
+                      value={salesTaxRateForm.percent}
+                      onChange={(event) =>
+                        setSalesTaxRateForm({ percent: event.target.value })
+                      }
+                      placeholder="8.25"
+                      inputMode="decimal"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveSalesTaxRate()}
+                    disabled={taxBusy !== null}
+                    className={cn(
+                      "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                      DASH_BTN_ADD,
+                    )}
+                  >
+                    {taxBusy === "rate" ? <Loader2 size={13} className="animate-spin" /> : <ReceiptText size={13} strokeWidth={1.8} />}
+                    Save Tax Rate
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-zinc-500">
+                  Enter the restaurant&apos;s exact combined rate for its location. Use `0` to disable checkout tax.
                 </p>
               </div>
-
-              <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_auto] md:items-end">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                    Sales Tax Rate (%)
-                  </label>
-                  <Input
-                    value={salesTaxRateForm.percent}
-                    onChange={(event) =>
-                      setSalesTaxRateForm({ percent: event.target.value })
-                    }
-                    placeholder="8.25"
-                    inputMode="decimal"
-                    className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void saveSalesTaxRate()}
-                  disabled={taxBusy !== null}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                    DASH_BTN_ADD,
-                  )}
-                >
-                  {taxBusy === "rate" ? <Loader2 size={13} className="animate-spin" /> : <ReceiptText size={13} strokeWidth={1.8} />}
-                  Save Tax Rate
-                </button>
-              </div>
-
-              <p className="text-[11px] text-zinc-500">
-                Enter the restaurant&apos;s exact combined rate for its location. Use `0` to disable checkout tax.
-              </p>
-            </div>
+            )}
 
             {taxSnapshot && !taxSnapshot.tax_enabled ? (
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-100/90">
@@ -671,86 +683,90 @@ export default function StripeConnect() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  <MapPin size={12} strokeWidth={1.5} />
-                  Restaurant Tax Address
-                </label>
-                <Input
-                  value={taxAddressForm.streetAddress}
-                  onChange={(event) =>
-                    setTaxAddressForm((current) => ({ ...current, streetAddress: event.target.value }))
-                  }
-                  placeholder="123 Main St"
-                  className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
+            {editingBilling && (
+              <>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      <MapPin size={12} strokeWidth={1.5} />
+                      Restaurant Tax Address
+                    </label>
+                    <Input
+                      value={taxAddressForm.streetAddress}
+                      onChange={(event) =>
+                        setTaxAddressForm((current) => ({ ...current, streetAddress: event.target.value }))
+                      }
+                      placeholder="123 Main St"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">City</label>
-                <Input
-                  value={taxAddressForm.city}
-                  onChange={(event) => setTaxAddressForm((current) => ({ ...current, city: event.target.value }))}
-                  placeholder="Dallas"
-                  className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">City</label>
+                    <Input
+                      value={taxAddressForm.city}
+                      onChange={(event) => setTaxAddressForm((current) => ({ ...current, city: event.target.value }))}
+                      placeholder="Dallas"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">State</label>
-                <Input
-                  value={taxAddressForm.state}
-                  onChange={(event) =>
-                    setTaxAddressForm((current) => ({ ...current, state: event.target.value.toUpperCase().slice(0, 2) }))
-                  }
-                  placeholder="TX"
-                  className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">State</label>
+                    <Input
+                      value={taxAddressForm.state}
+                      onChange={(event) =>
+                        setTaxAddressForm((current) => ({ ...current, state: event.target.value.toUpperCase().slice(0, 2) }))
+                      }
+                      placeholder="TX"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Postal Code</label>
-                <Input
-                  value={taxAddressForm.postalCode}
-                  onChange={(event) =>
-                    setTaxAddressForm((current) => ({ ...current, postalCode: event.target.value }))
-                  }
-                  placeholder="75201"
-                  className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Postal Code</label>
+                    <Input
+                      value={taxAddressForm.postalCode}
+                      onChange={(event) =>
+                        setTaxAddressForm((current) => ({ ...current, postalCode: event.target.value }))
+                      }
+                      placeholder="75201"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Country</label>
-                <Input
-                  value={taxAddressForm.country}
-                  onChange={(event) =>
-                    setTaxAddressForm((current) => ({ ...current, country: event.target.value.toUpperCase().slice(0, 2) }))
-                  }
-                  placeholder="US"
-                  className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
-            </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Country</label>
+                    <Input
+                      value={taxAddressForm.country}
+                      onChange={(event) =>
+                        setTaxAddressForm((current) => ({ ...current, country: event.target.value.toUpperCase().slice(0, 2) }))
+                      }
+                      placeholder="US"
+                      className="h-10 border-white/10 bg-zinc-800/60 text-zinc-100 placeholder:text-zinc-600"
+                    />
+                  </div>
+                </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void saveTaxAddress()}
-                disabled={taxBusy !== null}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                  DASH_BTN_ADD,
-                )}
-              >
-                {taxBusy === "address" ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} strokeWidth={1.8} />}
-                Save Tax Address
-              </button>
-              <p className="text-[11px] text-zinc-500">
-                Use the legal business address tied to this restaurant&apos;s tax registrations and fixed checkout rate.
-              </p>
-            </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void saveTaxAddress()}
+                    disabled={taxBusy !== null}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                      DASH_BTN_ADD,
+                    )}
+                  >
+                    {taxBusy === "address" ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} strokeWidth={1.8} />}
+                    Save Tax Address
+                  </button>
+                  <p className="text-[11px] text-zinc-500">
+                    Use the legal business address tied to this restaurant&apos;s tax registrations and fixed checkout rate.
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="space-y-3 rounded-lg border border-white/10 bg-zinc-800/40 p-3">
               <div>
@@ -760,6 +776,7 @@ export default function StripeConnect() {
                 </p>
               </div>
 
+              {editingBilling && (
               <div className="flex flex-col gap-3 md:flex-row">
                 <div className="min-w-0 flex-1">
                   <Select value={selectedRegistrationState} onValueChange={setSelectedRegistrationState}>
@@ -785,11 +802,12 @@ export default function StripeConnect() {
                   type="button"
                   onClick={() => void addRegistration()}
                   disabled={taxBusy !== null || !selectedRegistrationState || availableRegistrationStates.length === 0}
-                  className="rounded-lg border border-white/10 bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-900 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-white/10 bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-100 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {taxBusy === "registration" ? "Adding..." : "Add Registration"}
                 </button>
               </div>
+              )}
 
               {taxSnapshot?.registrations.length ? (
                 <div className="space-y-2">

@@ -164,19 +164,19 @@ export default function StatusBar({ embedded = false }: { embedded?: boolean }) 
             <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
               pendingToggle
                 ? "border border-emerald-400/20 bg-emerald-500/[0.08]"
-                : "border border-zinc-600/30 bg-zinc-800/50"
+                : "border border-rose-500/30 bg-rose-500/[0.08]"
             }`}>
               <Users
                 size={22}
                 strokeWidth={1.5}
-                className={pendingToggle ? (isLight ? "text-emerald-800" : "text-emerald-200/90") : "text-zinc-400"}
+                className={pendingToggle ? (isLight ? "text-emerald-800" : "text-emerald-200/90") : "text-rose-400"}
               />
             </div>
             <div className="space-y-1.5">
               <h3 className="text-base font-semibold text-zinc-100">
                 {pendingToggle ? "Open the waitlist?" : "Close the waitlist?"}
               </h3>
-              <p className={`text-sm ${pendingToggle ? (isLight ? "text-emerald-800/90" : "text-zinc-400") : "text-zinc-400"}`}>
+              <p className={`text-sm ${pendingToggle ? (isLight ? "text-emerald-800/90" : "text-zinc-400") : (isLight ? "text-rose-700/80" : "text-zinc-400")}`}>
                 {pendingToggle
                   ? "Guests will be able to join the waitlist."
                   : "No new guests will be able to join the waitlist."}
@@ -198,7 +198,9 @@ export default function StatusBar({ embedded = false }: { embedded?: boolean }) 
                     ? isLight
                       ? "border border-emerald-700/30 bg-emerald-500/[0.15] text-emerald-800 hover:bg-emerald-500/[0.2]"
                       : "border border-emerald-400/20 bg-emerald-500/[0.1] text-emerald-200/95 hover:bg-emerald-500/[0.14]"
-                    : "border border-zinc-600/40 bg-zinc-800/60 text-zinc-300 hover:bg-zinc-800"
+                    : isLight
+                      ? "border border-rose-600/30 bg-rose-500/[0.12] text-rose-700 hover:bg-rose-500/[0.18]"
+                      : "border border-rose-500/30 bg-rose-500/[0.1] text-rose-300 hover:bg-rose-500/[0.15]"
                 }`}
               >
                 {pendingToggle ? "Open Waitlist" : "Close Waitlist"}

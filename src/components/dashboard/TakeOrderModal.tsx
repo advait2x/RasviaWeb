@@ -608,6 +608,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 <textarea
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
+                                    onBlur={(e) => setNotes(e.target.value.trim())}
                                     placeholder="Any special requests for the entire order..."
                                     rows={2}
                                     className="mt-1.5 w-full rounded-lg bg-zinc-800/60 border border-white/10 text-zinc-100 placeholder:text-zinc-600 text-sm px-3 py-2 focus:outline-none focus:border-amber-500/50 resize-none"

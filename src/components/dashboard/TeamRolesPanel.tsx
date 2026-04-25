@@ -372,7 +372,7 @@ export default function TeamRolesPanel() {
                 <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={startCreateRole}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-medium hover:bg-amber-500/15 hover:border-amber-500/40 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-700 text-xs font-medium hover:bg-amber-500/15 hover:border-amber-500/40 transition-colors dark:text-amber-400"
                 >
                     <Plus size={12} strokeWidth={2} />
                     New Role
@@ -605,10 +605,10 @@ export default function TeamRolesPanel() {
                 <DialogContent className="glass-modal max-w-md border-white/10 bg-zinc-900/95 backdrop-blur-xl p-6">
                     <div className="space-y-5">
                         <div className="space-y-1">
-                            <h3 className="text-base font-semibold text-zinc-100">
+                            <h3 className="text-base font-semibold text-center text-zinc-900 dark:text-zinc-100">
                                 {editingRole ? `Edit "${editingRole.name}"` : "Create Role"}
                             </h3>
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs text-center text-zinc-500">
                                 Name the role and select which permissions it should have
                             </p>
                         </div>
@@ -695,10 +695,7 @@ export default function TeamRolesPanel() {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleSaveRole}
                                 disabled={roleSaving || (!editingRole?.is_owner && !roleDraft.name.trim())}
-                                className={cn(
-                                    "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                                    DASH_BTN_ADD,
-                                )}
+                                className="flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 bg-amber-500 hover:bg-amber-400 text-zinc-900"
                             >
                                 {roleSaving ? (
                                     <Loader2 size={16} className="animate-spin mx-auto" />

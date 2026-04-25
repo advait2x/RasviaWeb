@@ -146,7 +146,7 @@ const PRICING_TIERS = [
   {
     name: "Akshaj Ande",
     role: "CFO & Co-Founder",
-    bio: "Computer Science student at the University of Texas at Dallas passionate about Data Analytics and Cloud Infrastructure.",
+    bio: "Computer Science student at the University of Texas at Dallas interested in data analytics and cloud infrastructure.",
     initials: "AA",
     gradient: "from-emerald-500 to-teal-600",
     imageSrc: null as string | null,

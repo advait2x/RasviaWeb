@@ -441,9 +441,14 @@ export default function JoinBridge() {
     window.location.href = "/";
   };
 
+  const [linkCopied, setLinkCopied] = useState(false);
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/join?id=${sessionId}`;
-    try { await navigator.clipboard.writeText(url); toast.success("Link copied!"); }
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
     catch { toast.error("Could not copy link."); }
   };
 
@@ -744,8 +749,9 @@ export default function JoinBridge() {
       subtitle={`${members.length} member${members.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`}
       onBack={() => window.history.back()}
       rightAction={
-        <button type="button" onClick={handleCopyLink} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800">
-          <Copy className="h-3.5 w-3.5" /> Share
+        <button type="button" onClick={handleCopyLink} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${linkCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/10 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800"}`}>
+          {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {linkCopied ? "Copied!" : "Share"}
         </button>
       }
     >
@@ -1366,6 +1372,7 @@ function NameEntryScreen({
         <input
           autoFocus={!hasPrefill}
           value={nameInput} onChange={(e) => setNameInput(e.target.value)}
+          onBlur={(e) => setNameInput(e.target.value.trim())}
           onFocus={(e) => { if (hasPrefill) e.currentTarget.select(); }}
           placeholder="Your name"
           onKeyDown={(e) => { if (e.key === "Enter" && !joining) onJoin(); }}

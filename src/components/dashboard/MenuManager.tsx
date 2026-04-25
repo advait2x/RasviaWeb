@@ -682,12 +682,9 @@ function ModifiersManager() {
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowForm(false)}
                 className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors">Cancel</motion.button>
               <motion.button whileTap={{ scale: 0.95 }} onClick={handleSave} disabled={saving || !form.name.trim()}
-                className={cn(
-                  DASH_BTN_ADD,
-                  "flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-40",
-                )}
+                className="flex-1 py-2.5 rounded-lg border border-zinc-600/50 bg-zinc-700 text-zinc-100 text-sm font-semibold hover:bg-zinc-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : editing ? "Save" : "Create"}
+                {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : editing ? "Save Changes" : "Create Modifier"}
               </motion.button>
             </div>
           </div>
@@ -1322,6 +1319,7 @@ export default function MenuManager() {
                         that stored both "entree" and an equivalent tag key
                         don't render the same chip twice. */}
                     {item.mealTimes.length > 0 && (() => {
+                      const positionMap = new Map(menuTags.map((t, idx) => [t.key, t.position ?? idx]));
                       const seenLabels = new Set<string>();
                       const chips = item.mealTimes
                         .map((mt) => {
@@ -1331,7 +1329,8 @@ export default function MenuManager() {
                           seenLabels.add(labelKey);
                           return { mt, cfg };
                         })
-                        .filter((c): c is { mt: MealTime; cfg: ReturnType<typeof getMealTimeConfig> } => !!c);
+                        .filter((c): c is { mt: MealTime; cfg: ReturnType<typeof getMealTimeConfig> } => !!c)
+                        .sort((a, b) => (positionMap.get(a.mt) ?? 999) - (positionMap.get(b.mt) ?? 999));
                       return (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {chips.map(({ mt, cfg }) => (
@@ -1424,9 +1423,9 @@ export default function MenuManager() {
                   toggleMenuItem(confirmStockItem.id);
                   setConfirmStockItem(null);
                 }}
-                className={cn(DASH_BTN_ADD, "flex-1 rounded-lg py-2.5 text-sm font-semibold")}
+                className="flex-1 py-2.5 rounded-lg border border-zinc-600/50 bg-zinc-700 text-zinc-100 text-sm font-semibold hover:bg-zinc-600 transition-colors"
               >
-                Confirm
+                {confirmStockItem?.inStock ? "Mark Out of Stock" : "Mark Back In Stock"}
               </motion.button>
             </div>
           </div>

@@ -22,7 +22,7 @@ function getWaitBg(minutes: number): string {
 }
 
 export default function WaitlistFeed() {
-  const { waitlist, waitlistLoading, cancelParty, notifyParty } = useDashboard();
+  const { waitlist, waitlistLoading, waitlistOpen, cancelParty, notifyParty } = useDashboard();
   const [selectedEntry, setSelectedEntry] = useState<WaitlistEntry | null>(null);
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -68,7 +68,8 @@ export default function WaitlistFeed() {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setShowAddModal(true)}
-          className={`${DASH_BTN_ADD} rounded-xl px-5 py-2.5`}
+          disabled={waitlistOpen === false}
+          className={`${DASH_BTN_ADD} rounded-xl px-5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           <UserPlus size={16} strokeWidth={1.5} />
           Add walk-in
