@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Menu, Pause, Play, X } from "lucide-react";
+import { Check, ChefHat, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Copy, DollarSign, Menu, Pause, Play, Share2, ShoppingBag, Sparkles, Users, X } from "lucide-react";
+import { QRCode } from "@/lib/resolve-react-qr-code";
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
 
@@ -7,16 +8,12 @@ import { cn } from "@/lib/utils";
 function scrollToSection(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
-  const navHeight = 88;
+  const navHeight = document.querySelector("header")?.offsetHeight ?? 88;
   const top = el.getBoundingClientRect().top + window.scrollY - navHeight;
   window.scrollTo({ top, behavior: "smooth" });
 }
 
 const FEATURE_SLIDES = [
-  {
-    name: "Fire When Seated",
-    description: "Seat a party, notify guests, and fire pre-orders to kitchen in one host action.",
-  },
   {
     name: "Real-Time Item Controls",
     description: "Mark sold-out items instantly and sync availability across active guests in real time.",
@@ -33,15 +30,35 @@ const FEATURE_SLIDES = [
     name: "Mobile Group Ordering",
     description: "Live cart sync with per-member splits, modifiers, and one-tap group checkout.",
   },
+  {
+    name: "Kitchen Display Mode",
+    description: "Live order tickets with stage-by-stage bump controls your kitchen team can trust.",
+  },
+  {
+    name: "Revenue Snapshot",
+    description: "Shift-by-shift revenue charts with hourly and daily breakdowns at a glance.",
+  },
+  {
+    name: "Order History & Reorder",
+    description: "Re-create any past group order in one tap — modifiers and all.",
+  },
+  {
+    name: "Real-Time Order Tracker",
+    description: "Watch your order progress from kitchen to table in real time.",
+  },
+  {
+    name: "Social Group Invite",
+    description: "Share a QR code or link so friends join the group cart from their own phone.",
+  },
 ];
 type FeatureSlide = (typeof FEATURE_SLIDES)[number];
 
 const BUSINESS_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
-  ["Fire When Seated", "Real-Time Item Controls", "Location Adjustment"].includes(slide.name)
+  ["Real-Time Item Controls", "Location Adjustment", "Kitchen Display Mode", "Revenue Snapshot"].includes(slide.name)
 );
 
-const CONSUMER_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
-  ["Zero-Math Payouts", "Mobile Group Ordering"].includes(slide.name)
+const USER_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
+  ["Zero-Math Payouts", "Mobile Group Ordering", "Order History & Reorder", "Real-Time Order Tracker", "Social Group Invite"].includes(slide.name)
 );
 
 const WAITLIST_ROWS = [
@@ -56,10 +73,6 @@ const PAYOUT_ROWS = [
   { name: "Vikram", amount: "$31.00" },
 ];
 
-const INVENTORY_ROWS = [
-  { name: "Mutton Biryani", category: "Main course", available: false },
-  { name: "Garlic Naan", category: "Bread", available: true },
-];
 
 // ──────────────────────────────────────────────────────
 // NAV / PRICING / ABOUT DATA
@@ -94,7 +107,7 @@ const PRICING_TIERS = [
       "Unlimited tables",
       "Advanced waitlist with SMS alerts",
       "Group ordering & split payments",
-      "Real-time 86 switch",
+      "Real-time item availability controls",
       "Up to 10 staff accounts",
       "Priority support",
       "Advanced analytics & reports",
@@ -112,7 +125,6 @@ const PRICING_TIERS = [
       "Multi-location support",
       "Custom role permissions",
       "Dedicated account manager",
-      "API access",
       "White-label kiosk mode",
       "Custom integrations",
       "24/7 phone support",
@@ -125,16 +137,15 @@ const PRICING_TIERS = [
    To add a real photo, set `imageSrc` to the image path,
    e.g. imageSrc: "/founders/arjun.jpg"
    ──────────────────────────────────────────────────── */
-  const FOUNDERS = [
-    {
+const FOUNDERS = [
+  {
     name: "Rithwik Matta",
     role: "CTO & Co-Founder",
-    bio: "Computer science student at the University of Texas at Dallas interested in full stack development, machine learning, and cloud engineering. ",
+    bio: "Computer science student at the University of Texas at Dallas interested in full stack development, machine learning, and cloud engineering.",
     initials: "RM",
     gradient: "from-violet-500 to-purple-600",
     imageSrc: null as string | null,
   },
-
   {
     name: "Advait Sagi",
     role: "CEO & Founder",
@@ -145,7 +156,7 @@ const PRICING_TIERS = [
   },
   {
     name: "Akshaj Ande",
-    role: "CFO & Co-Founder",
+    role: "COO & Co-Founder",
     bio: "Computer Science student at the University of Texas at Dallas interested in data analytics and cloud infrastructure.",
     initials: "AA",
     gradient: "from-emerald-500 to-teal-600",
@@ -305,6 +316,19 @@ function Navbar() {
 // ──────────────────────────────────────────────────────
 
 function HostDashboardMockup() {
+  const [seatedIds, setSeatedIds] = useState<Set<string>>(
+    () => new Set(["Chen, Margaret"])
+  );
+
+  const toggleSeated = (name: string) => {
+    setSeatedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
   return (
     <div className="flex h-full flex-col gap-3 p-1">
       <div className="flex items-center justify-between">
@@ -324,7 +348,7 @@ function HostDashboardMockup() {
 
       <div className="flex flex-col gap-1.5">
         {WAITLIST_ROWS.map((row) => {
-          const isNotified = row.status === "Notified";
+          const isSeated = seatedIds.has(row.name);
           const mins = parseInt(row.wait);
           const waitColor = mins > 20 ? "text-amber-400" : mins > 10 ? "text-yellow-400" : "text-emerald-400";
           return (
@@ -339,13 +363,15 @@ function HostDashboardMockup() {
               </div>
               <span className={`text-[10px] font-bold tabular-nums ${waitColor}`}>{row.wait}</span>
               <button
+                type="button"
+                onClick={() => toggleSeated(row.name)}
                 className={`rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${
-                  isNotified
-                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
-                    : "bg-zinc-700/60 border border-white/10 text-zinc-300 hover:bg-amber-500/10 hover:border-amber-500/20 hover:text-amber-400"
+                  isSeated
+                    ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                    : "bg-zinc-700/60 border border-white/10 text-zinc-300 hover:bg-blue-500/15 hover:border-blue-500/30 hover:text-blue-400"
                 }`}
               >
-                {isNotified ? "Seated" : "Fire"}
+                {isSeated ? "Seated" : "Seat"}
               </button>
             </div>
           );
@@ -407,77 +433,19 @@ function SplitReceiptMockup() {
   );
 }
 
-function InventoryMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-5 backdrop-blur-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Item Controls</p>
-            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live Inventory</p>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] font-semibold text-emerald-400">Live</span>
-          </div>
-        </div>
+function LocationAdjustmentMockup({ onInteract }: { onInteract?: () => void }) {
+  const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-        <div className="flex flex-col gap-2">
-          {INVENTORY_ROWS.map((item) => (
-            <div
-              key={item.name}
-              className={`rounded-xl border px-4 py-3 ${
-                item.available
-                  ? "border-white/[0.06] bg-zinc-800/30"
-                  : "border-red-500/20 bg-red-500/[0.04]"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-200">{item.name}</p>
-                  <p className="text-[10px] text-neutral-400">{item.category}</p>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div
-                    className={`relative h-6 w-11 rounded-full border ${
-                      item.available
-                        ? "border-emerald-500/30 bg-emerald-500/20"
-                        : "border-red-500/30 bg-red-500/20"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-0.5 h-5 w-5 rounded-full shadow-md transition-all duration-300 ${
-                        item.available
-                          ? "right-0.5 bg-emerald-400"
-                          : "left-0.5 bg-red-400"
-                      }`}
-                    />
-                  </div>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
-                      item.available
-                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                        : "border-red-500/20 bg-red-500/10 text-red-400"
-                    }`}
-                  >
-                    {item.available ? "Available" : "Sold Out"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+  useEffect(() => () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); }, []);
 
-        <div className="mt-3 flex items-center gap-1.5">
-          <div className="h-1 w-1 rounded-full bg-zinc-500 animate-pulse" />
-          <p className="text-[10px] text-zinc-600">Changes sync to all active guest sessions instantly</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+  const handleSetLocation = () => {
+    onInteract?.();
+    setSaved(true);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setSaved(false), 1500);
+  };
 
-function LocationAdjustmentMockup() {
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
       <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-4 backdrop-blur-sm">
@@ -518,16 +486,30 @@ function LocationAdjustmentMockup() {
             </div>
           </div>
           <div className="absolute left-2 top-2 rounded-md border border-white/10 bg-black/50 px-1.5 py-0.5 backdrop-blur-sm">
-            <span className="text-[9px] font-mono text-zinc-400">13.08N 80.27E</span>
+            <span className="text-[9px] font-mono text-zinc-400">32.79N 96.81W</span>
           </div>
+          {/* Location saved pill — overlaid on the map */}
+          {saved && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full border border-emerald-500/40 bg-black/70 px-4 py-1.5 text-xs font-semibold text-emerald-400 shadow-lg backdrop-blur-sm">
+                Location saved
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex gap-2">
-          <button className="flex-1 rounded-xl border border-white/10 bg-zinc-800/60 py-2.5 text-xs font-semibold text-zinc-300">
+          <button
+            type="button"
+            onClick={() => {}}
+            className="flex-1 rounded-xl border border-white/10 bg-zinc-800/60 py-2.5 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-800/80 active:scale-95 active:bg-zinc-700/60 cursor-pointer"
+          >
             Cancel
           </button>
           <button
-            className="flex-[2] rounded-xl py-2.5 text-sm font-bold text-white"
+            type="button"
+            onClick={handleSetLocation}
+            className="flex-[2] rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 active:opacity-75 cursor-pointer"
             style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)", boxShadow: "0 4px 18px rgba(124,58,237,0.45)" }}
           >
             Set Location
@@ -540,157 +522,741 @@ function LocationAdjustmentMockup() {
 
 function GroupSplitMockup() {
   return (
-    <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] p-4 backdrop-blur-sm">
+    <div className="flex h-full flex-col items-center justify-center px-5 py-3">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-3.5 py-3 backdrop-blur-sm">
 
-        <div className="mb-3 flex items-start justify-between">
+        <div className="mb-2 flex items-center justify-between">
           <div>
-            <p className="text-sm font-black tracking-tight text-white">Group Order</p>
-            <p className="text-[10px] text-neutral-500">5 items &middot; 2 members</p>
+            <p className="text-xs font-black tracking-tight text-white">Group Order</p>
+            <p className="text-[9px] text-neutral-500">5 items &middot; 2 members</p>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-transparent px-2.5 py-1">
-            <span className="text-[10px] font-bold text-amber-400">Party</span>
-            <span className="text-[10px] text-zinc-500">— 2 +</span>
+          <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-transparent px-2 py-0.5">
+            <span className="text-[9px] font-bold text-amber-400">Party</span>
+            <span className="text-[9px] text-zinc-500">— 2 +</span>
           </div>
         </div>
 
-        <div className="mb-2.5 flex gap-1.5">
-          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1.5 text-[10px] font-semibold text-amber-400">
+        <div className="mb-1.5 flex gap-1.5">
+          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1 text-[9px] font-semibold text-amber-400">
             Dine In
           </button>
-          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[10px] font-semibold text-zinc-500">
+          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1 text-[9px] font-semibold text-zinc-500">
             Takeout
           </button>
-        </div>
-
-        <div className="mb-3 flex gap-1.5">
-          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1.5 text-[10px] font-semibold text-amber-400">
+          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1 text-[9px] font-semibold text-amber-400">
             By Member
           </button>
-          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[10px] font-semibold text-zinc-500">
+          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1 text-[9px] font-semibold text-zinc-500">
             All Items
           </button>
         </div>
 
-        <div className="flex flex-col gap-2 mb-3">
-          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">A</div>
-                <span className="text-xs font-bold text-white">Jordan K.</span>
-              </div>
-              <span className="text-xs font-black text-amber-400">$26.79</span>
-            </div>
-            <div className="rounded-lg border border-white/[0.04] bg-zinc-800/40 px-2.5 py-1.5 flex items-center justify-between">
+        <div className="flex flex-col gap-1.5 mb-2">
+          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-2.5 py-1.5">
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-neutral-400">Butter Chicken</span>
-                <span className="rounded-full bg-zinc-700/60 px-1.5 text-[9px] text-zinc-500">x3</span>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
+                <span className="text-[10px] font-bold text-white">Jordan K.</span>
               </div>
-              <span className="text-[10px] text-zinc-400">$26.79</span>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-amber-400">$26.79</span>
+                <p className="text-[8px] text-zinc-600">+ $2.21 tax</p>
+              </div>
+            </div>
+            <div className="rounded-md border border-white/[0.04] bg-zinc-800/40 px-2 py-1 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-neutral-400">Butter Chicken</span>
+                <span className="rounded-full bg-zinc-700/60 px-1 text-[8px] text-zinc-500">x3</span>
+              </div>
+              <span className="text-[9px] text-zinc-400">$26.79</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">A</div>
-                <span className="text-xs font-bold text-white">Priya M.</span>
-              </div>
-              <span className="text-xs font-black text-amber-400">$9.34</span>
-            </div>
-            <div className="rounded-lg border border-white/[0.04] bg-zinc-800/40 px-2.5 py-1.5 flex items-center justify-between">
+          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-2.5 py-1.5">
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-neutral-400">Garlic Naan</span>
-                <span className="rounded-full bg-zinc-700/60 px-1.5 text-[9px] text-zinc-500">x2</span>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
+                <span className="text-[10px] font-bold text-white">Priya M.</span>
               </div>
-              <span className="text-[10px] text-zinc-400">$9.34</span>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-amber-400">$9.34</span>
+                <p className="text-[8px] text-zinc-600">+ $0.77 tax</p>
+              </div>
+            </div>
+            <div className="rounded-md border border-white/[0.04] bg-zinc-800/40 px-2 py-1 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-neutral-400">Garlic Naan</span>
+                <span className="rounded-full bg-zinc-700/60 px-1 text-[8px] text-zinc-500">x2</span>
+              </div>
+              <span className="text-[9px] text-zinc-400">$9.34</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-2 px-0.5">
-          <span className="text-[10px] text-neutral-500">Group Total</span>
-          <span className="text-sm font-black text-white">$36.13</span>
+        <div className="mb-1.5 flex flex-col gap-0.5 px-0.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-neutral-500">Subtotal</span>
+            <span className="text-[9px] font-semibold text-zinc-400">$36.13</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-neutral-500">Sales tax</span>
+            <span className="text-[9px] font-semibold text-zinc-400">$2.98</span>
+          </div>
+          <div className="mt-0.5 flex items-center justify-between border-t border-white/[0.06] pt-1">
+            <span className="text-[9px] font-bold text-zinc-300">Total</span>
+            <span className="text-xs font-black text-white">$39.11</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 mb-2">
-          <button className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-2 text-[10px] font-bold text-emerald-400">
+        <div className="grid grid-cols-3 gap-1 mb-1.5">
+          <button className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-1.5 text-[9px] font-bold text-emerald-400">
             I&apos;ll Pay
           </button>
-          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-2 text-[10px] font-semibold text-zinc-400">
+          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[9px] font-semibold text-zinc-400">
             Split
           </button>
-          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-2 text-[10px] font-semibold text-zinc-400">
+          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[9px] font-semibold text-zinc-400">
             Assign
           </button>
         </div>
 
         <button
-          className="w-full rounded-xl py-2.5 text-xs font-bold text-white"
+          className="w-full rounded-xl py-2 text-[10px] font-bold text-white"
           style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 3px 14px rgba(34,197,94,0.3)" }}
         >
-          Pay &amp; Submit &middot; $36.13
+          Pay &amp; Submit &middot; $39.11
         </button>
       </div>
     </div>
   );
 }
 
-function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
-  if (slide.name === "Real-Time Item Controls") {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-6">
-        <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu Control</p>
-              <p className="mt-0.5 text-sm font-bold text-zinc-200">Live Inventory</p>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
-              <span className="text-[10px] font-semibold text-emerald-400">Live</span>
-            </div>
-          </div>
+function InteractiveInventoryMockup({ onInteract }: { onInteract?: () => void }) {
+  const [items, setItems] = useState([
+    { name: "Mutton Biryani", category: "Main course", available: false },
+    { name: "Chicken Tikka Masala", category: "Curry", available: true },
+    { name: "Dal Makhani", category: "Lentils", available: true },
+  ]);
+  const [syncingItem, setSyncingItem] = useState<string | null>(null);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="relative flex-shrink-0">
-                  <div className="h-3 w-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-                  <div className="absolute inset-0 h-3 w-3 rounded-full bg-red-400 animate-ping opacity-40" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-zinc-200">Mutton Biryani</p>
-                  <p className="text-[10px] text-zinc-500">Main course</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="relative h-6 w-11 cursor-pointer rounded-full border border-red-500/30 bg-red-500/20">
-                  <div className="absolute left-1 top-0.5 h-5 w-5 rounded-full bg-red-400 shadow-md" />
-                </div>
-                <span className="text-[9px] font-bold uppercase tracking-wide text-red-400">Sold Out</span>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1.5">
-              <div className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
-              <p className="text-[10px] text-zinc-500">Syncing to 3 active guest sessions...</p>
-            </div>
-          </div>
+  useEffect(() => () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); }, []);
 
-          {["Chicken Tikka Masala", "Dal Makhani"].map((item) => (
-            <div key={item} className="mt-2 flex items-center justify-between rounded-lg border border-white/5 bg-zinc-800/30 px-4 py-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
-                <p className="text-xs text-zinc-400">{item}</p>
+  const toggle = (name: string) => {
+    onInteract?.();
+    setItems((prev) =>
+      prev.map((i) => (i.name === name ? { ...i, available: !i.available } : i))
+    );
+    setSyncingItem(name);
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => setSyncingItem(null), 1500);
+  };
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu Control</p>
+            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live Inventory</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
+            <span className="text-[10px] font-semibold text-emerald-400">Live</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {items.map((item) => {
+            const isSyncing = syncingItem === item.name;
+            return (
+              <div
+                key={item.name}
+                className={`rounded-xl border px-4 py-3 transition-colors duration-300 ${
+                  item.available
+                    ? "border-white/[0.06] bg-zinc-800/30"
+                    : "border-red-500/20 bg-red-500/[0.04]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className={`h-3 w-3 rounded-full transition-colors duration-300 ${
+                          item.available
+                            ? "bg-emerald-400/70"
+                            : "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]"
+                        }`}
+                      />
+                      {!item.available && (
+                        <div className="absolute inset-0 h-3 w-3 rounded-full bg-red-400 animate-ping opacity-40" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">{item.name}</p>
+                      <p className="text-[10px] text-zinc-500">{item.category}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => toggle(item.name)}
+                      className={`relative h-6 w-11 rounded-full border transition-colors duration-300 ${
+                        item.available
+                          ? "border-emerald-500/30 bg-emerald-500/20"
+                          : "border-red-500/30 bg-red-500/20"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 h-5 w-5 rounded-full shadow-md transition-all duration-300 ${
+                          item.available ? "right-0.5 bg-emerald-400" : "left-0.5 bg-red-400"
+                        }`}
+                      />
+                    </button>
+                    <span
+                      className={`text-[9px] font-bold uppercase tracking-wide transition-colors duration-300 ${
+                        item.available ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {item.available ? "Available" : "Sold Out"}
+                    </span>
+                  </div>
+                </div>
+                {isSyncing && (
+                  <div className="mt-2.5 flex items-center gap-1.5">
+                    <div className={`h-1 w-1 rounded-full animate-pulse ${item.available ? "bg-emerald-400" : "bg-red-400"}`} />
+                    <p className="text-[10px] text-zinc-500">Syncing to 3 users...</p>
+                  </div>
+                )}
               </div>
-              <div className="relative h-5 w-9 rounded-full border border-emerald-500/20 bg-emerald-500/20">
-                <div className="absolute right-0.5 top-0.5 h-4 w-4 rounded-full bg-emerald-400 shadow-sm" />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// BUSINESS: Kitchen Display Mode
+// ─────────────────────────────────────────────
+
+const KDS_STAGES = ["Pending", "Preparing", "Ready", "Served"] as const;
+type KdsStage = typeof KDS_STAGES[number];
+
+const KDS_STAGE_STYLES: Record<KdsStage, { pill: string; dot: string; btn: string; pillText: string; pillLabel: string }> = {
+  Pending:   { pill: "bg-amber-950/50 border-amber-800/50", dot: "bg-amber-500", pillText: "text-amber-400/90", btn: "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30", pillLabel: "NEW — Not Started" },
+  Preparing: { pill: "bg-blue-950/40 border-blue-800/40", dot: "bg-blue-500 animate-pulse", pillText: "text-blue-400/90", btn: "bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30", pillLabel: "IN PROGRESS — Cooking" },
+  Ready:     { pill: "bg-emerald-950/40 border-emerald-800/40", dot: "bg-emerald-400", pillText: "text-emerald-400/90", btn: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30", pillLabel: "READY — Expedite Now" },
+  Served:    { pill: "bg-indigo-950/40 border-indigo-800/40", dot: "bg-indigo-400", pillText: "text-indigo-400/90", btn: "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30", pillLabel: "SERVED — Complete" },
+};
+
+interface KdsTicket {
+  id: string;
+  guestName: string;
+  table: string;
+  elapsed: string;
+  items: string[];
+  defaultStage: number;
+}
+
+const KDS_TICKETS: KdsTicket[] = [
+  { id: "A4F2", guestName: "Rodriguez Party", table: "Table 7", elapsed: "8m", items: ["2× Mutton Biryani", "1× Garlic Naan", "1× Mango Lassi"], defaultStage: 1 },
+  { id: "B8C1", guestName: "Chen, Margaret", table: "Table 3", elapsed: "3m", items: ["1× Paneer Tikka", "2× Dal Makhani"], defaultStage: 2 },
+];
+
+function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?: () => void }) {
+  const [stageIdx, setStageIdx] = useState(ticket.defaultStage);
+  const stage = KDS_STAGES[stageIdx];
+  const styles = KDS_STAGE_STYLES[stage];
+
+  const bump = () => { onInteract?.(); setStageIdx((i) => (i + 1) % KDS_STAGES.length); };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-l-4 border-zinc-800/90 bg-zinc-900/90 p-3" style={{ borderLeftColor: stage === "Pending" ? "#d97706" : stage === "Preparing" ? "#3b82f6" : stage === "Ready" ? "#22c55e" : "#6366f1" }}>
+      <div className={`flex items-center gap-2 rounded-md border px-2 py-0.5 ${styles.pill}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />
+        <span className={`text-[9px] font-bold uppercase tracking-wide ${styles.pillText}`}>{styles.pillLabel}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="font-mono text-sm font-bold text-zinc-100">#{ticket.id}</span>
+          <span className="ml-1.5 text-[10px] uppercase text-zinc-500">{ticket.table}</span>
+        </div>
+        <span className="text-[10px] font-medium text-zinc-500">{ticket.elapsed}</span>
+      </div>
+      <p className="text-[10px] text-zinc-500">{ticket.guestName}</p>
+      <div className="flex flex-col gap-0.5">
+        {ticket.items.map((item) => (
+          <span key={item} className="text-[10px] text-zinc-300">{item}</span>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={bump}
+        className={`mt-1 w-full rounded-lg border py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors active:scale-95 ${styles.btn}`}
+      >
+        {stage} — Bump →
+      </button>
+    </div>
+  );
+}
+
+function KitchenDisplayMockup({ onInteract }: { onInteract?: () => void }) {
+  return (
+    <div className="flex h-full flex-col p-4 gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ChefHat size={14} className="text-amber-600/80" />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Kitchen Display</span>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5">
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[9px] font-semibold text-emerald-400">Live</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 flex-1">
+        {KDS_TICKETS.map((ticket) => (
+          <KdsTicketCard key={ticket.id} ticket={ticket} onInteract={onInteract} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// BUSINESS: Revenue Snapshot
+// ─────────────────────────────────────────────
+
+const REVENUE_THIS_WEEK = [
+  { label: "Sun", value: 312 },
+  { label: "Mon", value: 487 },
+  { label: "Tue", value: 628 },
+  { label: "Wed", value: 541 },
+  { label: "Thu", value: 710 },
+  { label: "Fri", value: 893 },
+  { label: "Sat", value: 756 },
+];
+
+const REVENUE_TODAY = [
+  { label: "10am", value: 84 },
+  { label: "11am", value: 143 },
+  { label: "12pm", value: 267 },
+  { label: "1pm", value: 231 },
+  { label: "2pm", value: 189 },
+  { label: "3pm", value: 122 },
+];
+
+function RevenueSnapshotMockup({ onInteract }: { onInteract?: () => void }) {
+  const [range, setRange] = useState<"today" | "week">("week");
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const [selectedBar, setSelectedBar] = useState<number | null>(null);
+
+  const data = range === "week" ? REVENUE_THIS_WEEK : REVENUE_TODAY;
+  const maxVal = Math.max(...data.map((d) => d.value));
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  const handleBarClick = (idx: number) => {
+    onInteract?.();
+    setSelectedBar((prev) => (prev === idx ? null : idx));
+  };
+
+  return (
+    <div className="flex h-full flex-col p-4 gap-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <DollarSign size={13} className="text-zinc-500" />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Revenue</span>
+        </div>
+        <div className="flex gap-1.5">
+          {(["today", "week"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => { onInteract?.(); setRange(r); setSelectedBar(null); setHoveredBar(null); }}
+              className={`rounded-lg border px-2.5 py-1 text-[9px] font-semibold transition-colors ${
+                range === r
+                  ? "border-white/[0.12] bg-white/[0.08] text-zinc-100"
+                  : "border-white/[0.06] bg-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {r === "today" ? "Today" : "This Week"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Total */}
+      <div>
+        <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Total revenue</p>
+        <p className="text-xl font-black tabular-nums tracking-tight text-zinc-100">${total.toLocaleString()}</p>
+      </div>
+
+      {/* Chart */}
+      <div className="relative flex-1" style={{ minHeight: 0, zIndex: 0, isolation: "isolate" }}>
+        {/* Bar track — sits above the labels row */}
+        <div className="absolute inset-x-0 top-0 bottom-5 flex items-end gap-1.5">
+          {data.map((bar, idx) => {
+            const heightPct = Math.max(6, (bar.value / maxVal) * 100);
+            const isHovered = hoveredBar === idx;
+            const isSelected = selectedBar === idx;
+            return (
+              <div
+                key={bar.label}
+                className="relative flex flex-1 h-full flex-col justify-end cursor-pointer"
+                onMouseEnter={() => setHoveredBar(idx)}
+                onMouseLeave={() => setHoveredBar(null)}
+                onClick={() => handleBarClick(idx)}
+              >
+                {/* Tooltip — pinned 6px above the bar top regardless of bar height */}
+                {(isHovered || isSelected) && (
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-amber-500/30 bg-zinc-900 px-2 py-0.5 text-[9px] font-bold text-amber-400 shadow-lg pointer-events-none"
+                    style={{ bottom: `calc(${heightPct}% + 6px)` }}
+                  >
+                    ${bar.value}
+                  </div>
+                )}
+                {/* Bar */}
+                <div
+                  className={`w-full rounded-t-sm transition-all duration-200 ${
+                    isSelected ? "ring-1 ring-amber-400/70 shadow-[0_0_8px_rgba(245,158,11,0.4)]" : ""
+                  }`}
+                  style={{
+                    height: `${heightPct}%`,
+                    background: isHovered || isSelected
+                      ? "rgba(245,158,11,0.75)"
+                      : "rgba(148,163,184,0.55)",
+                  }}
+                />
               </div>
+            );
+          })}
+        </div>
+        {/* Labels row pinned to bottom */}
+        <div className="absolute inset-x-0 bottom-0 z-20 flex gap-1.5" style={{ height: "20px" }}>
+          {data.map((bar) => (
+            <div key={bar.label} className="flex flex-1 items-center justify-center">
+              <span className="text-[8px] font-medium text-white tabular-nums">{bar.label}</span>
             </div>
           ))}
         </div>
       </div>
-    );
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// USER: Order History & Reorder
+// ─────────────────────────────────────────────
+
+function OrderHistoryMockup({ onInteract }: { onInteract?: () => void }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-5 py-4">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-3.5 backdrop-blur-sm">
+        {/* Header */}
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-black tracking-tight text-white">My Orders</p>
+          <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Completed</span>
+        </div>
+
+        {/* Order card */}
+        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <div>
+              <p className="text-xs font-bold text-zinc-100">Spice Garden</p>
+              <p className="text-[9px] text-zinc-600">Apr 20, 2026 · Dine In</p>
+            </div>
+            <p className="text-xs font-black text-amber-400">$26.79</p>
+          </div>
+          <div className="flex flex-col gap-0.5 mb-2.5">
+            {[{ name: "Butter Chicken", qty: 1, price: "$17.99" }, { name: "Garlic Naan", qty: 2, price: "$7.98" }].map((item) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <span className="text-[9px] text-zinc-500">{item.qty}× {item.name}</span>
+                <span className="text-[9px] text-zinc-600">{item.price}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onInteract?.()}
+            className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 py-2 text-[10px] font-bold text-amber-400 transition-colors hover:bg-amber-500/20 active:scale-95 cursor-pointer"
+          >
+            Order Again
+          </button>
+        </div>
+
+        {/* Blurred second card */}
+        <div className="mt-2 rounded-xl border border-white/[0.06] bg-zinc-900/30 px-3 py-2.5 opacity-40">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-zinc-300">Biryani House</p>
+              <p className="text-[9px] text-zinc-400">Apr 14, 2026</p>
+            </div>
+            <p className="text-xs font-black text-zinc-300">$18.50</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// USER: Real-Time Order Tracker
+// ─────────────────────────────────────────────
+
+const TRACKER_STAGES = [
+  { label: "Received", color: "#FF9933", Icon: ClipboardList },
+  { label: "Preparing", color: "#F59E0B", Icon: ChefHat },
+  { label: "Ready", color: "#22C55E", Icon: ShoppingBag },
+  { label: "Served", color: "#818CF8", Icon: Sparkles },
+] as const;
+
+const TRACKER_STATUS: Record<number, { title: string; subtitle: string }> = {
+  0: { title: "Order received", subtitle: "The restaurant has your order and will start shortly." },
+  1: { title: "Being prepared", subtitle: "The kitchen is working on your order right now." },
+  2: { title: "Food is ready", subtitle: "Your food is on its way to your table." },
+  3: { title: "Served", subtitle: "Your food has been served. Enjoy your meal!" },
+};
+
+function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPaused: boolean }) {
+  const [stageIdx, setStageIdx] = useState(1);
+
+  useEffect(() => {
+    if (!isActive || !isPaused) {
+      setStageIdx(1);
+      return;
+    }
+    const delay = stageIdx === 3 ? 4000 : 3000;
+    const t = setTimeout(() => setStageIdx((s) => (s + 1) % 4), delay);
+    return () => clearTimeout(t);
+  }, [isActive, isPaused, stageIdx]);
+
+  const { title, subtitle } = TRACKER_STATUS[stageIdx];
+  const activeColor = TRACKER_STAGES[stageIdx].color;
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-5 py-4">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-4 backdrop-blur-sm">
+        {/* Restaurant header */}
+        <div className="mb-4 flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800 border border-white/[0.06]">
+            <ShoppingBag size={14} className="text-zinc-400" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-zinc-100">Spice Garden</p>
+            <p className="text-[9px] text-zinc-600">Order #A4F2 · Dine In</p>
+          </div>
+        </div>
+
+        {/* Stepper */}
+        <div className="mb-4">
+          {/* Circles + connectors */}
+          <div className="relative flex items-center justify-between">
+            {/* Background connector track */}
+            <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-zinc-700/60" />
+            {/* Filled connector segments — one per gap between circles */}
+            {TRACKER_STAGES.slice(0, -1).map((seg, i) =>
+              i < stageIdx ? (
+                <div
+                  key={i}
+                  className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-500"
+                  style={{
+                    // Each circle is 32px (w-8). With justify-between across N=4 circles,
+                    // the gap between circle centres is (100% - 32px) / 3.
+                    // Segment i starts at centre of circle i and ends at centre of circle i+1.
+                    left: `calc(${(i / 3) * 100}% + 16px)`,
+                    right: `calc(${((3 - i - 1) / 3) * 100}% + 16px)`,
+                    background: seg.color,
+                  }}
+                />
+              ) : null
+            )}
+            {TRACKER_STAGES.map((step, idx) => {
+              const isCompleted = idx < stageIdx;
+              const isActiveStep = idx === stageIdx;
+              const bg = isCompleted ? step.color : isActiveStep ? `${step.color}22` : "rgba(39,39,42,0.9)";
+              const border = isCompleted || isActiveStep ? step.color : "#52525b";
+              return (
+                <div
+                  key={step.label}
+                  className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300"
+                  style={{ background: bg, borderColor: border }}
+                >
+                  {isCompleted ? (
+                    <Check size={13} color="#fff" />
+                  ) : isActiveStep ? (
+                    <div className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: step.color }} />
+                  ) : (
+                    <step.Icon size={11} color={step.color} opacity={0.25} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Labels — same 4-column grid so they align under each circle */}
+          <div className="mt-2 flex justify-between">
+            {TRACKER_STAGES.map((step, idx) => (
+              <div key={step.label} className="w-8 text-center">
+                <span
+                  className="text-[8px] font-semibold leading-tight"
+                  style={{ color: idx === stageIdx ? step.color : idx < stageIdx ? "#71717a" : "#3f3f46" }}
+                >
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Status card */}
+        <div
+          className="rounded-xl border px-3 py-2.5"
+          style={{ borderColor: `${activeColor}30`, background: `${activeColor}10` }}
+        >
+          <p className="text-[11px] font-bold" style={{ color: activeColor }}>{title}</p>
+          <p className="text-[9px] text-zinc-500 mt-0.5 leading-relaxed">{subtitle}</p>
+        </div>
+
+        {/* Hint when not animating */}
+        {(!isActive || !isPaused) && (
+          <p className="mt-2 text-center text-[8px] text-zinc-700">Pause the gallery to watch live updates</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// USER: Social Group Invite
+// ─────────────────────────────────────────────
+
+async function copyTextToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch { /* fall through */ }
+  // execCommand fallback for browsers that block clipboard without HTTPS/focus
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(el);
+  el.focus();
+  el.select();
+  try { document.execCommand("copy"); } catch { /* ignore */ }
+  document.body.removeChild(el);
+}
+
+function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+  }, []);
+
+  const handleCopy = () => {
+    onInteract?.();
+    copyTextToClipboard("rasvia.com");
+    setCopyState("copied");
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
+  };
+
+  const handleShare = () => {
+    onInteract?.();
+    copyTextToClipboard("rasvia.com");
+    setShareState("copied");
+    if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+    shareTimerRef.current = setTimeout(() => setShareState("idle"), 2000);
+  };
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-5 py-3">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-3 backdrop-blur-sm">
+        {/* Header */}
+        <div className="mb-2.5 text-center">
+          <p className="text-xs font-black tracking-tight text-white">Group Order Created</p>
+          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-3 py-1">
+            <Users size={10} className="text-amber-400" />
+            <span className="text-[9px] font-semibold text-amber-400">Spice Garden</span>
+          </div>
+        </div>
+
+        {/* QR Code */}
+        <div className="mb-2.5 flex justify-center">
+          <div className="rounded-xl border border-white/10 bg-white p-2.5">
+            <QRCode value="https://rasvia.com" size={80} bgColor="#ffffff" fgColor="#0a0a0a" />
+          </div>
+        </div>
+
+        {/* Link */}
+        <div className="mb-2 rounded-xl border border-white/[0.06] bg-zinc-800/40 px-3 py-1.5">
+          <p className="font-mono text-[10px] text-zinc-400 truncate">rasvia.com</p>
+        </div>
+
+        {/* Buttons */}
+        <div className="mb-2 flex gap-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
+              copyState === "copied"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                : "border-white/[0.08] bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800/80"
+            }`}
+          >
+            {copyState === "copied" ? <Check size={11} /> : <Copy size={11} />}
+            {copyState === "copied" ? "Link Copied" : "Copy Link"}
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
+              shareState === "copied"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                : "border-white/[0.08] bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800/80"
+            }`}
+          >
+            {shareState === "copied" ? <Check size={11} /> : <Share2 size={11} />}
+            {shareState === "copied" ? "Link Copied" : "Share"}
+          </button>
+        </div>
+
+        {/* Join button */}
+        <button
+          type="button"
+          onClick={() => {}}
+          className="w-full rounded-xl py-2.5 text-[10px] font-bold text-zinc-900 transition-opacity hover:opacity-90 active:scale-95 flex items-center justify-center gap-1.5"
+          style={{ background: "linear-gradient(135deg, #FF9933 0%, #fb923c 100%)" }}
+        >
+          <Users size={12} />
+          Join Group Order
+        </button>
+
+        <p className="mt-2 text-center text-[8px] text-zinc-700">Share the link first and join later.</p>
+      </div>
+    </div>
+  );
+}
+
+function GallerySlideContent({
+  slide,
+  isActive = false,
+  isPaused = false,
+  onInteract,
+}: {
+  slide: FeatureSlide;
+  isActive?: boolean;
+  isPaused?: boolean;
+  onInteract?: () => void;
+}) {
+  if (slide.name === "Real-Time Item Controls") {
+    return <InteractiveInventoryMockup onInteract={onInteract} />;
   }
 
   if (slide.name === "Zero-Math Payouts") {
@@ -698,11 +1264,31 @@ function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
   }
 
   if (slide.name === "Location Adjustment") {
-    return <LocationAdjustmentMockup />;
+    return <LocationAdjustmentMockup onInteract={onInteract} />;
   }
 
   if (slide.name === "Mobile Group Ordering") {
     return <GroupSplitMockup />;
+  }
+
+  if (slide.name === "Kitchen Display Mode") {
+    return <KitchenDisplayMockup onInteract={onInteract} />;
+  }
+
+  if (slide.name === "Revenue Snapshot") {
+    return <RevenueSnapshotMockup onInteract={onInteract} />;
+  }
+
+  if (slide.name === "Order History & Reorder") {
+    return <OrderHistoryMockup onInteract={onInteract} />;
+  }
+
+  if (slide.name === "Real-Time Order Tracker") {
+    return <OrderTrackerMockup isActive={isActive} isPaused={isPaused} />;
+  }
+
+  if (slide.name === "Social Group Invite") {
+    return <GroupInviteMockup onInteract={onInteract} />;
   }
 
   return (
@@ -720,7 +1306,7 @@ function GallerySlideContent({ slide }: { slide: FeatureSlide }) {
 // ──────────────────────────────────────────────────────
 
 export default function LandingPage() {
-  const [audience, setAudience] = useState<"business" | "consumer">("business");
+  const [audience, setAudience] = useState<"business" | "user">("business");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const heroGlowAreaRef = useRef<HTMLDivElement | null>(null);
@@ -728,9 +1314,10 @@ export default function LandingPage() {
   const glowPos = useRef({ x: 0, y: 0 });
   const glowTarget = useRef({ x: 0, y: 0 });
   const activeSlides = useMemo(
-    () => (audience === "business" ? BUSINESS_FEATURES : CONSUMER_FEATURES),
+    () => (audience === "business" ? BUSINESS_FEATURES : USER_FEATURES),
     [audience]
   );
+
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -773,7 +1360,7 @@ export default function LandingPage() {
     if (paused || activeSlides.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % activeSlides.length);
-    }, 3500);
+    }, 4000);
     return () => clearInterval(timer);
   }, [paused, activeSlides.length]);
 
@@ -859,14 +1446,14 @@ export default function LandingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setAudience("consumer")}
+                onClick={() => setAudience("user")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  audience === "consumer"
+                  audience === "user"
                     ? "bg-amber-500/15 text-amber-300"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                For Consumers
+                For Users
               </button>
             </div>
           </div>
@@ -887,8 +1474,8 @@ export default function LandingPage() {
               >
                 {activeSlides.map((slide, idx) => (
                   <div key={slide.name + idx} className="relative h-full min-w-full">
-                    <GallerySlideContent slide={slide} />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pb-5 pl-5 pt-16">
+                    <GallerySlideContent slide={slide} isActive={idx === currentIndex} isPaused={paused} onInteract={() => setPaused(true)} />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pb-5 pl-5 pt-16">
                       <p className="text-xl font-bold text-white leading-tight tracking-tight">{slide.name}</p>
                     </div>
                   </div>
@@ -906,7 +1493,7 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={goNext}
-                className="absolute right-12 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
                 aria-label="Next feature"
               >
                 <ChevronRight size={16} />
@@ -922,9 +1509,10 @@ export default function LandingPage() {
               </button>
 
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {activeSlides.map((_, i) => (
+                {activeSlides.map((slide, i) => (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => {
                       if (activeSlides.length === 0) return;
                       setCurrentIndex(i);
@@ -934,7 +1522,7 @@ export default function LandingPage() {
                         ? "w-4 bg-amber-400"
                         : "w-1.5 bg-white/25 hover:bg-white/40"
                     }`}
-                    aria-label={`Go to slide ${i + 1}`}
+                    aria-label={`Go to slide ${i + 1}: ${slide.name}`}
                   />
                 ))}
               </div>
@@ -1067,9 +1655,9 @@ export default function LandingPage() {
               <ul className="mt-4 flex flex-col gap-3">
                 {["Waitlists", "Group Carts", "Fast Payouts"].map((link) => (
                   <li key={link}>
-                    <a href="#" className="text-sm text-neutral-500 transition-colors hover:text-white">
+                    <button type="button" className="text-sm text-neutral-500 transition-colors hover:text-white cursor-default">
                       {link}
-                    </a>
+                    </button>
                   </li>
                 ))}
                 <li>

@@ -295,25 +295,34 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/support')) {
     return (
-      <AppShell>
-        <ContactPage />
-      </AppShell>
+      <>
+        <DarkThemeLock />
+        <AppShell>
+          <ContactPage />
+        </AppShell>
+      </>
     );
   }
 
   if (window.location.pathname.startsWith('/privacy')) {
     return (
-      <AppShell>
-        <PrivacyPage />
-      </AppShell>
+      <>
+        <DarkThemeLock />
+        <AppShell>
+          <PrivacyPage />
+        </AppShell>
+      </>
     );
   }
 
   if (window.location.pathname.startsWith('/terms')) {
     return (
-      <AppShell>
-        <TermsPage />
-      </AppShell>
+      <>
+        <DarkThemeLock />
+        <AppShell>
+          <TermsPage />
+        </AppShell>
+      </>
     );
   }
 
