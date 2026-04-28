@@ -87,7 +87,6 @@ const NAV_PRODUCT_LINKS = [
 const PRICING_TIERS = [
   {
     name: "Starter",
-    price: 49,
     description: "Perfect for small restaurants getting started",
     features: [
       "Up to 20 tables",
@@ -101,7 +100,6 @@ const PRICING_TIERS = [
   },
   {
     name: "Professional",
-    price: 99,
     description: "For growing restaurants that need more power",
     features: [
       "Unlimited tables",
@@ -117,7 +115,6 @@ const PRICING_TIERS = [
   },
   {
     name: "Enterprise",
-    price: 149,
     description: "Full-featured solution for high-volume venues",
     features: [
       "Everything in Professional",
@@ -1564,9 +1561,10 @@ export default function LandingPage() {
                 )}
                 <h3 className="text-lg font-bold text-white">{tier.name}</h3>
                 <p className="mt-1 text-sm text-neutral-500">{tier.description}</p>
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-4xl font-black tracking-tight text-white">${tier.price}</span>
-                  <span className="text-sm text-neutral-500">/mo</span>
+                <div className="mt-5">
+                  <span className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                    Contact for Pricing
+                  </span>
                 </div>
                 <a
                   href="/support"

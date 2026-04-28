@@ -303,7 +303,8 @@ export default function SalesReports() {
   };
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="h-full min-h-0 overflow-y-auto">
+      <div className="space-y-8 p-8 pb-16">
       <div className="flex flex-wrap gap-2">
         {ranges.map((r) => (
           <button
@@ -432,6 +433,7 @@ export default function SalesReports() {
           ))}
         </div>
       </div>
+    </div>
     </div>
   );
 }
