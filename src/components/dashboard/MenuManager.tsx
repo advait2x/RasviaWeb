@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
   ArrowUpDown, Settings2, Loader2, ChevronUp, ChevronDown, Lock,
-  Leaf, Moon,
+  Leaf, Moon, QrCode,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { MenuItem, MealTime, ItemModifier } from "@/types/dashboard";
@@ -37,6 +37,7 @@ import {
   DASH_BTN_ADD_SM,
 } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
+import { downloadMenuQrCodesPdf } from "@/lib/menu-share-pdf";
 import MenuTagDialog from "./MenuTagDialog";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
@@ -718,6 +719,7 @@ export default function MenuManager() {
   const [pendingTagDelete, setPendingTagDelete] = useState<{ index: number; label: string } | null>(null);
   const [tagDialogMode, setTagDialogMode] = useState<"create" | "edit" | null>(null);
   const [tagDialogTarget, setTagDialogTarget] = useState<MenuTagConfig | null>(null);
+  const [qrPdfLoading, setQrPdfLoading] = useState(false);
   const fetchMenuTags = useCallback(async () => {
     if (!restaurantId) return;
     const { data, error } = await supabase
@@ -790,6 +792,25 @@ export default function MenuManager() {
     );
   };
 
+  const handleDownloadMenuQrPdf = useCallback(async () => {
+    if (!restaurantId) return;
+    setQrPdfLoading(true);
+    try {
+      let restaurantName = "Menu";
+      const { data } = await supabase.from("restaurants").select("name").eq("id", restaurantId).maybeSingle();
+      if (data?.name && String(data.name).trim()) {
+        restaurantName = String(data.name).trim();
+      }
+      await downloadMenuQrCodesPdf({ restaurantId, restaurantName });
+      toast.success("Menu QR PDF downloaded.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not generate PDF.";
+      toast.error(message);
+    } finally {
+      setQrPdfLoading(false);
+    }
+  }, [restaurantId]);
+
   const filteredItems = useMemo(() => {
     let items = menuItems;
     if (activeFilters.length > 0) {
@@ -858,12 +879,38 @@ export default function MenuManager() {
         : "text-zinc-500 hover:text-zinc-300"
     }`;
 
-  const renderTabBar = () => (
+  const menuQrPdfControl = hasPermission("view_menu") ? (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.95 }}
+      onClick={() => void handleDownloadMenuQrPdf()}
+      disabled={!restaurantId || qrPdfLoading}
+      title="Download a PDF with six QR codes linking to your public menu on rasvia.com"
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors shrink-0",
+        isLight
+          ? "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+          : "border border-white/10 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50",
+      )}
+    >
+      {qrPdfLoading ? (
+        <Loader2 size={14} className={cn("animate-spin", isLight ? "text-amber-700" : "text-amber-400")} />
+      ) : (
+        <QrCode size={14} strokeWidth={2} />
+      )}
+      Menu QR PDF
+    </motion.button>
+  ) : null;
+
+  const renderTabBar = (topRight?: ReactNode) => (
     <div className="px-5 pt-4 pb-2">
-      <div className={`flex gap-1 p-1 rounded-xl w-fit ${isLight ? "bg-zinc-100 border border-zinc-300/80" : "bg-zinc-800/60 border border-white/5"}`}>
-        <button onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
-        <button onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
-        <button onClick={() => setMenuTab("tags")} className={tabButtonClass("tags")}>Menu Tags</button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex gap-1 p-1 rounded-xl w-fit ${isLight ? "bg-zinc-100 border border-zinc-300/80" : "bg-zinc-800/60 border border-white/5"}`}>
+          <button type="button" onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
+          <button type="button" onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
+          <button type="button" onClick={() => setMenuTab("tags")} className={tabButtonClass("tags")}>Menu Tags</button>
+        </div>
+        {topRight ? <div className="flex w-full justify-end sm:w-auto">{topRight}</div> : null}
       </div>
     </div>
   );
@@ -877,7 +924,7 @@ export default function MenuManager() {
   if (menuTab === "modifiers") {
     return (
       <div className="flex flex-col h-full">
-        {renderTabBar()}
+        {renderTabBar(menuQrPdfControl)}
         <ModifiersManager />
       </div>
     );
@@ -886,7 +933,7 @@ export default function MenuManager() {
   if (menuTab === "tags") {
     return (
       <div className="flex flex-col h-full">
-        {renderTabBar()}
+        {renderTabBar(menuQrPdfControl)}
         <div className="px-5 pb-3">
           <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Menu Tag Setup</h2>
           <p className="text-xs text-zinc-500 mt-0.5">Manage menu tags shown in item editors and customer filtering.</p>
@@ -1074,7 +1121,7 @@ export default function MenuManager() {
 
   return (
     <div className="flex flex-col h-full">
-      {renderTabBar()}
+      {renderTabBar(menuQrPdfControl)}
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <div>

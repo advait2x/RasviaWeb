@@ -183,7 +183,7 @@ export default function DashboardLayout() {
             return (
               <div
                 key={view}
-                className="absolute inset-0 transition-opacity duration-100 ease-out"
+                className="absolute inset-0 overflow-x-hidden overflow-y-auto transition-opacity duration-100 ease-out"
                 style={{
                   opacity: isActive && fadeIn ? 1 : 0,
                   pointerEvents: isActive ? "auto" : "none",

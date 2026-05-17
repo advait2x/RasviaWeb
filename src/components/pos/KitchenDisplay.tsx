@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, Flame, UtensilsCrossed } from "lucide-react";
+import { Clock, ChefHat, Flame, UtensilsCrossed, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { useDashboard } from "@/context/DashboardContext";
 import type { Order, OrderStatus } from "@/types/dashboard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const DIET_COLORS: Record<string, string> = {
   veg: "bg-emerald-600/90",
@@ -36,7 +43,94 @@ function timeColor(min: number) {
   return "text-red-600 dark:text-red-500/90";
 }
 
-type Filter = "all" | "pending" | "preparing";
+/** Tickets visible on KDS until marked completed/cancelled elsewhere or bumped to done. */
+const KDS_ACTIVE_STATUSES: OrderStatus[] = ["pending", "preparing", "ready", "served"];
+
+const ALL_ORDER_STATUSES: OrderStatus[] = [
+  "pending",
+  "preparing",
+  "ready",
+  "served",
+  "completed",
+  "cancelled",
+];
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  pending: "Pending",
+  preparing: "Preparing",
+  ready: "Ready",
+  served: "Served",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+type Filter = "all" | OrderStatus;
+
+function statusPhrase(status: OrderStatus): {
+  label: string;
+  dot: string;
+  text: string;
+  bg: string;
+  border: string;
+} {
+  switch (status) {
+    case "pending":
+      return {
+        label: "NEW — Not started",
+        dot: "bg-amber-600/90",
+        text: "text-amber-900 dark:text-amber-500/90",
+        bg: "bg-amber-100 dark:bg-amber-950/50",
+        border: "border-amber-300 dark:border-amber-800/50",
+      };
+    case "preparing":
+      return {
+        label: "IN PROGRESS — Cooking",
+        dot: "animate-pulse bg-blue-600 dark:bg-blue-500/80",
+        text: "text-blue-800 dark:text-blue-400/90",
+        bg: "bg-blue-100 dark:bg-blue-950/40",
+        border: "border-blue-300 dark:border-blue-800/40",
+      };
+    case "ready":
+      return {
+        label: "READY — Pick up",
+        dot: "bg-emerald-600/90",
+        text: "text-emerald-900 dark:text-emerald-400/90",
+        bg: "bg-emerald-100 dark:bg-emerald-950/40",
+        border: "border-emerald-300 dark:border-emerald-800/45",
+      };
+    case "served":
+      return {
+        label: "SERVED — Floor",
+        dot: "bg-violet-600/85",
+        text: "text-violet-900 dark:text-violet-400/90",
+        bg: "bg-violet-100 dark:bg-violet-950/35",
+        border: "border-violet-300 dark:border-violet-800/40",
+      };
+    default:
+      return {
+        label: STATUS_LABEL[status].toUpperCase(),
+        dot: "bg-zinc-500",
+        text: "text-zinc-800 dark:text-zinc-400",
+        bg: "bg-zinc-100 dark:bg-zinc-800/50",
+        border: "border-zinc-300 dark:border-zinc-700",
+      };
+  }
+}
+
+function leftBorderClass(status: OrderStatus): string {
+  switch (status) {
+    case "pending":
+      return "border-l-amber-600/80";
+    case "preparing":
+      return "border-l-blue-600/80";
+    case "ready":
+      return "border-l-emerald-600/80";
+    case "served":
+      return "border-l-violet-600/80";
+    default:
+      return "border-l-zinc-400/80";
+  }
+}
 
 export default function KitchenDisplay() {
   const { orders, updateOrderStatus } = useDashboard();
@@ -49,9 +143,7 @@ export default function KitchenDisplay() {
     return () => clearInterval(id);
   }, []);
 
-  const active = orders.filter(
-    (o) => o.status === "pending" || o.status === "preparing"
-  );
+  const active = orders.filter((o) => KDS_ACTIVE_STATUSES.includes(o.status));
 
   useEffect(() => {
     const currentIds = new Set(active.map((o) => o.id));
@@ -80,20 +172,56 @@ export default function KitchenDisplay() {
 
   const bump = useCallback(
     (order: Order) => {
-      const next: OrderStatus =
-        order.status === "pending" ? "preparing" : "ready";
+      const forward: Partial<Record<OrderStatus, OrderStatus>> = {
+        pending: "preparing",
+        preparing: "ready",
+        ready: "served",
+        served: "completed",
+      };
+      const next = forward[order.status];
+      if (!next) return;
       updateOrderStatus(order.id, next);
       toast.success(
-        `Order #${order.id.slice(-4)} → ${next.charAt(0).toUpperCase() + next.slice(1)}`
+        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`
+      );
+    },
+    [updateOrderStatus]
+  );
+
+  const moveDown = useCallback(
+    (order: Order) => {
+      const back: Partial<Record<OrderStatus, OrderStatus>> = {
+        preparing: "pending",
+        ready: "preparing",
+        served: "ready",
+      };
+      const next = back[order.status];
+      if (!next) return;
+      updateOrderStatus(order.id, next);
+      toast.success(
+        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`
+      );
+    },
+    [updateOrderStatus]
+  );
+
+  const setStatus = useCallback(
+    (order: Order, status: OrderStatus) => {
+      if (status === order.status) return;
+      updateOrderStatus(order.id, status);
+      toast.success(
+        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[status]}`
       );
     },
     [updateOrderStatus]
   );
 
   const filters: { key: Filter; label: string }[] = [
-    { key: "all", label: "All Orders" },
+    { key: "all", label: "All" },
     { key: "pending", label: "Pending" },
     { key: "preparing", label: "Preparing" },
+    { key: "ready", label: "Ready" },
+    { key: "served", label: "Served" },
   ];
 
   return (
@@ -134,34 +262,20 @@ export default function KitchenDisplay() {
         <AnimatePresence mode="popLayout">
           {filtered.map((order) => {
             const min = elapsedMin(order.createdAt);
-            const borderColor =
-              order.status === "pending" ? "border-l-amber-600/80" : "border-l-blue-600/80";
+            const borderColor = leftBorderClass(order.status);
             const label =
               order.orderType === "takeout"
                 ? "Takeout"
                 : order.orderType === "pre_order"
                   ? "Pre-Order"
                   : `Table ${order.tableNumber}`;
-            // Phase pill that headlines every card so the line cook can
-            // tell at a glance whether the ticket is still waiting to be
-            // picked up or actively on a station. Colors mirror the
-            // left-border accent + BUMP button styling for consistency.
-            const phase =
-              order.status === "pending"
-                ? {
-                    label: "NEW — Not Started",
-                    dot: "bg-amber-600/90",
-                    text: "text-amber-900 dark:text-amber-500/90",
-                    bg: "bg-amber-100 dark:bg-amber-950/50",
-                    border: "border-amber-300 dark:border-amber-800/50",
-                  }
-                : {
-                    label: "IN PROGRESS — Cooking",
-                    dot: "animate-pulse bg-blue-600 dark:bg-blue-500/80",
-                    text: "text-blue-800 dark:text-blue-400/90",
-                    bg: "bg-blue-100 dark:bg-blue-950/40",
-                    border: "border-blue-300 dark:border-blue-800/40",
-                  };
+            const phase = statusPhrase(order.status);
+            const canMoveDown =
+              order.status === "preparing" ||
+              order.status === "ready" ||
+              order.status === "served";
+            const bumpLabel =
+              order.status === "served" ? "Done (complete)" : "Bump";
 
             return (
               <motion.div
@@ -235,18 +349,52 @@ export default function KitchenDisplay() {
                     ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => bump(order)}
-                  className="flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-amber-800/50 bg-amber-100 text-xs font-bold uppercase tracking-wider text-amber-900 transition-colors hover:bg-amber-200/90 dark:bg-amber-950/40 dark:text-amber-500/90 dark:hover:bg-amber-950/60"
-                >
-                  {order.status === "pending" ? (
-                    <ChefHat className="w-4 h-4" />
-                  ) : (
-                    <UtensilsCrossed className="w-4 h-4" />
-                  )}
-                  BUMP
-                </button>
+                <div className="shrink-0 space-y-2">
+                  <Select
+                    value={order.status}
+                    onValueChange={(v) => setStatus(order, v as OrderStatus)}
+                  >
+                    <SelectTrigger className="h-9 w-full border-zinc-300 bg-white text-zinc-900 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_ORDER_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {STATUS_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!canMoveDown}
+                      onClick={() => moveDown(order)}
+                      title={
+                        canMoveDown
+                          ? "Move one step back (e.g. preparing → pending)"
+                          : "Already at new / pending"
+                      }
+                      className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-400/60 bg-zinc-100 text-xs font-bold uppercase tracking-wider text-zinc-800 transition-colors hover:bg-zinc-200/90 disabled:cursor-not-allowed disabled:opacity-40 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700/80"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                      Down
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => bump(order)}
+                      className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-amber-800/50 bg-amber-100 text-xs font-bold uppercase tracking-wider text-amber-900 transition-colors hover:bg-amber-200/90 dark:bg-amber-950/40 dark:text-amber-500/90 dark:hover:bg-amber-950/60"
+                    >
+                      {order.status === "pending" || order.status === "preparing" ? (
+                        <ChefHat className="w-4 h-4" />
+                      ) : (
+                        <UtensilsCrossed className="w-4 h-4" />
+                      )}
+                      {bumpLabel}
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             );
           })}
