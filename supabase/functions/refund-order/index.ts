@@ -5,8 +5,8 @@
 // Request body:
 //   {
 //     order_id: number,
-//     amount_cents?: number,            // optional — defaults to remaining refundable
-//     reason?: string,                  // optional — surfaced on Stripe + audit log
+//     amount_cents?: number,            // optional - defaults to remaining refundable
+//     reason?: string,                  // optional - surfaced on Stripe + audit log
 //     items?: { order_item_id: number, quantity: number }[]  // optional itemized refund
 //   }
 //
@@ -132,7 +132,7 @@ serve(async (req: Request) => {
     }, 401)
   }
 
-  // Validate the JWT directly — do NOT rely on getUser() reading the client's
+  // Validate the JWT directly - do NOT rely on getUser() reading the client's
   // stored session. Inside an edge function there is no session store, so the
   // token has to be passed explicitly.
   const authClient = createClient(supabaseUrl, supabaseAnonKey)
@@ -171,7 +171,7 @@ serve(async (req: Request) => {
   }
   if (!order) return json({ error: `Order #${orderId} not found.` }, 404)
 
-  // RBAC — owner or restaurant_staff.
+  // RBAC - owner or restaurant_staff.
   const { data: restaurant, error: restErr } = await supabase
     .from('restaurants')
     .select('id, owner_id, name')
@@ -231,7 +231,7 @@ serve(async (req: Request) => {
       error:
         'Refund failed: you do not have permission to refund this order. ' +
         'You must be the restaurant owner or a staff member with role owner/manager/staff/admin. ' +
-        `Details — ${hints.join('; ')}.`,
+        `Details - ${hints.join('; ')}.`,
     }, 403)
   }
   console.log(`refund-order authorized via ${authorizedVia} (user=${userId}, restaurant=${order.restaurant_id})`)
@@ -329,8 +329,8 @@ serve(async (req: Request) => {
         return json({
           error:
             'Refund failed: this group order has already been refunded in Stripe. ' +
-            `Party payment breakdown — refunded: ${refundedCount}, covered: ${coveredCount}. ` +
-            "If the dashboard still shows a refund button, the order's refunded total just needs to be synced — " +
+            `Party payment breakdown - refunded: ${refundedCount}, covered: ${coveredCount}. ` +
+            "If the dashboard still shows a refund button, the order's refunded total just needs to be synced - " +
             "re-run the refund on the underlying charge or have an engineer update orders.refunded_amount_cents to match.",
         }, 400)
       }
@@ -349,14 +349,14 @@ serve(async (req: Request) => {
       const summary =
         total === 0
           ? 'no party_payments rows exist for this session'
-          : `party payment breakdown — ${Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(', ')}` +
+          : `party payment breakdown - ${Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(', ')}` +
             (paidMissingIntent > 0 ? `; ${paidMissingIntent} paid row(s) missing stripe_payment_intent (webhook may not have fired)` : '')
       return json({
         error:
           'Refund failed: this group order has no Stripe charges we can refund. ' +
-          `Details — ${summary}. ` +
+          `Details - ${summary}. ` +
           'If a diner paid with cash, refund manually and mark the order cancelled. ' +
-          'If they paid with card, the checkout webhook may not have written the payment intent back — check stripe-webhook logs and confirm party_settle_payment ran.',
+          'If they paid with card, the checkout webhook may not have written the payment intent back - check stripe-webhook logs and confirm party_settle_payment ran.',
       }, 400)
     }
 
@@ -432,7 +432,7 @@ serve(async (req: Request) => {
   if (!order.stripe_payment_intent_id) {
     return json({
       error:
-        'This order has no Stripe payment on file — likely paid in cash or predates the current checkout flow. ' +
+        'This order has no Stripe payment on file - likely paid in cash or predates the current checkout flow. ' +
         'Refund the customer manually and mark the order as cancelled.',
     }, 400)
   }

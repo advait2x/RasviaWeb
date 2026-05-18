@@ -229,7 +229,9 @@ export default function TermsPage() {
         </div>
 
         <div className="mt-16 border-t border-white/[0.06] pt-8">
-          <p className="text-sm text-neutral-600">&copy; {new Date().getFullYear()} Rasvia, Inc. All rights reserved.</p>
+          <p className="text-sm text-neutral-600">
+            {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
+          </p>
         </div>
       </div>
     </div>

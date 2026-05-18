@@ -2,8 +2,8 @@
 -- not the customer's billing or shipping address collected by Stripe Checkout.
 --
 -- Adds:
---   • restaurants.sales_tax_rate_bps      — fixed checkout sales tax rate in basis points
---   • restaurants.stripe_manual_tax_rate_id — cached connected-account Stripe Tax Rate object
+--   • restaurants.sales_tax_rate_bps      - fixed checkout sales tax rate in basis points
+--   • restaurants.stripe_manual_tax_rate_id - cached connected-account Stripe Tax Rate object
 
 DO $$ BEGIN
   IF NOT EXISTS (

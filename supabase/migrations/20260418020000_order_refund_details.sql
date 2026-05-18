@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_order_refunds_stripe_rf ON public.order_refunds (
 
 COMMENT ON TABLE  public.order_refunds IS 'One row per dashboard- or webhook-issued refund. Immutable audit log.';
 COMMENT ON COLUMN public.order_refunds.items IS
-  'JSON array describing which items (and quantities) were refunded. Optional — free-form refunds leave this empty.';
+  'JSON array describing which items (and quantities) were refunded. Optional - free-form refunds leave this empty.';
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 3. RLS: owners & restaurant staff can read refunds for their restaurant
@@ -81,7 +81,7 @@ CREATE POLICY "order_refunds read for restaurant"
 -- ────────────────────────────────────────────────────────────────────────────
 -- 4. Extended mark_order_refunded with reason + items + refund id
 -- ----------------------------------------------------------------------------
--- Replaces the original 3-arg version — the new signature is strictly a
+-- Replaces the original 3-arg version - the new signature is strictly a
 -- superset (all new params have defaults) so any existing call site that only
 -- passes order_id/amount/charge_id keeps working after the webhook is
 -- redeployed. We drop the old signature first so named-arg resolution is

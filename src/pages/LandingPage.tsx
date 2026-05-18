@@ -1,8 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChefHat, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Copy, DollarSign, Menu, Pause, Play, Share2, ShoppingBag, Sparkles, Users, X } from "lucide-react";
+import {
+  ArrowDown,
+  BarChart3,
+  Check,
+  ChefHat,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Copy,
+  DollarSign,
+  Heart,
+  Leaf,
+  MapPin,
+  Menu,
+  Pause,
+  Play,
+  QrCode as QrCodeIcon,
+  Share2,
+  ShoppingBag,
+  Sparkles,
+  Tablet,
+  UtensilsCrossed,
+  Users,
+  X,
+} from "lucide-react";
 import { QRCode } from "@/lib/resolve-react-qr-code";
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
+import { ThemeIconToggle } from "@/components/ThemeToggle";
+import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
 
 /** Smooth-scroll to a section id, accounting for the fixed navbar height. */
 function scrollToSection(id: string) {
@@ -13,53 +40,102 @@ function scrollToSection(id: string) {
   window.scrollTo({ top, behavior: "smooth" });
 }
 
-const FEATURE_SLIDES = [
+type FeatureSlide = {
+  name: string;
+  description: string;
+  audience: "business" | "user";
+};
+
+/** Product story beats - keep in sync with partner nav + mobile app surfaces. */
+const FEATURE_SLIDES: FeatureSlide[] = [
   {
-    name: "Real-Time Item Controls",
-    description: "Mark sold-out items instantly and sync availability across active guests in real time.",
+    name: "Live Menu & 86s",
+    audience: "business",
+    description:
+      "Toggle in-stock from the same menu editor your guests see - party carts and kiosks respect it instantly.",
   },
   {
-    name: "Zero-Math Payouts",
-    description: "Let guests split freely while restaurants receive one clean payout summary.",
+    name: "Tableside QR & Party Pay",
+    audience: "business",
+    description:
+      "Spin up a session per table: QR join, live cart, assign items, split modes, and lock before guests pay.",
   },
   {
-    name: "Location Adjustment",
-    description: "Pinpoint accuracy for hungry guests. Adjust drop-offs and routing instantly.",
+    name: "Kitchen Expedite & Status",
+    audience: "business",
+    description:
+      "Full-screen tickets with bump, move-back, and an explicit status picker - from fire to served without a second screen.",
   },
   {
-    name: "Mobile Group Ordering",
-    description: "Live cart sync with per-member splits, modifiers, and one-tap group checkout.",
+    name: "Sales, Tips & Reports",
+    audience: "business",
+    description:
+      "Hourly and daily revenue charts, tip rollups, top items, and one-click drill-down into past orders.",
   },
   {
-    name: "Kitchen Display Mode",
-    description: "Live order tickets with stage-by-stage bump controls your kitchen team can trust.",
+    name: "Kiosk & Waitlist",
+    audience: "business",
+    description:
+      "In-venue kiosk for walk-ins plus the live waitlist feed your hosts already use on the dashboard.",
   },
   {
-    name: "Revenue Snapshot",
-    description: "Shift-by-shift revenue charts with hourly and daily breakdowns at a glance.",
+    name: "Public Menu & QR Sheets",
+    audience: "business",
+    description:
+      "A branded share page for your menu and printable PDFs with scannable QR codes - no extra microsite.",
   },
   {
-    name: "Order History & Reorder",
-    description: "Re-create any past group order in one tap — modifiers and all.",
+    name: "Stripe Connect & Tax-ready",
+    audience: "business",
+    description:
+      "Connected payouts for restaurants with consistent, disclosed tax handling built for seller-of-record checkout.",
   },
   {
-    name: "Real-Time Order Tracker",
-    description: "Watch your order progress from kitchen to table in real time.",
+    name: "Split Without Spreadsheets",
+    audience: "user",
+    description:
+      "Party checks break out who owes what while the restaurant still sees one clean payout.",
   },
   {
-    name: "Social Group Invite",
-    description: "Share a QR code or link so friends join the group cart from their own phone.",
+    name: "Live Cart & Group Checkout",
+    audience: "user",
+    description:
+      "See everyone’s items, modifiers, and tax estimate in real time before anyone pays on mobile.",
+  },
+  {
+    name: "Discover & Map",
+    audience: "user",
+    description:
+      "Browse nearby spots, cuisines, and honest wait signals - then jump into menus without leaving the app.",
+  },
+  {
+    name: "Favorites & Dietary Fit",
+    audience: "user",
+    description:
+      "Save places and let dietary preferences quietly shape what rises to the top of your feed.",
+  },
+  {
+    name: "Live Order Progress",
+    audience: "user",
+    description:
+      "A stepper that mirrors the kitchen: received, prepping, ready, and served - no guessing at the table.",
+  },
+  {
+    name: "Order Again in One Tap",
+    audience: "user",
+    description:
+      "Past orders live in one place so repeating the same modifiers-heavy round is frictionless.",
+  },
+  {
+    name: "Invite Link & QR",
+    audience: "user",
+    description:
+      "Host a party, flash a QR, or drop a link - friends join the same cart from their own phones.",
   },
 ];
-type FeatureSlide = (typeof FEATURE_SLIDES)[number];
 
-const BUSINESS_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
-  ["Real-Time Item Controls", "Location Adjustment", "Kitchen Display Mode", "Revenue Snapshot"].includes(slide.name)
-);
-
-const USER_FEATURES: FeatureSlide[] = FEATURE_SLIDES.filter((slide) =>
-  ["Zero-Math Payouts", "Mobile Group Ordering", "Order History & Reorder", "Real-Time Order Tracker", "Social Group Invite"].includes(slide.name)
-);
+const BUSINESS_FEATURES = FEATURE_SLIDES.filter((s) => s.audience === "business");
+const USER_FEATURES = FEATURE_SLIDES.filter((s) => s.audience === "user");
 
 const WAITLIST_ROWS = [
   { name: "Anderson Family", seats: 4, wait: "12m", status: "Waiting" },
@@ -78,23 +154,18 @@ const PAYOUT_ROWS = [
 // NAV / PRICING / ABOUT DATA
 // ──────────────────────────────────────────────────────
 
-const NAV_PRODUCT_LINKS = [
-  { name: "Waitlists", description: "Real-time waitlist management with SMS notifications" },
-  { name: "Group Carts", description: "Live cart sync with per-member splits and modifiers" },
-  { name: "Fast Payouts", description: "Clean payout summaries your accounting team can trust" },
-];
-
 const PRICING_TIERS = [
   {
     name: "Starter",
     description: "Perfect for small restaurants getting started",
     features: [
       "Up to 20 tables",
-      "Basic waitlist management",
-      "Menu management",
+      "Waitlist + kiosk walk-ins",
+      "Menu editor & live 86s",
+      "Public menu share page",
       "Email support",
       "1 staff account",
-      "Basic analytics dashboard",
+      "Core dashboard metrics",
     ],
     highlighted: false,
   },
@@ -103,13 +174,15 @@ const PRICING_TIERS = [
     description: "For growing restaurants that need more power",
     features: [
       "Unlimited tables",
-      "Advanced waitlist with SMS alerts",
-      "Group ordering & split payments",
-      "Real-time item availability controls",
+      "Advanced waitlist + notifications",
+      "Party carts, splits & Stripe checkout",
+      "Tableside QR sessions & floor tools",
+      "Kitchen display with full status control",
+      "Sales reports & past-order explorer",
+      "Menu QR PDFs for tables & flyers",
       "Up to 10 staff accounts",
       "Priority support",
-      "Advanced analytics & reports",
-      "Stripe Connect payouts",
+      "Stripe Connect payouts & tax tooling",
     ],
     highlighted: true,
   },
@@ -119,11 +192,11 @@ const PRICING_TIERS = [
     features: [
       "Everything in Professional",
       "Unlimited staff accounts",
-      "Multi-location support",
-      "Custom role permissions",
-      "Dedicated account manager",
-      "White-label kiosk mode",
-      "Custom integrations",
+      "Multi-location rollouts",
+      "Custom roles & granular permissions",
+      "Dedicated success partner",
+      "White-label kiosk theming",
+      "Custom integrations & SLAs",
       "24/7 phone support",
     ],
     highlighted: false,
@@ -179,11 +252,20 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.06] bg-black/80 backdrop-blur-xl">
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/85 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
         {/* Logo */}
-        <a href="/" className="flex-shrink-0">
-          <img src="/rasvia-logo.png" alt="Rasvia" className="h-10 w-auto" />
+        <a href="/" className="inline-flex flex-shrink-0 items-center">
+          <img
+            src="/rasvia-logo-transparent.png"
+            alt="Rasvia"
+            className="h-10 w-auto dark:hidden"
+          />
+          <img
+            src="/rasvia-logo.png"
+            alt="Rasvia"
+            className="hidden h-10 w-auto dark:block dark:brightness-110 dark:contrast-100"
+          />
         </a>
 
         {/* Desktop Nav */}
@@ -197,8 +279,8 @@ function Navbar() {
             <button
               className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 activeDropdown === "products"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-zinc-200/90 text-zinc-900 dark:bg-white/[0.06] dark:text-white"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
               }`}
             >
               Products
@@ -210,18 +292,25 @@ function Navbar() {
               />
             </button>
             {activeDropdown === "products" && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900 p-1.5 shadow-2xl">
-                {NAV_PRODUCT_LINKS.map((item) => (
+              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900">
+                {MARKETING_NAV_PRODUCTS.map((item) => (
                   <a
-                    key={item.name}
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-white/[0.05]"
+                    key={item.slug}
+                    href={getMarketingProductPath(item.slug)}
+                    className="block rounded-lg px-3 py-4 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
                   >
-                    <span className="text-sm font-semibold text-zinc-200">{item.name}</span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">{item.description}</span>
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">{item.name}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{item.description}</span>
                   </a>
                 ))}
+                <div className="mt-1 border-t border-zinc-200/80 pt-2 dark:border-white/10">
+                  <a
+                    href="/products"
+                    className="block rounded-lg px-3 py-3 text-xs font-semibold text-amber-700 transition-colors hover:bg-zinc-100 dark:text-amber-400 dark:hover:bg-white/[0.05]"
+                  >
+                    All product pages →
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -230,7 +319,7 @@ function Navbar() {
           <button
             type="button"
             onClick={() => scrollToSection("pricing")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
           >
             Pricing
           </button>
@@ -239,24 +328,25 @@ function Navbar() {
           <button
             type="button"
             onClick={() => scrollToSection("about")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
           >
             About
           </button>
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeIconToggle className="hidden sm:inline-flex" />
           <a
             href="/partner-portal"
-            className="hidden rounded-xl border border-amber-400/40 bg-amber-500/[0.08] px-4 py-2 text-sm font-semibold text-amber-400 transition-all duration-300 hover:bg-amber-500/[0.15] hover:border-amber-400/60 hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] sm:inline-flex"
+            className="hidden rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-700 transition-all duration-300 hover:bg-amber-500/[0.18] hover:border-amber-600/60 hover:shadow-[0_0_16px_rgba(245,158,11,0.12)] dark:border-amber-400/40 dark:bg-amber-500/[0.08] dark:text-amber-400 dark:hover:border-amber-400/60 dark:hover:bg-amber-500/[0.15] dark:hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] sm:inline-flex"
           >
             Partner Portal
           </a>
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
-            className="rounded-lg border border-white/10 p-2 text-zinc-400 transition-colors hover:text-white md:hidden"
+            className="rounded-lg border border-zinc-200 p-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white md:hidden"
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -266,38 +356,49 @@ function Navbar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-white/[0.06] bg-black/95 backdrop-blur-xl md:hidden">
+        <div className="border-t border-zinc-200 bg-white/98 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/95 md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-1 px-6 py-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Products</p>
-            {NAV_PRODUCT_LINKS.map((item) => (
+            <div className="mb-2 flex items-center justify-between md:hidden">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Appearance</p>
+              <ThemeIconToggle />
+            </div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-600">Products</p>
+            {MARKETING_NAV_PRODUCTS.map((item) => (
               <a
-                key={item.name}
-                href="#"
-                onClick={(e) => { e.preventDefault(); setMobileOpen(false); }}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+                key={item.slug}
+                href={getMarketingProductPath(item.slug)}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
               >
                 {item.name}
               </a>
             ))}
-            <div className="my-2 h-px bg-white/[0.06]" />
+            <a
+              href="/products"
+              onClick={() => setMobileOpen(false)}
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400"
+            >
+              All product pages
+            </a>
+            <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
             <button
               type="button"
               onClick={() => { scrollToSection("pricing"); setMobileOpen(false); }}
-              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
             >
               Pricing
             </button>
             <button
               type="button"
               onClick={() => { scrollToSection("about"); setMobileOpen(false); }}
-              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition-colors hover:bg-white/[0.05]"
+              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
             >
               About
             </button>
-            <div className="my-2 h-px bg-white/[0.06]" />
+            <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
             <a
               href="/partner-portal"
-              className="mt-1 block rounded-xl border border-amber-400/40 bg-amber-500/[0.08] px-4 py-2.5 text-center text-sm font-semibold text-amber-400"
+              className="mt-1 block rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-2.5 text-center text-sm font-semibold text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/[0.08] dark:text-amber-400"
             >
               Partner Portal
             </a>
@@ -430,93 +531,6 @@ function SplitReceiptMockup() {
   );
 }
 
-function LocationAdjustmentMockup({ onInteract }: { onInteract?: () => void }) {
-  const [saved, setSaved] = useState(false);
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); }, []);
-
-  const handleSetLocation = () => {
-    onInteract?.();
-    setSaved(true);
-    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-    savedTimerRef.current = setTimeout(() => setSaved(false), 1500);
-  };
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-4 backdrop-blur-sm">
-
-        <div className="mb-3 flex items-center justify-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-4 py-2">
-          <span className="text-sm">📍</span>
-          <span className="text-xs font-semibold text-amber-400">Moving: Chennai Cafe</span>
-        </div>
-
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-xl border border-white/[0.06]"
-          style={{ background: "#1c2233" }}
-        >
-          <div className="absolute inset-0"
-            style={{
-              backgroundImage: "linear-gradient(rgba(99,180,150,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(99,180,150,0.06) 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }}
-          />
-          <div className="absolute inset-0 opacity-60"
-            style={{
-              backgroundImage: "linear-gradient(rgba(50,70,55,0.4) 2px, transparent 2px), linear-gradient(90deg, rgba(50,70,55,0.4) 2px, transparent 2px)",
-              backgroundSize: "60px 60px",
-            }}
-          />
-          <div className="absolute left-[15%] top-[20%] h-8 w-14 rounded-sm bg-emerald-800/40" />
-          <div className="absolute right-[10%] bottom-[25%] h-12 w-10 rounded-sm bg-emerald-800/35" />
-          <div className="absolute left-[30%] bottom-[15%] h-6 w-20 rounded-sm bg-emerald-800/30" />
-          <div className="absolute left-0 right-0 top-[48%] h-px bg-zinc-500/25" />
-          <div className="absolute left-0 right-0 top-[62%] h-px bg-zinc-500/15" />
-          <div className="absolute bottom-0 left-[35%] top-0 w-px bg-zinc-500/20" />
-          <div className="absolute bottom-0 left-[60%] top-0 w-px bg-zinc-500/15" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="relative flex items-center justify-center">
-              <div className="h-6 w-6 rounded-full border-2 border-white bg-violet-600 shadow-[0_0_14px_rgba(124,58,237,0.8)]" />
-              <div className="absolute h-6 w-6 rounded-full border-2 border-violet-400/40 animate-ping" />
-              <div className="absolute h-12 w-12 rounded-full border border-violet-400/20" />
-            </div>
-          </div>
-          <div className="absolute left-2 top-2 rounded-md border border-white/10 bg-black/50 px-1.5 py-0.5 backdrop-blur-sm">
-            <span className="text-[9px] font-mono text-zinc-400">32.79N 96.81W</span>
-          </div>
-          {/* Location saved pill — overlaid on the map */}
-          {saved && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="rounded-full border border-emerald-500/40 bg-black/70 px-4 py-1.5 text-xs font-semibold text-emerald-400 shadow-lg backdrop-blur-sm">
-                Location saved
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {}}
-            className="flex-1 rounded-xl border border-white/10 bg-zinc-800/60 py-2.5 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-800/80 active:scale-95 active:bg-zinc-700/60 cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSetLocation}
-            className="flex-[2] rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 active:opacity-75 cursor-pointer"
-            style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)", boxShadow: "0 4px 18px rgba(124,58,237,0.45)" }}
-          >
-            Set Location
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function GroupSplitMockup() {
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-3">
@@ -529,7 +543,7 @@ function GroupSplitMockup() {
           </div>
           <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-transparent px-2 py-0.5">
             <span className="text-[9px] font-bold text-amber-400">Party</span>
-            <span className="text-[9px] text-zinc-500">— 2 +</span>
+            <span className="text-[9px] text-zinc-500">- 2 +</span>
           </div>
         </div>
 
@@ -654,8 +668,8 @@ function InteractiveInventoryMockup({ onInteract }: { onInteract?: () => void })
       <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu Control</p>
-            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live Inventory</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu manager</p>
+            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live 86s & availability</p>
           </div>
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
@@ -741,10 +755,10 @@ const KDS_STAGES = ["Pending", "Preparing", "Ready", "Served"] as const;
 type KdsStage = typeof KDS_STAGES[number];
 
 const KDS_STAGE_STYLES: Record<KdsStage, { pill: string; dot: string; btn: string; pillText: string; pillLabel: string }> = {
-  Pending:   { pill: "bg-amber-950/50 border-amber-800/50", dot: "bg-amber-500", pillText: "text-amber-400/90", btn: "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30", pillLabel: "NEW — Not Started" },
-  Preparing: { pill: "bg-blue-950/40 border-blue-800/40", dot: "bg-blue-500 animate-pulse", pillText: "text-blue-400/90", btn: "bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30", pillLabel: "IN PROGRESS — Cooking" },
-  Ready:     { pill: "bg-emerald-950/40 border-emerald-800/40", dot: "bg-emerald-400", pillText: "text-emerald-400/90", btn: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30", pillLabel: "READY — Expedite Now" },
-  Served:    { pill: "bg-indigo-950/40 border-indigo-800/40", dot: "bg-indigo-400", pillText: "text-indigo-400/90", btn: "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30", pillLabel: "SERVED — Complete" },
+  Pending:   { pill: "bg-amber-950/50 border-amber-800/50", dot: "bg-amber-500", pillText: "text-amber-400/90", btn: "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30", pillLabel: "NEW - Not started" },
+  Preparing: { pill: "bg-blue-950/40 border-blue-800/40", dot: "bg-blue-500 animate-pulse", pillText: "text-blue-400/90", btn: "bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30", pillLabel: "IN PROGRESS - Cooking" },
+  Ready:     { pill: "bg-emerald-950/40 border-emerald-800/40", dot: "bg-emerald-400", pillText: "text-emerald-400/90", btn: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30", pillLabel: "READY - Pick up" },
+  Served:    { pill: "bg-violet-950/40 border-violet-800/40", dot: "bg-violet-400", pillText: "text-violet-400/90", btn: "bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-violet-500/30", pillLabel: "SERVED - Floor" },
 };
 
 interface KdsTicket {
@@ -766,34 +780,66 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
   const stage = KDS_STAGES[stageIdx];
   const styles = KDS_STAGE_STYLES[stage];
 
-  const bump = () => { onInteract?.(); setStageIdx((i) => (i + 1) % KDS_STAGES.length); };
+  const bump = () => {
+    onInteract?.();
+    setStageIdx((i) => Math.min(i + 1, KDS_STAGES.length - 1));
+  };
+  const moveDown = () => {
+    onInteract?.();
+    setStageIdx((i) => Math.max(i - 1, 0));
+  };
+
+  const borderAccent =
+    stage === "Pending" ? "#d97706" : stage === "Preparing" ? "#3b82f6" : stage === "Ready" ? "#22c55e" : "#7c3aed";
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-l-4 border-zinc-800/90 bg-zinc-900/90 p-3" style={{ borderLeftColor: stage === "Pending" ? "#d97706" : stage === "Preparing" ? "#3b82f6" : stage === "Ready" ? "#22c55e" : "#6366f1" }}>
+    <div
+      className="flex flex-col gap-1.5 rounded-xl border border-l-4 border-zinc-800/90 bg-zinc-900/90 p-2.5"
+      style={{ borderLeftColor: borderAccent }}
+    >
       <div className={`flex items-center gap-2 rounded-md border px-2 py-0.5 ${styles.pill}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />
-        <span className={`text-[9px] font-bold uppercase tracking-wide ${styles.pillText}`}>{styles.pillLabel}</span>
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
+        <span className={`text-[8px] font-bold uppercase tracking-wide leading-tight ${styles.pillText}`}>{styles.pillLabel}</span>
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <span className="font-mono text-sm font-bold text-zinc-100">#{ticket.id}</span>
-          <span className="ml-1.5 text-[10px] uppercase text-zinc-500">{ticket.table}</span>
+          <span className="font-mono text-xs font-bold text-zinc-100">#{ticket.id}</span>
+          <span className="ml-1 text-[9px] uppercase text-zinc-500">{ticket.table}</span>
         </div>
-        <span className="text-[10px] font-medium text-zinc-500">{ticket.elapsed}</span>
+        <span className="text-[9px] font-medium text-zinc-500">{ticket.elapsed}</span>
       </div>
-      <p className="text-[10px] text-zinc-500">{ticket.guestName}</p>
-      <div className="flex flex-col gap-0.5">
+      <p className="text-[9px] text-zinc-500">{ticket.guestName}</p>
+      <div className="flex max-h-[52px] flex-col gap-0.5 overflow-hidden">
         {ticket.items.map((item) => (
-          <span key={item} className="text-[10px] text-zinc-300">{item}</span>
+          <span key={item} className="truncate text-[9px] text-zinc-300">{item}</span>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={bump}
-        className={`mt-1 w-full rounded-lg border py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors active:scale-95 ${styles.btn}`}
-      >
-        {stage} — Bump →
-      </button>
+
+      <div className="flex items-center gap-1 rounded-md border border-white/[0.08] bg-zinc-950/60 px-2 py-1">
+        <span className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">Status</span>
+        <span className="ml-auto text-[9px] font-semibold text-zinc-200">{stage}</span>
+        <ChevronDown size={12} className="text-zinc-500" />
+      </div>
+
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={moveDown}
+          disabled={stageIdx === 0}
+          className="flex flex-1 items-center justify-center gap-0.5 rounded-lg border border-zinc-600/50 bg-zinc-800/50 py-1 text-[8px] font-bold uppercase tracking-wide text-zinc-300 transition-colors hover:bg-zinc-800/80 disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          <ArrowDown size={10} />
+          Down
+        </button>
+        <button
+          type="button"
+          onClick={bump}
+          disabled={stageIdx >= KDS_STAGES.length - 1}
+          className={`flex flex-[1.35] items-center justify-center rounded-lg border py-1 text-[8px] font-bold uppercase tracking-wide transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 ${styles.btn}`}
+        >
+          Bump
+        </button>
+      </div>
     </div>
   );
 }
@@ -891,7 +937,7 @@ function RevenueSnapshotMockup({ onInteract }: { onInteract?: () => void }) {
 
       {/* Chart */}
       <div className="relative flex-1" style={{ minHeight: 0, zIndex: 0, isolation: "isolate" }}>
-        {/* Bar track — sits above the labels row */}
+        {/* Bar track - sits above the labels row */}
         <div className="absolute inset-x-0 top-0 bottom-5 flex items-end gap-1.5">
           {data.map((bar, idx) => {
             const heightPct = Math.max(6, (bar.value / maxVal) * 100);
@@ -905,7 +951,7 @@ function RevenueSnapshotMockup({ onInteract }: { onInteract?: () => void }) {
                 onMouseLeave={() => setHoveredBar(null)}
                 onClick={() => handleBarClick(idx)}
               >
-                {/* Tooltip — pinned 6px above the bar top regardless of bar height */}
+                {/* Tooltip - pinned 6px above the bar top regardless of bar height */}
                 {(isHovered || isSelected) && (
                   <div
                     className="absolute left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-amber-500/30 bg-zinc-900 px-2 py-0.5 text-[9px] font-bold text-amber-400 shadow-lg pointer-events-none"
@@ -1053,7 +1099,7 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
           <div className="relative flex items-center justify-between">
             {/* Background connector track */}
             <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-zinc-700/60" />
-            {/* Filled connector segments — one per gap between circles */}
+            {/* Filled connector segments - one per gap between circles */}
             {TRACKER_STAGES.slice(0, -1).map((seg, i) =>
               i < stageIdx ? (
                 <div
@@ -1092,7 +1138,7 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
               );
             })}
           </div>
-          {/* Labels — same 4-column grid so they align under each circle */}
+          {/* Labels - same 4-column grid so they align under each circle */}
           <div className="mt-2 flex justify-between">
             {TRACKER_STAGES.map((step, idx) => (
               <div key={step.label} className="w-8 text-center">
@@ -1241,6 +1287,225 @@ function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// Extra showcase panels (partner app + guest app)
+// ─────────────────────────────────────────────
+
+function TablesidePartyMockup() {
+  return (
+    <div className="flex h-full flex-col gap-3 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <QrCodeIcon size={14} className="text-amber-500/90" />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Tableside QR</span>
+        </div>
+        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Live</span>
+      </div>
+      <div className="flex flex-1 gap-3 min-h-0">
+        <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-white p-2">
+          <QRCode value="https://rasvia.com/join" size={76} bgColor="#ffffff" fgColor="#0a0a0a" />
+          <span className="mt-1 text-[8px] font-mono text-zinc-600">rasvia.com/join</span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div>
+            <p className="text-xs font-bold text-white">Table 12 · Spice Garden</p>
+            <p className="text-[9px] text-zinc-500">Party session · 4 members on cart</p>
+          </div>
+          <div className="rounded-lg border border-white/[0.06] bg-zinc-800/40 px-2.5 py-2 space-y-1.5">
+            <div className="flex justify-between text-[9px]">
+              <span className="text-zinc-500">Cart</span>
+              <span className="font-bold text-amber-400">$186.40</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {["Equal split", "Per person", "Lock cart"].map((tag) => (
+                <span key={tag} className="rounded-md border border-zinc-600/50 bg-zinc-900/60 px-1.5 py-0.5 text-[8px] text-zinc-400">{tag}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KioskWalkInMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-5">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Tablet size={15} className="text-amber-500" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Kiosk · Walk-in</span>
+        </div>
+        <label className="text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Guest name</label>
+        <div className="mt-1 rounded-xl border border-white/[0.08] bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-200">Jordan K.</div>
+        <label className="mt-3 block text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Party size</label>
+        <div className="mt-1 flex gap-2">
+          {[2, 3, 4, 6].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`flex-1 rounded-lg border py-2 text-xs font-bold ${n === 4 ? "border-amber-500/50 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-800/40 text-zinc-500"}`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="mt-4 w-full rounded-xl py-3 text-xs font-bold text-zinc-950"
+          style={{ background: "linear-gradient(135deg, #FF9933 0%, #ea580c 100%)" }}
+        >
+          Join waitlist
+        </button>
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-white/[0.06] bg-zinc-950/50 px-2.5 py-2">
+          <span className="text-[9px] text-zinc-500">Queue ahead</span>
+          <span className="text-[9px] font-bold text-zinc-300">3 parties</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MenuMarketingMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-5">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={14} className="text-amber-500/85" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu · Partner</span>
+          </div>
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400">Menu QR PDF</span>
+        </div>
+        <p className="mb-3 text-[10px] leading-relaxed text-zinc-500">
+          Print a sheet of branded codes that open your live <span className="text-zinc-300">rasvia.com/share</span> menu - same catalog as the app.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              // eslint-disable-next-line react/no-array-index-key
+              key={i}
+              className="flex aspect-square flex-col items-center justify-center rounded-lg border border-white/[0.07] bg-zinc-950/70 p-1"
+            >
+              <div className="rounded border border-white/20 bg-white p-0.5">
+                <QRCode value="https://rasvia.com/share?demo=1" size={28} bgColor="#ffffff" fgColor="#000000" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StripePayoutsMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-5">
+      <div className="w-full max-w-xs space-y-3">
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900/80 px-4 py-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Stripe Connect</p>
+            <p className="text-sm font-bold text-white">Spice Garden</p>
+          </div>
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Payouts on</span>
+        </div>
+        <div className="rounded-xl border border-white/[0.07] bg-zinc-950/70 p-3 space-y-2">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-zinc-500">Checkout tax</span>
+            <span className="font-mono text-zinc-300">8.25% · Restaurant rate</span>
+          </div>
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-zinc-500">Platform fee</span>
+            <span className="font-mono text-zinc-300">Configurable bps</span>
+          </div>
+          <div className="flex items-center gap-2 border-t border-white/[0.06] pt-2">
+            <BarChart3 size={12} className="text-amber-500/80" />
+            <p className="text-[9px] leading-snug text-zinc-500">
+              Seller-of-record model: guests see estimated tax before pay; Stripe Checkout finalizes totals.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiscoverMapMockup() {
+  return (
+    <div className="flex h-full flex-col p-4 gap-3">
+      <div className="flex items-center gap-2">
+        <MapPin size={14} className="text-amber-500" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Discover</span>
+      </div>
+      <div
+        className="relative flex-1 overflow-hidden rounded-xl border border-white/[0.08] min-h-[200px]"
+        style={{ background: "linear-gradient(145deg, #1a1f2e 0%, #12151e 100%)" }}
+      >
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage: "radial-gradient(circle at 30% 40%, rgba(245,158,11,0.15), transparent 45%), radial-gradient(circle at 70% 55%, rgba(59,130,246,0.12), transparent 40%)",
+          }}
+        />
+        {[28, 62, 48].map((left, i) => (
+          <div
+            key={i}
+            className="absolute"
+            style={{ left: `${left}%`, top: `${35 + i * 12}%` }}
+          >
+            <div className="h-3 w-3 rounded-full border-2 border-amber-400 bg-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.5)]" />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1 rounded-xl border border-white/[0.06] bg-zinc-900/70 p-2.5">
+          <p className="truncate text-xs font-bold text-white">Chennai Cafe</p>
+          <p className="text-[9px] text-zinc-500">Indian · 12 min wait</p>
+        </div>
+        <div className="min-w-0 flex-1 rounded-xl border border-white/[0.06] bg-zinc-900/70 p-2.5">
+          <p className="truncate text-xs font-bold text-white">Udon Lab</p>
+          <p className="text-[9px] text-zinc-500">Japanese · Open now</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FavoritesDietMockup() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-5">
+      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-black text-white">Saved for you</p>
+          <Heart size={14} className="fill-amber-500/30 text-amber-500/70" />
+        </div>
+        {[
+          { name: "Spice Garden", tags: ["Veg options", "Halal"], saved: true },
+          { name: "Neon Ramen", tags: ["Late night"], saved: true },
+        ].map((r) => (
+          <div key={r.name} className="mb-2 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2.5 last:mb-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 border border-white/[0.06]">
+              <UtensilsCrossed size={16} className="text-zinc-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold text-zinc-100">{r.name}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {r.tags.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-0.5 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-400/90">
+                    <Leaf size={9} />
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <Heart size={14} className={r.saved ? "fill-rose-500/25 text-rose-400" : "text-zinc-600"} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GallerySlideContent({
   slide,
   isActive = false,
@@ -1252,40 +1517,37 @@ function GallerySlideContent({
   isPaused?: boolean;
   onInteract?: () => void;
 }) {
-  if (slide.name === "Real-Time Item Controls") {
-    return <InteractiveInventoryMockup onInteract={onInteract} />;
-  }
-
-  if (slide.name === "Zero-Math Payouts") {
-    return <SplitReceiptMockup />;
-  }
-
-  if (slide.name === "Location Adjustment") {
-    return <LocationAdjustmentMockup onInteract={onInteract} />;
-  }
-
-  if (slide.name === "Mobile Group Ordering") {
-    return <GroupSplitMockup />;
-  }
-
-  if (slide.name === "Kitchen Display Mode") {
-    return <KitchenDisplayMockup onInteract={onInteract} />;
-  }
-
-  if (slide.name === "Revenue Snapshot") {
-    return <RevenueSnapshotMockup onInteract={onInteract} />;
-  }
-
-  if (slide.name === "Order History & Reorder") {
-    return <OrderHistoryMockup onInteract={onInteract} />;
-  }
-
-  if (slide.name === "Real-Time Order Tracker") {
-    return <OrderTrackerMockup isActive={isActive} isPaused={isPaused} />;
-  }
-
-  if (slide.name === "Social Group Invite") {
-    return <GroupInviteMockup onInteract={onInteract} />;
+  switch (slide.name) {
+    case "Live Menu & 86s":
+      return <InteractiveInventoryMockup onInteract={onInteract} />;
+    case "Tableside QR & Party Pay":
+      return <TablesidePartyMockup />;
+    case "Kitchen Expedite & Status":
+      return <KitchenDisplayMockup onInteract={onInteract} />;
+    case "Sales, Tips & Reports":
+      return <RevenueSnapshotMockup onInteract={onInteract} />;
+    case "Kiosk & Waitlist":
+      return <KioskWalkInMockup />;
+    case "Public Menu & QR Sheets":
+      return <MenuMarketingMockup />;
+    case "Stripe Connect & Tax-ready":
+      return <StripePayoutsMockup />;
+    case "Split Without Spreadsheets":
+      return <SplitReceiptMockup />;
+    case "Live Cart & Group Checkout":
+      return <GroupSplitMockup />;
+    case "Discover & Map":
+      return <DiscoverMapMockup />;
+    case "Favorites & Dietary Fit":
+      return <FavoritesDietMockup />;
+    case "Live Order Progress":
+      return <OrderTrackerMockup isActive={isActive} isPaused={isPaused} />;
+    case "Order Again in One Tap":
+      return <OrderHistoryMockup onInteract={onInteract} />;
+    case "Invite Link & QR":
+      return <GroupInviteMockup onInteract={onInteract} />;
+    default:
+      break;
   }
 
   return (
@@ -1371,13 +1633,13 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden text-zinc-100">
-      {/* Page-wide cursor glow — fixed so it tracks the mouse anywhere on the page */}
+    <div className="w-full min-h-screen overflow-x-hidden bg-zinc-50 text-zinc-900 transition-colors dark:bg-[#050505] dark:text-zinc-100">
+      {/* Page-wide cursor glow - fixed so it tracks the mouse anywhere on the page */}
       <div
         ref={heroGlowRef}
-        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.07] will-change-transform"
+        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.055] will-change-transform dark:opacity-[0.07]"
         style={{
-          zIndex: -1,
+          zIndex: 0,
           background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
           filter: "blur(70px)",
           transform: "translate(-50%, -50%)",
@@ -1386,22 +1648,23 @@ export default function LandingPage() {
 
       <Navbar />
 
-      <main className="w-full py-12 pt-28">
+      <main className="relative z-10 w-full py-12 pt-28">
         <div ref={heroGlowAreaRef} className="mx-auto max-w-7xl px-6 relative overflow-hidden">
 
           <section className="relative grid gap-10 lg:grid-cols-2 lg:items-start">
             <div>
-              <h1 className="text-4xl font-black tracking-tighter leading-tight text-white sm:text-5xl">
-                Turn waitlists into revenue with real-time service automation.
+              <h1 className="text-4xl font-black tracking-tighter leading-tight text-zinc-900 sm:text-5xl dark:text-white">
+                Guests discover and order. You run the house. One platform keeps it in sync.
               </h1>
-              <p className="mt-4 max-w-xl leading-relaxed text-neutral-400">
-                Rasvia helps restaurant teams move faster during rush hours: smarter pre-orders, instant item controls,
-                and clean payouts your accounting team can trust.
+              <p className="mt-4 max-w-xl leading-relaxed text-zinc-600 dark:text-neutral-400">
+                Rasvia pairs a polished consumer app (discover, host parties, split checks, track orders) with a
+                full operations dashboard (waitlist & kiosk, tableside QR, expedite-ready kitchen mode, menu marketing,
+                Stripe Connect settlements, and reporting your finance team can export without spreadsheets).
               </p>
               <div className="mt-6">
                 <a
                   href="/partner-portal"
-                  className="inline-flex rounded-xl border border-amber-500/50 bg-amber-500/5 px-5 py-3 text-sm font-bold text-amber-400 transition-all duration-300 hover:bg-amber-500/[0.12] hover:border-amber-500/80 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                  className="inline-flex rounded-xl border border-amber-500/55 bg-amber-500/10 px-5 py-3 text-sm font-bold text-amber-800 transition-all duration-300 hover:bg-amber-500/[0.2] hover:border-amber-600/70 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] dark:border-amber-500/50 dark:bg-amber-500/5 dark:text-amber-400 dark:hover:bg-amber-500/[0.12] dark:hover:border-amber-500/80 dark:hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
                 >
                   Partner Portal
                 </a>
@@ -1409,15 +1672,11 @@ export default function LandingPage() {
             </div>
 
             <div
-              className="rounded-2xl border border-white/10 bg-neutral-900/50 p-5 backdrop-blur-md"
-              style={{
-                boxShadow:
-                  "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.3), 0 20px 40px rgba(0,0,0,0.4)",
-              }}
+              className="rounded-2xl border border-zinc-200/90 bg-white/90 p-5 shadow-lg shadow-zinc-200/40 backdrop-blur-md dark:border-white/10 dark:bg-neutral-900/50 dark:shadow-none"
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Spotlight</p>
               <div
-                className="mt-3 rounded-xl border border-white/[0.08] bg-zinc-950/70 p-4 backdrop-blur-sm"
+                className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/90 p-4 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/70"
                 style={{ minHeight: "280px" }}
               >
                 <HostDashboardMockup />
@@ -1428,15 +1687,15 @@ export default function LandingPage() {
 
         <section className="mt-14 mx-auto max-w-7xl px-6">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Gallery</p>
-            <div className="flex items-center rounded-xl border border-white/10 bg-zinc-900/60 p-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">Feature Gallery</p>
+            <div className="flex items-center rounded-xl border border-zinc-200/90 bg-white/80 p-1 dark:border-white/10 dark:bg-zinc-900/60">
               <button
                 type="button"
                 onClick={() => setAudience("business")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   audience === "business"
-                    ? "bg-amber-500/15 text-amber-300"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-amber-500/20 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                 }`}
               >
                 For Businesses
@@ -1446,8 +1705,8 @@ export default function LandingPage() {
                 onClick={() => setAudience("user")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   audience === "user"
-                    ? "bg-amber-500/15 text-amber-300"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-amber-500/20 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                 }`}
               >
                 For Users
@@ -1455,15 +1714,10 @@ export default function LandingPage() {
             </div>
           </div>
           <div
-            className="group mt-3 rounded-2xl border border-white/10 bg-neutral-900/50 p-3 backdrop-blur-md transition-all duration-300 hover:border-amber-500/20"
-            style={{
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.3), 0 20px 40px rgba(0,0,0,0.4)",
-            }}
+            className="group mt-3 rounded-2xl border border-zinc-200/90 bg-white/80 p-3 shadow-lg shadow-zinc-200/30 backdrop-blur-md transition-all duration-300 hover:border-amber-500/35 dark:border-white/10 dark:bg-neutral-900/50 dark:shadow-none dark:hover:border-amber-500/20"
           >
             <div
-              className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-950/80 backdrop-blur-sm"
-              style={{ height: "420px" }}
+              className="relative h-[430px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/95 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/80 sm:h-[460px]"
             >
               <div
                 className="flex h-full transition-transform duration-700 ease-in-out"
@@ -1472,8 +1726,8 @@ export default function LandingPage() {
                 {activeSlides.map((slide, idx) => (
                   <div key={slide.name + idx} className="relative h-full min-w-full">
                     <GallerySlideContent slide={slide} isActive={idx === currentIndex} isPaused={paused} onInteract={() => setPaused(true)} />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pb-5 pl-5 pt-16">
-                      <p className="text-xl font-bold text-white leading-tight tracking-tight">{slide.name}</p>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/95 via-white/25 to-transparent pb-5 pl-5 pt-16 dark:from-black/80 dark:via-black/20">
+                      <p className="text-xl font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">{slide.name}</p>
                     </div>
                   </div>
                 ))}
@@ -1482,7 +1736,7 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={goPrev}
-                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-zinc-300 bg-white/90 p-2 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
                 aria-label="Previous feature"
               >
                 <ChevronLeft size={16} />
@@ -1490,7 +1744,7 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={goNext}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-zinc-300 bg-white/90 p-2 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
                 aria-label="Next feature"
               >
                 <ChevronRight size={16} />
@@ -1499,7 +1753,7 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={() => setPaused((p) => !p)}
-                className="absolute bottom-3 right-3 rounded-md border border-white/20 bg-black/40 p-1.5 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+                className="absolute bottom-3 right-3 rounded-md border border-zinc-300 bg-white/90 p-1.5 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
                 aria-label={paused ? "Resume auto slide" : "Pause auto slide"}
               >
                 {paused ? <Play size={14} /> : <Pause size={14} />}
@@ -1516,8 +1770,8 @@ export default function LandingPage() {
                     }}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
                       i === currentIndex
-                        ? "w-4 bg-amber-400"
-                        : "w-1.5 bg-white/25 hover:bg-white/40"
+                        ? "w-4 bg-amber-500 dark:bg-amber-400"
+                        : "w-1.5 bg-zinc-300 hover:bg-zinc-400 dark:bg-white/25 dark:hover:bg-white/40"
                     }`}
                     aria-label={`Go to slide ${i + 1}: ${slide.name}`}
                   />
@@ -1530,11 +1784,11 @@ export default function LandingPage() {
         {/* ── Pricing Section ──────────────────────────── */}
         <section id="pricing" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">Pricing</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">Pricing</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
               Simple, transparent pricing
             </h2>
-            <p className="mt-3 max-w-xl mx-auto text-neutral-400">
+            <p className="mt-3 max-w-xl mx-auto text-zinc-600 dark:text-neutral-400">
               Choose the plan that fits your restaurant. All plans include a 14-day free trial.
             </p>
           </div>
@@ -1545,24 +1799,24 @@ export default function LandingPage() {
                 key={tier.name}
                 className={`relative rounded-2xl border p-6 transition-all duration-300 ${
                   tier.highlighted
-                    ? "border-amber-500/30 bg-gradient-to-b from-amber-500/[0.04] to-transparent shadow-[0_0_60px_rgba(245,158,11,0.06)]"
-                    : "border-white/[0.08] bg-zinc-900/40 hover:border-white/15"
+                    ? "border-amber-400/50 bg-gradient-to-b from-amber-500/[0.08] to-transparent shadow-[0_0_40px_rgba(245,158,11,0.12)] dark:border-amber-500/30 dark:from-amber-500/[0.04] dark:shadow-[0_0_60px_rgba(245,158,11,0.06)]"
+                    : "border-zinc-200/90 bg-white/80 shadow-sm hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-white/15"
                 }`}
               >
                 {tier.highlighted && (
                   <div
                     className={cn(
-                      "absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-300/50 px-3 py-0.5 text-[11px] font-bold",
+                      "absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-800/30 px-3 py-0.5 text-[11px] font-bold dark:border-amber-400/40",
                       DASH_PRIMARY_CTA,
                     )}
                   >
                     Most Popular
                   </div>
                 )}
-                <h3 className="text-lg font-bold text-white">{tier.name}</h3>
-                <p className="mt-1 text-sm text-neutral-500">{tier.description}</p>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{tier.name}</h3>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-500">{tier.description}</p>
                 <div className="mt-5">
-                  <span className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  <span className="text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
                     Contact for Pricing
                   </span>
                 </div>
@@ -1571,7 +1825,7 @@ export default function LandingPage() {
                   className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-bold transition-all duration-300 ${
                     tier.highlighted
                       ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.35)]"
-                      : "border border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08] hover:border-white/20"
+                      : "border border-zinc-200 bg-zinc-50 text-zinc-800 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08] dark:hover:border-white/20"
                   }`}
                 >
                   Contact Support Now
@@ -1582,10 +1836,10 @@ export default function LandingPage() {
                       <Check
                         size={14}
                         className={`mt-0.5 flex-shrink-0 ${
-                          tier.highlighted ? "text-amber-400" : "text-zinc-600"
+                          tier.highlighted ? "text-amber-600 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-600"
                         }`}
                       />
-                      <span className="text-sm text-zinc-400">{feature}</span>
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -1597,13 +1851,13 @@ export default function LandingPage() {
         {/* ── About Section ────────────────────────────── */}
         <section id="about" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-14">
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">About</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">About</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
               Our Mission
             </h2>
-            <p className="mt-4 max-w-2xl mx-auto text-lg leading-relaxed text-neutral-400">
+            <p className="mt-4 max-w-2xl mx-auto text-lg leading-relaxed text-zinc-600 dark:text-neutral-400">
               We believe every restaurant deserves the tools that were once only available to major chains.
-              Rasvia is on a mission to democratize restaurant technology — making real-time operations,
+              Rasvia is on a mission to democratize restaurant technology - making real-time operations,
               seamless payments, and smart guest experiences accessible to every restaurant, from family-owned
               spots to high-volume venues.
             </p>
@@ -1615,7 +1869,7 @@ export default function LandingPage() {
               {FOUNDERS.map((founder) => (
                 <div
                   key={founder.name}
-                  className="group rounded-2xl border border-white/[0.08] bg-zinc-900/40 p-6 text-center transition-all duration-300 hover:border-white/15 hover:bg-zinc-900/60"
+                  className="group rounded-2xl border border-zinc-200/90 bg-white/80 p-6 text-center shadow-sm transition-all duration-300 hover:border-zinc-300 hover:bg-white dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-white/15 dark:hover:bg-zinc-900/60"
                 >
                   <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full">
                     {founder.imageSrc ? (
@@ -1626,9 +1880,9 @@ export default function LandingPage() {
                       </div>
                     )}
                   </div>
-                  <h3 className="text-lg font-bold text-white">{founder.name}</h3>
-                  <p className="mt-1 text-sm font-medium text-amber-400/70">{founder.role}</p>
-                  <p className="mt-3 text-sm leading-relaxed text-neutral-500">{founder.bio}</p>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{founder.name}</h3>
+                  <p className="mt-1 text-sm font-medium text-amber-700/90 dark:text-amber-400/70">{founder.role}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">{founder.bio}</p>
                 </div>
               ))}
             </div>
@@ -1636,30 +1890,38 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="mt-24 border-t border-white/[0.06]">
+      <footer className="mt-24 border-t border-zinc-200/90 dark:border-white/[0.06]">
         <div className="mx-auto max-w-7xl px-6 pt-16 pb-8">
           <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
-              <img src="/rasvia-logo.png" alt="Rasvia" className="h-7 w-auto" />
-              <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-neutral-500">
+              <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-7 w-auto dark:hidden" />
+              <img
+                src="/rasvia-logo.png"
+                alt="Rasvia"
+                className="hidden h-7 w-auto dark:block dark:brightness-110"
+              />
+              <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">
                 Built for restaurants. Loved by guests.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <p className="text-sm font-medium text-white">Product</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">Product</p>
               <ul className="mt-4 flex flex-col gap-3">
-                {["Waitlists", "Group Carts", "Fast Payouts"].map((link) => (
-                  <li key={link}>
-                    <button type="button" className="text-sm text-neutral-500 transition-colors hover:text-white cursor-default">
-                      {link}
-                    </button>
+                {MARKETING_NAV_PRODUCTS.map((item) => (
+                  <li key={item.slug}>
+                    <a
+                      href={getMarketingProductPath(item.slug)}
+                      className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white"
+                    >
+                      {item.footerLabel ?? item.name}
+                    </a>
                   </li>
                 ))}
                 <li>
-                  <button type="button" onClick={() => scrollToSection("pricing")} className="text-sm text-neutral-500 transition-colors hover:text-white">
+                  <button type="button" onClick={() => scrollToSection("pricing")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">
                     Pricing
                   </button>
                 </li>
@@ -1668,28 +1930,30 @@ export default function LandingPage() {
 
             {/* About */}
             <div>
-              <p className="text-sm font-medium text-white">About</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">About</p>
               <ul className="mt-4 flex flex-col gap-3">
-                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Our Mission</button></li>
-                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-neutral-500 transition-colors hover:text-white">Team</button></li>
-                <li><a href="/support" className="text-sm text-neutral-500 transition-colors hover:text-white">Contact Support</a></li>
-                <li><a href="/partner-portal" className="text-sm text-neutral-500 transition-colors hover:text-white">Partner Login</a></li>
+                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Our Mission</button></li>
+                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Team</button></li>
+                <li><a href="/support" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Contact Support</a></li>
+                <li><a href="/partner-portal" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Partner Login</a></li>
               </ul>
             </div>
 
             {/* Legal */}
             <div>
-              <p className="text-sm font-medium text-white">Legal</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">Legal</p>
               <ul className="mt-4 flex flex-col gap-3">
-                <li><a href="/privacy" className="text-sm text-neutral-500 transition-colors hover:text-white">Privacy Policy</a></li>
-                <li><a href="/terms" className="text-sm text-neutral-500 transition-colors hover:text-white">Terms of Service</a></li>
+                <li><a href="/privacy" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Privacy Policy</a></li>
+                <li><a href="/terms" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Terms of Service</a></li>
               </ul>
             </div>
           </div>
 
-          <div className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-8">
-            <p className="text-sm text-neutral-600">&copy; {new Date().getFullYear()} Rasvia, Inc. All rights reserved.</p>
-            <p className="text-xs text-neutral-700">Built with care for the restaurant industry.</p>
+          <div className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/90 pt-8 dark:border-white/[0.06]">
+            <p className="text-sm text-zinc-500 dark:text-neutral-600">
+              {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
+            </p>
+            <p className="text-xs text-zinc-400 dark:text-neutral-700">Built with care for the restaurant industry.</p>
           </div>
         </div>
       </footer>

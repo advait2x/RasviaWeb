@@ -800,7 +800,7 @@ export default function SettingsPanel() {
                       <Upload size={18} strokeWidth={1.5} className="text-zinc-500" />
                     </div>
                     <p className="text-xs font-medium text-zinc-500">Click to upload restaurant photo</p>
-                    <p className="text-[10px] text-zinc-600">JPG, PNG, or WebP — saved when you use Save Changes</p>
+                    <p className="text-[10px] text-zinc-600">JPG, PNG, or WebP - saved when you use Save Changes</p>
                   </motion.button>
                 )}
               </div>
@@ -818,7 +818,7 @@ export default function SettingsPanel() {
                         value={val}
                         onChange={(e) => editing && setDraft((d) => ({ ...d, [key]: e.target.value }))}
                         readOnly={!editing}
-                        placeholder={editing ? placeholder : "—"}
+                        placeholder={editing ? placeholder : "-"}
                         rows={3}
                         className={`w-full rounded-lg border text-sm px-3 py-2 focus:outline-none resize-none transition-colors ${editing
                           ? "bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
@@ -830,7 +830,7 @@ export default function SettingsPanel() {
                         value={val}
                         onChange={(e) => editing && setDraft((d) => ({ ...d, [key]: e.target.value }))}
                         readOnly={!editing}
-                        placeholder={editing ? placeholder : "—"}
+                        placeholder={editing ? placeholder : "-"}
                         className={`h-10 transition-colors ${editing
                           ? "bg-zinc-800/60 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50"
                           : "bg-zinc-900/40 border-white/5 text-zinc-500 cursor-default"
@@ -841,7 +841,7 @@ export default function SettingsPanel() {
                 );
               })}
 
-              {/* Phone number — only editable while profile edit mode is on */}
+              {/* Phone number - only editable while profile edit mode is on */}
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
                   <Phone size={12} strokeWidth={1.5} />
@@ -880,7 +880,7 @@ export default function SettingsPanel() {
                   )}
                 </div>
                 {cuisineOptionList.length === 0 && !showOtherInput ? (
-                  <p className="text-xs text-zinc-600 py-1">No cuisine options — use Other to add a tag.</p>
+                  <p className="text-xs text-zinc-600 py-1">No cuisine options - use Other to add a tag.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {cuisineOptionList.map((c) => {
@@ -1111,7 +1111,7 @@ export default function SettingsPanel() {
               </h3>
               <p className="text-xs text-zinc-500 mt-0.5">
                 {hoursLoaded && hours === null
-                  ? "No hours set yet — add your hours and save them to the app"
+                  ? "No hours set yet - add your hours and save them to the app"
                   : "Shown to guests in the Rasvia mobile app"}
               </p>
             </div>

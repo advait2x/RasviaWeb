@@ -18,7 +18,7 @@ export interface MenuTagDialogProps {
   open: boolean;
   mode: Mode;
   tags: MenuTagConfig[];
-  /** The tag being edited (mode="edit") — used to seed state. */
+  /** The tag being edited (mode="edit") - used to seed state. */
   editingTag?: MenuTagConfig;
   onClose: () => void;
   /** Called with the full next list of tags (already including the add/edit). */

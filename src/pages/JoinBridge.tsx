@@ -1,5 +1,5 @@
 // src/pages/JoinBridge.tsx
-// Group Order Bridge — web (schema_version = 2).
+// Group Order Bridge - web (schema_version = 2).
 // Four stages: Name entry → Browse & Add → Review & Split / Pay & Wait → Success.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -142,7 +142,7 @@ export default function JoinBridge() {
   // if both are set, else any available display_name / full_name metadata).
   // We deliberately do NOT fall back to a device-cached "last display name"
   // here, since that leaks whatever name the previous user of this browser
-  // typed to the next person who joins a group order — when signed out the
+  // typed to the next person who joins a group order - when signed out the
   // field should start blank and make them type their own name.
   useEffect(() => {
     if (nameInput.trim().length > 0) return;
@@ -186,11 +186,11 @@ export default function JoinBridge() {
         if (cancelled) return;
         if (candidate) setNameInput(candidate);
       } catch {
-        /* ignore — stay blank */
+        /* ignore - stay blank */
       }
     })();
     return () => { cancelled = true; };
-    // Run once on mount — pre-fill is a best-effort initial value; if the
+    // Run once on mount - pre-fill is a best-effort initial value; if the
     // user starts typing their own name we stop overriding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -274,7 +274,7 @@ export default function JoinBridge() {
     if (!checkoutStatus || checkoutAckRef.current) return;
     checkoutAckRef.current = true;
     if (checkoutStatus === "success") {
-      toast.success("Payment received — hang tight!");
+      toast.success("Payment received - hang tight!");
     } else if (checkoutStatus === "cancel") {
       toast("Payment cancelled.");
     } else if (checkoutStatus === "error") {
@@ -306,7 +306,7 @@ export default function JoinBridge() {
       savePartyCreds(next);
       await loadAll();
     } catch (err) {
-      // Surface the error in-page too — a Sonner toast in the bottom-right
+      // Surface the error in-page too - a Sonner toast in the bottom-right
       // is easy to miss on mobile when the virtual keyboard is up.
       const message = err instanceof Error ? err.message : "Unable to join.";
       console.error("party join failed", err);
@@ -326,7 +326,7 @@ export default function JoinBridge() {
       showCartLockToast();
       return;
     }
-    // Optimistically bump the badge so the UI responds instantly — Supabase's
+    // Optimistically bump the badge so the UI responds instantly - Supabase's
     // RPC round-trip can take a few hundred ms which feels laggy otherwise.
     setPendingAdds((prev) => ({ ...prev, [menuItemId]: (prev[menuItemId] ?? 0) + 1 }));
     return wrapMutation(
@@ -379,7 +379,7 @@ export default function JoinBridge() {
   const handleLock = async () => {
     if (items.length === 0) { toast.error("Add at least one item before checkout."); return; }
     setBusy(true);
-    try { await lockSession(supabase, creds!); toast.success("Cart locked — collecting payments."); }
+    try { await lockSession(supabase, creds!); toast.success("Cart locked - collecting payments."); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Could not lock cart"); }
     finally { setBusy(false); }
   };
@@ -425,7 +425,7 @@ export default function JoinBridge() {
     setBusy(true);
     try {
       const result = await cancelSession(supabase, creds!);
-      toast.success(`Cancelled — ${result.refunded} payment${result.refunded === 1 ? "" : "s"} refunded.`);
+      toast.success(`Cancelled - ${result.refunded} payment${result.refunded === 1 ? "" : "s"} refunded.`);
       clearPartyCreds(sessionId);
       window.location.href = "/";
     } catch (err) {
@@ -651,7 +651,7 @@ export default function JoinBridge() {
     );
   }
 
-  // Tableside (staff-managed) — guests can't add items, the waiter takes the
+  // Tableside (staff-managed) - guests can't add items, the waiter takes the
   // order on their dashboard. Show a compact "hang tight" view with the
   // table roster and whatever is already on the guest's check.
   if (session.staff_managed && !isHost) {
@@ -673,7 +673,7 @@ export default function JoinBridge() {
               You're on the table
             </div>
             <p className="mt-1 text-sm text-zinc-300">
-              Just tell your server what you'd like — they'll add it to your check from their tablet.
+              Just tell your server what you'd like - they'll add it to your check from their tablet.
               When the waiter locks the cart, your "Pay my share" button will appear here.
             </p>
           </div>
@@ -701,7 +701,7 @@ export default function JoinBridge() {
             </div>
             {myItems.length === 0 ? (
               <p className="mt-2 rounded-xl border border-dashed border-white/10 bg-zinc-900/40 px-3 py-4 text-center text-xs text-zinc-500">
-                Nothing on your check yet — flag down your server and they'll add it here.
+                Nothing on your check yet - flag down your server and they'll add it here.
               </p>
             ) : (
               <ul className="mt-3 space-y-2">
@@ -985,7 +985,7 @@ function MenuRow({ item, inCartCount, onAdd, cartLocked }: { item: MenuItemRow; 
       {item.image_url ? (
         <img src={item.image_url} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl object-cover" loading="lazy" />
       ) : (
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">—</div>
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">-</div>
       )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-bold">{item.name}</div>
@@ -1064,7 +1064,7 @@ function CartStrip(props: {
             <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
               <ul className="max-h-[40vh] overflow-y-auto px-4 pb-2">
                 {props.items.length === 0 ? (
-                  <li className="py-6 text-center text-sm text-zinc-500">No items yet — add something from the menu.</li>
+                  <li className="py-6 text-center text-sm text-zinc-500">No items yet - add something from the menu.</li>
                 ) : (
                   props.items.map((it) => {
                     const canEdit = (it.added_by_member_id === props.selfMemberId || props.isHost) && !props.guestCartLocked;
@@ -1379,7 +1379,7 @@ function NameEntryScreen({
           className="mt-5 w-full rounded-xl border border-white/10 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
           maxLength={60}
         />
-        {/* Inline error — the Sonner toast can be easy to miss, especially on
+        {/* Inline error - the Sonner toast can be easy to miss, especially on
             mobile with the keyboard up, so show it right under the button. */}
         {joinError && (
           <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300">

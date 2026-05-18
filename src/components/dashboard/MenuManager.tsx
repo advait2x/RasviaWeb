@@ -180,7 +180,7 @@ function ItemFormDialog({
     });
 
     if (error) {
-      setUploadError("Upload failed — paste a URL instead, or create the 'menu-images' bucket in Supabase Storage.");
+      setUploadError("Upload failed - paste a URL instead, or create the 'menu-images' bucket in Supabase Storage.");
       setUploading(false);
       return;
     }
@@ -1362,7 +1362,7 @@ export default function MenuManager() {
                       </div>
                     )}
 
-                    {/* Meal time badges — dedupe by tag label so legacy rows
+                    {/* Meal time badges - dedupe by tag label so legacy rows
                         that stored both "entree" and an equivalent tag key
                         don't render the same chip twice. */}
                     {item.mealTimes.length > 0 && (() => {
@@ -1430,7 +1430,7 @@ export default function MenuManager() {
         </div>
       </ScrollArea>
 
-      {/* Add / Edit form dialog — key forces remount when switching items */}
+      {/* Add / Edit form dialog - key forces remount when switching items */}
       <ItemFormDialog
         key={editingItem?.id ?? "new"}
         open={showForm}

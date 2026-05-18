@@ -60,7 +60,7 @@ export function WaitTimeWidget() {
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />
           <div className="flex items-baseline gap-0">
-            <span className={numberClass}>—</span>
+            <span className={numberClass}>-</span>
             <span className="pl-[3px] text-[11px] font-medium leading-none text-zinc-500">min</span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.03]" />

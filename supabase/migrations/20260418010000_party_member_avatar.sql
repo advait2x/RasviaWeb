@@ -29,7 +29,7 @@ UPDATE public.party_members m
    AND p.avatar_url IS NOT NULL;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- party_join_session — capture avatar_url alongside display name / token
+-- party_join_session - capture avatar_url alongside display name / token
 --
 -- Mirrors the v2_fixes version (20260417150000_party_v2_fixes.sql) so we
 -- preserve:

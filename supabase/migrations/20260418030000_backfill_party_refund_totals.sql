@@ -23,7 +23,7 @@ WITH per_order AS (
   WHERE o.party_session_id IS NOT NULL
   GROUP BY o.id
 )
--- Only touch the refund tracking columns — `orders.status` has a CHECK
+-- Only touch the refund tracking columns - `orders.status` has a CHECK
 -- constraint that predates 'refunded' as a value on some databases, so we let
 -- the dashboard derive "fully refunded" from refunded_amount_cents vs total.
 UPDATE public.orders o

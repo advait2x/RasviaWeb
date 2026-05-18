@@ -12,7 +12,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 1. party_sessions — lifecycle columns and wider payment_mode check
+-- 1. party_sessions - lifecycle columns and wider payment_mode check
 -- ────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE public.party_sessions
@@ -45,10 +45,10 @@ COMMENT ON COLUMN public.party_sessions.submitted_order_id IS
   'ID of the consolidated orders row created once the ledger is fully settled.';
 
 -- Accept new session status values (open, locked, paying, submitted, completed, cancelled)
--- No CHECK constraint on status currently — we validate in RPCs.
+-- No CHECK constraint on status currently - we validate in RPCs.
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 2. party_members — explicit membership (host + guests + authed users)
+-- 2. party_members - explicit membership (host + guests + authed users)
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.party_members (
@@ -80,10 +80,10 @@ CREATE POLICY "party_members_public_read"
   ON public.party_members
   FOR SELECT
   USING (true);
--- No direct INSERT/UPDATE/DELETE policies — all mutations go through SECURITY DEFINER RPCs.
+-- No direct INSERT/UPDATE/DELETE policies - all mutations go through SECURITY DEFINER RPCs.
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 3. party_items — new split / assigned columns linked to party_members
+-- 3. party_items - new split / assigned columns linked to party_members
 -- ────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE public.party_items
@@ -108,7 +108,7 @@ CREATE POLICY "party_items_public_delete"
   ON public.party_items FOR DELETE USING (true);
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 4. party_payments — the settlement ledger
+-- 4. party_payments - the settlement ledger
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.party_payments (
@@ -158,7 +158,7 @@ CREATE POLICY "party_payments_public_read"
   USING (true);
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 5. Helper functions — token auth + JSON serialization
+-- 5. Helper functions - token auth + JSON serialization
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public._party_hash_token(p_token text)
@@ -650,7 +650,7 @@ END;
 $$;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 8. Lock / unlock — compute totals and build the ledger
+-- 8. Lock / unlock - compute totals and build the ledger
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public._party_compute_ledger(p_session_id uuid)
@@ -976,7 +976,7 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'settled', true, 'fully_settled', false, 'session_id', v_row.session_id);
   END IF;
 
-  -- All paid/covered — build consolidated order (idempotent on submitted_order_id).
+  -- All paid/covered - build consolidated order (idempotent on submitted_order_id).
   IF v_session.submitted_order_id IS NOT NULL THEN
     RETURN jsonb_build_object('ok', true, 'settled', true, 'fully_settled', true,
                               'session_id', v_row.session_id,

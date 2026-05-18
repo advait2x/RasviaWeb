@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            // Fall through: no platform role / plain user — check restaurant_staff table
+            // Fall through: no platform role / plain user - check restaurant_staff table
             await fetchStaffData(userId, seq);
         } catch (error) {
             console.error("Unexpected error in fetchUserData:", error);
@@ -197,7 +197,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const fetchStaffPermissions = async (userId: string, restaurantId: number | null, seq: number) => {
         if (seq !== fetchSeqRef.current) return;
         if (!restaurantId) {
-            // Owner with no restaurant yet — give them all permissions
+            // Owner with no restaurant yet - give them all permissions
             setPermissions(allPermissionKeys);
             return;
         }
@@ -237,7 +237,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (staffError) {
             console.error("Error fetching staff data:", staffError.message);
-            // Not a staff member — treat as unprivileged user
+            // Not a staff member - treat as unprivileged user
             setUserRole("user");
             setPermissions([]);
             setRestaurantId(null);

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-/** @deprecated Route removed — redirects into partner portal Settings (Partner tab). */
+/** @deprecated Route removed - redirects into partner portal Settings (Partner tab). */
 export default function PartnerProfilePage() {
   useEffect(() => {
     try {

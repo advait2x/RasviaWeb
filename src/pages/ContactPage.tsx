@@ -41,7 +41,7 @@ export default function ContactPage() {
         </div>
 
         <p className="mt-10 text-sm text-neutral-600">
-          &copy; {new Date().getFullYear()} Rasvia, Inc.
+          {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
         </p>
       </div>
     </div>

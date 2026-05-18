@@ -61,7 +61,7 @@ serve(async (req) => {
         await handleChargeRefunded(event.data.object as Stripe.Charge, supabase)
         break
       default:
-        // Unhandled event — ACK so Stripe doesn't retry.
+        // Unhandled event - ACK so Stripe doesn't retry.
         break
     }
     return new Response(JSON.stringify({ received: true }), { status: 200 })
@@ -115,7 +115,7 @@ async function handleCheckoutCompleted(
     return
   }
 
-  // Legacy path — solo + party v1.
+  // Legacy path - solo + party v1.
   const { data: order, error: findErr } = await supabase
     .from('orders')
     .select('id, order_type, party_session_id, subtotal, restaurant_id, status')
@@ -147,7 +147,7 @@ async function handleCheckoutCompleted(
       throw new Error(`Failed to update order status: ${updateErr.message}`)
     }
   } else if (paymentIntentId) {
-    // Order already advanced (replay) — still make sure the payment intent is
+    // Order already advanced (replay) - still make sure the payment intent is
     // stored so refunds work.
     await supabase
       .from('orders')

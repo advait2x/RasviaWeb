@@ -113,7 +113,7 @@ export default function AddWalkInModal({ open, onClose }: AddWalkInModalProps) {
             />
           </div>
 
-          {/* Phone + Party Size — side by side */}
+          {/* Phone + Party Size - side by side */}
           <div className="flex gap-3">
             {/* Phone */}
             <div className="flex-1 space-y-1.5">

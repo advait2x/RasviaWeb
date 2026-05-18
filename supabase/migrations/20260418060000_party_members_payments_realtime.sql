@@ -8,7 +8,7 @@
 -- Cause: the `party_join_session` / `party_create_payment` RPCs insert the
 -- rows correctly, RLS on the tables is `USING (true)`, and both clients
 -- subscribe via `supabase.channel(...).on('postgres_changes', { table: 'party_members' })`
--- — but the Supabase Realtime server only relays `postgres_changes` events
+-- - but the Supabase Realtime server only relays `postgres_changes` events
 -- for tables that are published through the `supabase_realtime` publication.
 --
 -- `party_items` and `party_sessions` were added to that publication in

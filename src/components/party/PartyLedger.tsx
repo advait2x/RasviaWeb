@@ -1,5 +1,5 @@
 // src/components/party/PartyLedger.tsx
-// Web equivalent of mobile PartyLedger — live payment progress with animated status pills.
+// Web equivalent of mobile PartyLedger - live payment progress with animated status pills.
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Clock, Crown, AlertCircle, RefreshCcw } from "lucide-react";

@@ -84,7 +84,7 @@ export type PartySession = {
   /**
    * True when the session is a tableside QR session owned by restaurant
    * staff (the waiter joins as host). Guests can join and pay, but cannot
-   * add or edit menu items — the server enforces `host_only` on
+   * add or edit menu items - the server enforces `host_only` on
    * `party_add_item`, and the UI hides the menu browse for guests.
    */
   staff_managed?: boolean;
@@ -110,7 +110,7 @@ export type PartyCreds = {
 
 export type JoinResult = {
   member_id: string;
-  /** Opaque bearer; null when re-joining an existing row — reuse `existing.memberToken`. */
+  /** Opaque bearer; null when re-joining an existing row - reuse `existing.memberToken`. */
   member_token: string | null;
   role: 'host' | 'member';
   session_id: string;
@@ -164,7 +164,7 @@ export async function reissuePartyMemberToken(
 
 /**
  * Same as {@link credsFromJoinResult}, but when the server omits `member_token`
- * on rejoin, never trust a stale cached bearer alone for signed-in users — we
+ * on rejoin, never trust a stale cached bearer alone for signed-in users - we
  * ask `party_reissue_member_token` first so the hash matches Postgres.
  */
 export async function completeJoinCredentials(
@@ -203,7 +203,7 @@ export type StartCheckoutResult = {
 // Session discovery / creation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Fetch the session row (no member_token required — public SELECT).
+// Fetch the session row (no member_token required - public SELECT).
 export async function fetchSessionHeader(supabase: SupabaseClient, sessionId: string): Promise<PartySession | null> {
   const { data, error } = await supabase
     .from('party_sessions')
@@ -214,9 +214,9 @@ export async function fetchSessionHeader(supabase: SupabaseClient, sessionId: st
   return (data as PartySession | null) ?? null;
 }
 
-// Host creates a party session (authenticated users only — enforced by RLS).
+// Host creates a party session (authenticated users only - enforced by RLS).
 // Pass `staffManaged: true` when a restaurant waiter (not a dining guest)
-// is starting a tableside session — it blocks guest cart edits server-side.
+// is starting a tableside session - it blocks guest cart edits server-side.
 export async function createSession(
   supabase: SupabaseClient,
   restaurantId: number,
@@ -299,7 +299,7 @@ export async function addItem(
 /**
  * Host-only: add a menu item to the cart **attributed to a specific guest
  * member** (so `added_by_member_id` points at the guest, not the host).
- * Used by the tableside waiter UI when taking an order for a table —
+ * Used by the tableside waiter UI when taking an order for a table -
  * without it, per_person / assigned ledger math would credit the waiter.
  * `forMemberId = null` attributes to the host themselves.
  */
@@ -506,7 +506,7 @@ async function extractCheckoutError(error: unknown): Promise<CheckoutErrorShape>
         }
       }
     } catch {
-      // ignore — fall through to the generic message below
+      // ignore - fall through to the generic message below
     }
   }
   return { message: anyErr?.message || fallback.message };
@@ -584,7 +584,7 @@ export async function fetchSnapshot(
   if (payRes.error) throw new Error(payRes.error.message);
 
   // `party_members.avatar_url` is captured at join time by the
-  // `party_join_session` RPC — we can't JOIN `profiles` from the web because
+  // `party_join_session` RPC - we can't JOIN `profiles` from the web because
   // unauthenticated guests (and even authed members looking at each other)
   // are blocked by RLS. For the caller themselves we still try to fetch
   // from `profiles` as a fallback (e.g. a legacy row that joined before the
@@ -631,13 +631,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   session_not_found: 'This group order no longer exists.',
   session_cancelled: 'The host cancelled this group order.',
   session_closed: 'This group order has ended.',
-  session_not_open: 'The cart is closed — ask the host to unlock it to add more items.',
+  session_not_open: 'The cart is closed - ask the host to unlock it to add more items.',
   session_locked_or_closed: 'The cart is no longer editable.',
   host_only: 'Only the host can do that.',
   forbidden: 'You cannot modify that item.',
   empty_cart: 'Add at least one item before checking out.',
   cannot_unlock: 'The session cannot be unlocked right now.',
-  payments_in_progress: 'Cannot unlock — payments are already in progress.',
+  payments_in_progress: 'Cannot unlock - payments are already in progress.',
   cannot_leave_after_paying: 'You have already paid and cannot leave the group.',
   invalid_payment_mode: 'That payment mode is not supported.',
   invalid_split_members: 'One or more selected members are no longer in the group.',

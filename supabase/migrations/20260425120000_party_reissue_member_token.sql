@@ -1,6 +1,6 @@
 -- Re-issue a plaintext member_token when the authenticated user already has a
 -- party_members row but lost local storage (e.g. new device). Rotates
--- member_token_hash — other clients using the old bearer will need to rejoin.
+-- member_token_hash - other clients using the old bearer will need to rejoin.
 CREATE OR REPLACE FUNCTION public.party_reissue_member_token(p_session_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql

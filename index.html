@@ -4,8 +4,34 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/rasvia-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Rasvia — Built for restaurants. Loved by guests." />
+    <meta name="description" content="Rasvia - Built for restaurants. Loved by guests." />
     <title>Rasvia</title>
+    <!-- Apply saved/system theme before React paints so Tailwind `dark:` and CSS vars match immediately. -->
+    <script>
+      (function () {
+        try {
+          var key = "rasvia:web:theme-mode";
+          var mode = localStorage.getItem(key);
+          if (mode !== "light" && mode !== "dark" && mode !== "system") mode = "system";
+          var resolved =
+            mode === "dark"
+              ? "dark"
+              : mode === "light"
+                ? "light"
+                : window.matchMedia("(prefers-color-scheme: dark)").matches
+                  ? "dark"
+                  : "light";
+          var root = document.documentElement;
+          root.setAttribute("data-theme-mode", mode);
+          root.setAttribute("data-theme", resolved);
+          root.style.colorScheme = resolved;
+          root.classList.toggle("dark", resolved === "dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
   </head>
   <body style="margin: 0; background: #0a0a0a; color: #fafafa">
     <div id="root"></div>

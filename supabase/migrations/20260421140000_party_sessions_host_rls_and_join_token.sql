@@ -14,7 +14,7 @@ ALTER TABLE public.party_items
 
 -- Hosts must be able to INSERT/UPDATE/DELETE their own party_sessions rows
 -- (tableside "end session", mobile cancel, etc.). Some databases only had a
--- public SELECT policy — PostgREST then returns 0 rows affected with no throw.
+-- public SELECT policy - PostgREST then returns 0 rows affected with no throw.
 --
 -- Re-joining the same session must NOT rotate party_members.member_token_hash;
 -- otherwise every party_join_session call invalidates other tabs / stale

@@ -1,4 +1,4 @@
-// [build] Partner chrome — full interactive UI lives at /partner-portal (requires auth).
+// [build] Partner chrome - full interactive UI lives at /partner-portal (requires auth).
 import { AppShell } from "@/components/layout/AppShell";
 
 const meta = {

@@ -39,7 +39,7 @@ async function qrDataUrlWithCenterLogo(link: string): Promise<string> {
     logo.src = logoHref;
   });
 
-  /** ~38% of QR — errorCorrectionLevel H keeps scans reliable */
+  /** ~38% of QR - errorCorrectionLevel H keeps scans reliable */
   const maxLogo = QR_CANVAS_PX * 0.38;
   const pad = QR_CANVAS_PX * 0.022;
   const scale = Math.min(maxLogo / logo.naturalWidth, maxLogo / logo.naturalHeight);

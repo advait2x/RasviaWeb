@@ -8,7 +8,7 @@
 //
 // Flow:
 //   1. Verify caller is the host via party_members.member_token_hash (sha256).
-//   2. Call party_cancel_session RPC — returns list of refundable payment ids.
+//   2. Call party_cancel_session RPC - returns list of refundable payment ids.
 //   3. For each refundable row with stripe_payment_intent, call Stripe refunds.
 //   4. For each, call party_mark_refunded RPC.
 //

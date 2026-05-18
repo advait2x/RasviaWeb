@@ -1,8 +1,8 @@
-# AGENTS.md — RasviaWeb (Restaurant Dashboard & Website)
+# AGENTS.md - RasviaWeb (Restaurant Dashboard & Website)
 
 ## Project Overview
 
-RasviaWeb is the **web dashboard and public website** for Rasvia — a restaurant management platform. It includes a public landing page, restaurant owner partner portal, admin dashboard with floor plan management, order management, menu editing, team/role management, Stripe Connect for payouts, and real-time order feeds. It also hosts the kiosk/join flow for group dining sessions.
+RasviaWeb is the **web dashboard and public website** for Rasvia - a restaurant management platform. It includes a public landing page, restaurant owner partner portal, admin dashboard with floor plan management, order management, menu editing, team/role management, Stripe Connect for payouts, and real-time order feeds. It also hosts the kiosk/join flow for group dining sessions.
 
 ## Tech Stack
 
@@ -99,9 +99,9 @@ RasviaWeb/
 
 The auth system uses a **three-tier role hierarchy**:
 
-1. **Admin** (`profiles.role = 'admin'`) — Full access to all restaurants via a restaurant switcher
-2. **Restaurant Owner** (`profiles.role = 'restaurant_owner'`) — Scoped to their owned restaurant
-3. **Staff** (via `restaurant_staff` table) — Scoped to their linked restaurant with per-operation permissions
+1. **Admin** (`profiles.role = 'admin'`) - Full access to all restaurants via a restaurant switcher
+2. **Restaurant Owner** (`profiles.role = 'restaurant_owner'`) - Scoped to their owned restaurant
+3. **Staff** (via `restaurant_staff` table) - Scoped to their linked restaurant with per-operation permissions
 
 Permissions are granular and defined in `types/dashboard.ts`:
 - `manage_menu`, `manage_orders`, `manage_tables`, `manage_waitlist`
@@ -123,12 +123,12 @@ The `AuthContext` cascade:
 ### Stripe Integration
 
 - **Stripe Connect** for restaurant payouts (Express accounts)
-- `create-stripe-account` — Creates Express account + generates onboarding link
-- `check-stripe-status` — Checks payout capability by `restaurant_id` (server resolves Stripe account id)
-- `manage-tax-settings` — Reads and updates Stripe Tax head-office settings + US registrations for a restaurant's connected account
-- `create-checkout` — Creates Checkout Sessions for customer payments
-- `stripe-webhook` — Handles `checkout.session.completed` events
-- `payment-redirect` — Post-checkout 302 redirect to app/web
+- `create-stripe-account` - Creates Express account + generates onboarding link
+- `check-stripe-status` - Checks payout capability by `restaurant_id` (server resolves Stripe account id)
+- `manage-tax-settings` - Reads and updates Stripe Tax head-office settings + US registrations for a restaurant's connected account
+- `create-checkout` - Creates Checkout Sessions for customer payments
+- `stripe-webhook` - Handles `checkout.session.completed` events
+- `payment-redirect` - Post-checkout 302 redirect to app/web
 
 ### Edge Function Security
 
@@ -204,34 +204,38 @@ Current repo defaults:
 
 - **UI Components**: Use shadcn/ui components from `src/components/ui/`. These are Radix-based and styled with Tailwind.
 - **Class merging**: Always use `cn()` from `lib/utils.ts` for conditional Tailwind classes
-- **Color palette**: Dark theme — bg-zinc-900/950, text-zinc-100, accent amber-500/orange-500
+- **Color palette**: Dark theme - bg-zinc-900/950, text-zinc-100, accent amber-500/orange-500
 - **File naming**: PascalCase for components, kebab-case for utils/hooks
-- **Error display**: Use `toast` from `sonner` — never use `alert()` or `window.alert()`
+- **Error display**: Use `toast` from `sonner` - never use `alert()` or `window.alert()`
 - **No `console.log` in production**: Use `console.error` for actual errors only
 - **State updates**: Use `fetchSeqRef` pattern to prevent stale data from overwriting fresh fetches
 - **Supabase queries**: Always use `.maybeSingle()` instead of `.single()` when the row might not exist
 
 ## Common Gotchas
 
-1. **`DashboardContext` is large** (~79KB) — it manages the entire dashboard state. Be careful with changes.
-2. **Auth event `SIGNED_IN` fires on tab focus** — the `AuthContext` prevents unnecessary refetches by comparing user IDs
-3. **`localStorage` is used for admin restaurant selection** — key is `rasvia_admin_active_restaurant_id`
-4. **Types in `data/mock-data.ts`** — provides initial table layout data for the floor plan
-5. **The `stories/` directory** contains Storybook stories for UI testing — not part of production
-6. **Edge functions share code between Rasvia1 and RasviaWeb** — `create-checkout` and `payment-redirect` exist in both repos and should be kept in sync
-7. **Receipt print HTML must be escaped** — never inject unsanitized order/user fields into the print window markup
-8. **`chart.tsx` uses `dangerouslySetInnerHTML`** — this is the standard shadcn/ui pattern for injecting CSS variables into a `<style>` tag; the values come from the config object, not user input
-9. **Broken remote refs can block `git fetch` / `git pull`** — if Git reports `fatal: bad object refs/remotes/origin/HEAD 2`, inspect `.git/refs/remotes/origin/` and `.git/logs/refs/remotes/origin/` for a stray malformed `HEAD 2` ref, remove only that local bookkeeping file, then rerun `git fetch origin`
+1. **`DashboardContext` is large** (~79KB) - it manages the entire dashboard state. Be careful with changes.
+2. **Auth event `SIGNED_IN` fires on tab focus** - the `AuthContext` prevents unnecessary refetches by comparing user IDs
+3. **`localStorage` is used for admin restaurant selection** - key is `rasvia_admin_active_restaurant_id`
+4. **Types in `data/mock-data.ts`** - provides initial table layout data for the floor plan
+5. **The `stories/` directory** contains Storybook stories for UI testing - not part of production
+6. **Edge functions share code between Rasvia1 and RasviaWeb** - `create-checkout` and `payment-redirect` exist in both repos and should be kept in sync
+7. **Receipt print HTML must be escaped** - never inject unsanitized order/user fields into the print window markup
+8. **`chart.tsx` uses `dangerouslySetInnerHTML`** - this is the standard shadcn/ui pattern for injecting CSS variables into a `<style>` tag; the values come from the config object, not user input
+9. **Broken remote refs can block `git fetch` / `git pull`** - if Git reports `fatal: bad object refs/remotes/origin/HEAD 2`, inspect `.git/refs/remotes/origin/` and `.git/logs/refs/remotes/origin/` for a stray malformed `HEAD 2` ref, remove only that local bookkeeping file, then rerun `git fetch origin`
 
 ## Landing Page Navigation & Content
 
 The landing page (`LandingPage.tsx`) includes a top navbar, hero section, feature gallery, pricing section, about/founders section, and footer. All navigation categories and content data are defined as constants at the top of the file for easy editing.
 
+Theme follows the global `ThemeProvider` (`rasvia:web:theme-mode` on `document.documentElement`). The navbar uses `ThemeIconToggle` (desktop + mobile “Appearance” row). Marketing sections use light surfaces as the default (`bg-zinc-50`, white cards) with `dark:` variants; feature-gallery mockups stay dark-themed inside their shells.
+
+**Product marketing pages:** Copy and nav metadata live in `src/data/marketing-products.ts`. Routes: `/products` (hub), `/products/waitlists-kiosk`, `/products/tableside-qr`, `/products/kitchen`, `/products/menu-qr`, `/products/reports`. Layout: `src/components/marketing/MarketingLayout.tsx` (shared header/footer). `App.tsx` wires these paths before the default `/` landing render.
+
 ### Navbar Categories
 
 | Category | Type | Content |
 |----------|------|---------|
-| **Products** | Hover dropdown | Waitlists, Group Carts, Fast Payouts (matches footer) |
+| **Products** | Hover dropdown | Links to each `/products/...` page + hub (`MARKETING_NAV_PRODUCTS`) |
 | **Pricing** | Anchor link | Scrolls to `#pricing` section |
 | **About** | Anchor link | Scrolls to `#about` section |
 
@@ -250,12 +254,12 @@ Edit the `PRICING_TIERS` array at the top of `LandingPage.tsx` to update tier na
 ### Founder Data (`FOUNDERS`)
 
 The `FOUNDERS` array contains 3 entries with these fields:
-- `name` — display name
-- `role` — title (e.g. "CEO & Co-Founder")
-- `bio` — short biography
-- `initials` — 2-letter initials for the avatar fallback
-- `gradient` — Tailwind gradient classes for the avatar background
-- `imageSrc` — set to a real image path (e.g. `"/founders/arjun.jpg"`) to replace the initials avatar
+- `name` - display name
+- `role` - title (e.g. "CEO & Co-Founder")
+- `bio` - short biography
+- `initials` - 2-letter initials for the avatar fallback
+- `gradient` - Tailwind gradient classes for the avatar background
+- `imageSrc` - set to a real image path (e.g. `"/founders/arjun.jpg"`) to replace the initials avatar
 
 ### Footer Structure
 
@@ -270,19 +274,19 @@ The `FOUNDERS` array contains 3 entries with these fields:
 The `20260419180000_db_hygiene_rls_cleanup.sql` migration normalised RLS
 policies across the shared Supabase project. Highlights:
 
-- **`waitlist_entries`** — RLS is now enabled (was previously off despite
+- **`waitlist_entries`** - RLS is now enabled (was previously off despite
   policies being present). Owners / staff / platform admins can read & manage
   rows. Existing INSERT policies preserved. `KioskPage.tsx` continues to work
   via the anon `allow_kiosk_walkin_insert` policy.
-- **`system_config`** — RLS on. Authenticated read for everyone, write for
+- **`system_config`** - RLS on. Authenticated read for everyone, write for
   platform admins only.
-- **`group_orders`** — DEPRECATED. Read by no one; written only by the
+- **`group_orders`** - DEPRECATED. Read by no one; written only by the
   legacy `party_settle_payment()` mirror path. The dashboard should not query
   this table; use `party_payments` / `party_members` / `orders` instead.
-- **`party_items`** — All client mutations must go through `party_*`
+- **`party_items`** - All client mutations must go through `party_*`
   SECURITY DEFINER RPCs. Direct `.from('party_items').insert/update/delete`
   from the dashboard will be rejected by RLS.
-- **`order_item_modifiers`** — DROPPED. The POS modifier feature uses
+- **`order_item_modifiers`** - DROPPED. The POS modifier feature uses
   `item_modifiers` only. If modifier-per-line-item snapshots become a
   requirement again, design a new table (and use it from the start).
 - Trigger / utility functions now have a pinned `search_path = public`.
@@ -297,7 +301,7 @@ policies across the shared Supabase project. Highlights:
   credentials so `BootDiagnostics` can render in dev. `flowType: 'pkce'` and
   `detectSessionInUrl: true` are explicitly set for the JoinBridge / verify
   email flows.
-- Never throw at module-import time from `lib/supabase.ts` — it's imported
+- Never throw at module-import time from `lib/supabase.ts` - it's imported
   before `BootDiagnostics` mounts.
 
 ## Unused / deprecated tables
@@ -311,7 +315,7 @@ policies across the shared Supabase project. Highlights:
 ### After finishing
 Once you finish your work after a prompt, modify this file with any relevant information to aid future agents.
 
-## Connected Account Tax (Seller-of-Record) — April 2026
+## Connected Account Tax (Seller-of-Record) - April 2026
 
 Rasvia uses a **seller-of-record** model where the **connected restaurant account**
 is responsible for collecting and remitting sales tax. Checkout tax is based on
@@ -336,11 +340,11 @@ shipping address. The platform only collects a platform fee via
 - The web menu editor also includes a small preset picker (`Immediate
   Consumption`, `Retail Grocery`, `Coffee / Tea / Cocoa`, `Soft Drinks`) plus a
   `Default Only` / `Overrides` filter and `Tax Override` badge in the menu list.
-- `transfer_data.destination = stripeAccountId` with NO explicit `amount` — the
+- `transfer_data.destination = stripeAccountId` with NO explicit `amount` - the
   full charge (minus `application_fee_amount`) goes to the connected account.
 - `application_fee_amount = subtotal * platform_fee_bps / 10000` (currently 0
   by default; plumbed for future activation). Computed on pre-tax subtotal.
-- The `calculate-tax` edge function has been **removed** — it was only needed
+- The `calculate-tax` edge function has been **removed** - it was only needed
   for the old marketplace facilitator model.
 - POS/cash orders use `FALLBACK_TAX_RATE = 0.0825` in `DashboardContext.tsx`,
   `POSTerminal.tsx`, and `TakeOrderModal.tsx` for display only.
@@ -362,13 +366,13 @@ shipping address. The platform only collects a platform fee via
 
 ### Edge function behavior
 
-- `create-stripe-account` — requests `card_payments` + `transfers` capabilities.
-- `check-stripe-status` — returns `charges_enabled`, `payouts_enabled`,
+- `create-stripe-account` - requests `card_payments` + `transfers` capabilities.
+- `check-stripe-status` - returns `charges_enabled`, `payouts_enabled`,
   `details_submitted`, and `requirements_currently_due`.
   Keep this function on `npm:stripe`; the old `esm.sh/...target=deno` bundle
   can crash on Supabase Edge Runtime / Deno 2 with
   `Deno.core.runMicrotasks() is not supported in this environment`.
-- `manage-tax-settings` — owner/admin dashboard endpoint that stores the
+- `manage-tax-settings` - owner/admin dashboard endpoint that stores the
   restaurant's structured tax address in `restaurants.*address*`, updates the
   connected account `tax.settings.head_office`, creates US
   `state_sales_tax` registrations, and syncs the restaurant's fixed checkout
@@ -377,16 +381,16 @@ shipping address. The platform only collects a platform fee via
   `/v1/tax/registrations` endpoint because the pinned `npm:stripe@^13.10.0`
   edge runtime SDK exposes `tax.settings` but not `tax.registrations`
   consistently.
-- `create-checkout` — attaches a fixed `tax_rates: [stripe_manual_tax_rate_id]`
+- `create-checkout` - attaches a fixed `tax_rates: [stripe_manual_tax_rate_id]`
   to each line item when `sales_tax_rate_bps > 0`. Uses
   `transfer_data.destination` with `application_fee_amount`. Because Checkout
   runs as a platform destination charge, the manual Stripe Tax Rate object must
   exist on the platform account, not on the connected restaurant account.
   If the new restaurant tax-rate columns have not been migrated yet,
   `create-checkout` falls back to zero checkout tax instead of failing.
-- `stripe-webhook` — persists `platform_fee_cents` and `tax_cents` (from
+- `stripe-webhook` - persists `platform_fee_cents` and `tax_cents` (from
   `session.total_details.amount_tax`).
-- `calculate-tax` — **REMOVED** (was marketplace facilitator only).
+- `calculate-tax` - **REMOVED** (was marketplace facilitator only).
 
 ### Restaurant setup
 

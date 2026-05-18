@@ -1,5 +1,5 @@
 -- ============================================================================
--- GROUP ORDER BRIDGE v2 — followup fixes
+-- GROUP ORDER BRIDGE v2 - followup fixes
 -- ----------------------------------------------------------------------------
 -- 1. pgcrypto functions (gen_random_bytes, digest) live in the `extensions`
 --    schema on Supabase. The v2 RPCs set `search_path = public` which hides

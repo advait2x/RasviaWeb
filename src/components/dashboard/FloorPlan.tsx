@@ -104,7 +104,7 @@ export default function FloorPlan() {
     [tables]
   );
 
-  // Parties that can't fit in any single available table — suggest combinations
+  // Parties that can't fit in any single available table - suggest combinations
   const oversizedParties = useMemo(() => {
     const maxAvailable = visibleTables
       .filter((t) => t.status === "available" && !t.combinedTableIds)
@@ -368,7 +368,7 @@ export default function FloorPlan() {
                 ? "Select two or more available tables to combine them into a single larger table."
                 : combineSelection.length === 1
                   ? "Select at least one more table to combine."
-                  : `${combineSelection.length} tables selected · ${combinedCapacity} total seats${partiesFitInSelection.length > 0 ? ` — fits ${partiesFitInSelection.map(p => p.guestName).join(", ")}` : ""}`}
+                  : `${combineSelection.length} tables selected · ${combinedCapacity} total seats${partiesFitInSelection.length > 0 ? ` - fits ${partiesFitInSelection.map(p => p.guestName).join(", ")}` : ""}`}
             </p>
             {/* Oversized party hint */}
             {combineSelection.length === 0 && oversizedParties.length > 0 && (
@@ -494,7 +494,7 @@ export default function FloorPlan() {
         </div>
       </div>
 
-      {/* Combine mode — floating confirm bar */}
+      {/* Combine mode - floating confirm bar */}
       <AnimatePresence>
         {combineMode && combineSelection.length >= 2 && (
           <motion.div
@@ -708,7 +708,7 @@ export default function FloorPlan() {
                 </div>
               )}
 
-              {/* Status section — hide for combined tables */}
+              {/* Status section - hide for combined tables */}
               {!selectedTable.combinedTableIds && (
                 <div>
                   <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2.5">Set Status</p>

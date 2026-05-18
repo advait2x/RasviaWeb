@@ -119,9 +119,9 @@ export type PastOrdersRange =
 
 export interface PastOrdersFilter {
   range: PastOrdersRange;
-  /** Absolute start (inclusive) — used when range is custom, and pre-computed for presets. */
+  /** Absolute start (inclusive) - used when range is custom, and pre-computed for presets. */
   from?: string; // ISO
-  /** Absolute end (inclusive) — used when range is custom, and pre-computed for presets. */
+  /** Absolute end (inclusive) - used when range is custom, and pre-computed for presets. */
   to?: string; // ISO
   type: PastOrdersType;
   status: PastOrdersStatus;
@@ -268,7 +268,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [pastOrdersFilter, setPastOrdersFilter] = useState<PastOrdersFilter>(DEFAULT_PAST_ORDERS_FILTER);
 
   // FALLBACK_TAX_RATE is used for POS / cash order display. Online checkout tax
-  // is handled by the restaurant's connected Stripe account — the platform does
+  // is handled by the restaurant's connected Stripe account - the platform does
   // not compute or collect tax.
   const FALLBACK_TAX_RATE = 0.0825;
 

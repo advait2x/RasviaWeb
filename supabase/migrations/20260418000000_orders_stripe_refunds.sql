@@ -38,7 +38,7 @@ COMMENT ON COLUMN public.orders.refunded_at IS
 -- Called by the refund-order edge function after Stripe has accepted a refund.
 -- Bumps refunded_amount_cents and (if fully refunded) flips the order's
 -- status to 'cancelled' so it shows up as refunded in the dashboard.
--- service_role only — never exposed to anon/authenticated clients.
+-- service_role only - never exposed to anon/authenticated clients.
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.mark_order_refunded(

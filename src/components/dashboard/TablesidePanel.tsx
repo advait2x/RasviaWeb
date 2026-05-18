@@ -61,8 +61,8 @@ import { cn } from "@/lib/utils";
 /**
  * Tableside QR (multi-session, staff-as-host)
  *
- * A waiter/operator can spin up an unlimited number of tableside sessions —
- * one per table — and manage each independently in a single panel:
+ * A waiter/operator can spin up an unlimited number of tableside sessions -
+ * one per table - and manage each independently in a single panel:
  *   - Generate a QR that opens `https://rasvia.com/join?id=<uuid>`
  *     (works as universal link → Rasvia app, falls back to `JoinBridge`
  *     on the website, no install required).
@@ -184,7 +184,7 @@ export default function TablesidePanel() {
   const [error, setError] = useState<string | null>(null);
   const [endError, setEndError] = useState<string | null>(null);
 
-  // Menu cache for the current restaurant — shared across sessions so the
+  // Menu cache for the current restaurant - shared across sessions so the
   // "add item" browser renders instantly when the waiter switches tables.
   const [menu, setMenu] = useState<MenuItemRow[]>([]);
   useEffect(() => {
@@ -413,7 +413,7 @@ export default function TablesidePanel() {
       try {
         await setPaymentMode(supabase, hostParty, "per_person");
       } catch {
-        // Non-fatal — waiter can still pick a mode in the UI.
+        // Non-fatal - waiter can still pick a mode in the UI.
       }
       if (newTableLabel.trim()) {
         saveLabel(created.id, newTableLabel.trim());
@@ -633,7 +633,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       </div>
       <h2 className="mt-4 text-lg font-semibold text-zinc-100">No tableside sessions yet</h2>
       <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500">
-        Start a session per table. Each guest scans the QR on their phone to join — no download
+        Start a session per table. Each guest scans the QR on their phone to join - no download
         required, the same link opens in the Rasvia app if installed.
       </p>
       <button
@@ -645,7 +645,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
       </button>
       <div className="mt-6 grid gap-2.5 text-left sm:grid-cols-3">
         <HowItWorksStep n={1} title="Open a table" body="Tap New table, note the label, and show the QR." />
-        <HowItWorksStep n={2} title="Guests join" body="Each guest scans and picks their name — no sign-up needed." />
+        <HowItWorksStep n={2} title="Guests join" body="Each guest scans and picks their name - no sign-up needed." />
         <HowItWorksStep n={3} title="Assign & pay" body="You set who pays for what, lock the cart, and hand each guest their own pay QR." />
       </div>
     </motion.div>
@@ -917,7 +917,7 @@ function SessionDetail({
 
   const handleSetMode = async (mode: PaymentMode) => {
     if (!hostCreds) {
-      setActionError("Host controls unavailable — try refreshing the page.");
+      setActionError("Host controls unavailable - try refreshing the page.");
       return;
     }
     if (modeBusy || normalizeMode(session.payment_mode) === mode) return;
@@ -943,7 +943,7 @@ function SessionDetail({
 
   const handleAssign = async (itemId: string, payerId: string | null) => {
     if (!hostCreds) {
-      setActionError("Host controls unavailable — try refreshing the page.");
+      setActionError("Host controls unavailable - try refreshing the page.");
       return;
     }
     setActionError(null);
@@ -959,7 +959,7 @@ function SessionDetail({
 
   const handleSplit = async (itemId: string, memberIds: string[]) => {
     if (!hostCreds) {
-      setActionError("Host controls unavailable — try refreshing the page.");
+      setActionError("Host controls unavailable - try refreshing the page.");
       return;
     }
     setActionError(null);
@@ -1066,11 +1066,11 @@ function SessionDetail({
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80"
           >
             <Copy size={13} />
-            {copyState === "copied" ? "Copied" : copyState === "err" ? "Could not copy — select URL above" : "Copy link"}
+            {copyState === "copied" ? "Copied" : copyState === "err" ? "Could not copy - select URL above" : "Copy link"}
           </button>
         </div>
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          You can run this table entirely here — the same link is what guests use on their phones.
+          You can run this table entirely here - the same link is what guests use on their phones.
         </p>
 
         <a
@@ -1198,7 +1198,7 @@ function SessionDetail({
                 <button
                   key={mode}
                   type="button"
-                  disabled={!canHost || !editable(session.status) || modeBusy}
+                  disabled={!canHost || !canChangePaymentMode(session.status) || modeBusy}
                   onClick={() => handleSetMode(mode)}
                   className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-colors ${
                     active
@@ -1220,8 +1220,8 @@ function SessionDetail({
           </div>
         </motion.div>
 
-        {/* Waiter menu browser — add items on behalf of a guest */}
-        {canHost && editable(session.status) ? (
+        {/* Waiter menu browser - add items on behalf of a guest */}
+        {canHost && hostCanEditCartLines(session.status) ? (
           <AddItemsCard
             menu={menu}
             members={members}
@@ -1241,9 +1241,16 @@ function SessionDetail({
             <h3 className="text-sm font-semibold text-zinc-100">Cart</h3>
             <span className="text-sm font-semibold text-zinc-200">{formatCents(cartCents)}</span>
           </div>
+          {canHost && session.status === "locked" ? (
+            <p className="mb-3 text-[11px] leading-snug text-zinc-500">
+              You can comp, void, or adjust lines while the cart is locked. If a guest has already opened
+              checkout, wait for them to finish or unlock first. Item edits refresh each guest&apos;s owed
+              amount (pretax); run your usual tax step again if your flow applies tax after lock.
+            </p>
+          ) : null}
           {items.length === 0 ? (
             <p className="text-xs text-zinc-500">
-              No items yet — use Add to order above to build the table's check.
+              No items yet - use Add to order above to build the table's check.
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -1253,7 +1260,7 @@ function SessionDetail({
                   item={it}
                   members={guestMembers}
                   paymentMode={payMode}
-                  canEdit={canHost && editable(session.status)}
+                  canEdit={canHost && hostCanEditCartLines(session.status)}
                   hostCreds={hostCreds}
                   onAssign={(payerId) => handleAssign(it.id, payerId)}
                   onSplit={(memberIds) => handleSplit(it.id, memberIds)}
@@ -1279,7 +1286,7 @@ function SessionDetail({
               </span>
             </div>
             <p className="mb-4 text-[11px] text-zinc-500">
-              Hand the table back any phone — each guest can scan their own QR to pay just their share.
+              Hand the table back any phone - each guest can scan their own QR to pay just their share.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {payments.map((p) => {
@@ -1345,7 +1352,7 @@ function AddItemsCard({
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
-  // Tableside: the waiter is _only_ a host, never a diner — items can only be
+  // Tableside: the waiter is _only_ a host, never a diner - items can only be
   // attributed to a dining guest. If no guest has scanned in yet, targetId is
   // null and the Add buttons are disabled.
   const guestOnly = useMemo(() => members.filter((m) => m.role !== "host"), [members]);
@@ -1444,7 +1451,7 @@ function AddItemsCard({
         <div className="flex flex-wrap gap-1.5">
           {guestOnly.length === 0 ? (
             <span className="text-[11px] text-zinc-500">
-              Waiting for a guest to scan in — you can start adding items once someone joins.
+              Waiting for a guest to scan in - you can start adding items once someone joins.
             </span>
           ) : (
             guestOnly.map((m) => {
@@ -1518,7 +1525,7 @@ function AddItemsCard({
           </li>
         ) : filtered.length === 0 ? (
           <li className="rounded-lg border border-dashed border-white/10 bg-zinc-900/30 px-3 py-4 text-center text-[11px] text-zinc-500">
-            No items match — try a different search.
+            No items match - try a different search.
           </li>
         ) : (
           filtered.map((m) => {
@@ -1659,7 +1666,7 @@ function CartItemRow({
         ? assignee
           ? `m:${assignee.id}`
           : "default"
-        : "—";
+        : "-";
 
   const allocationControl = (() => {
     if (payMode === "host_pays" || payMode === "equal_split") {
@@ -1876,12 +1883,18 @@ function SplitPopover({
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function editable(status: PartySession["status"]): boolean {
+/** Payment mode is frozen once the cart is locked so guest totals stay predictable. */
+function canChangePaymentMode(status: PartySession["status"]): boolean {
   return status === "open";
 }
 
+/** Host may add / void / adjust cart lines while `open` or `locked` (not while `paying` / closed). */
+function hostCanEditCartLines(status: PartySession["status"]): boolean {
+  return status === "open" || status === "locked";
+}
+
 function normalizeMode(mode: PartySession["payment_mode"]): PaymentMode {
-  // The DB column tolerates legacy aliases "split" / "assign" — coerce them
+  // The DB column tolerates legacy aliases "split" / "assign" - coerce them
   // back to the canonical v2 values used everywhere in the UI.
   if (mode === "split") return "equal_split";
   if (mode === "assign") return "assigned";

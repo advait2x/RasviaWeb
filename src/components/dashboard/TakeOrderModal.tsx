@@ -209,7 +209,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
         if (table?.partySize) setPartySize(String(table.partySize));
     };
 
-    // Dine-in: must pick a table. Pre-order / takeout: no table required —
+    // Dine-in: must pick a table. Pre-order / takeout: no table required -
     // guest name + phone + party size define the order instead.
     const canProceedFromTable = orderType === "dine_in"
         ? !!selectedTableId
@@ -277,7 +277,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 </div>
                             </div>
 
-                            {/* Party picker — dine-in only. We still store the
+                            {/* Party picker - dine-in only. We still store the
                                 table_id internally (dine-in orders live on a table),
                                 but the UI is organized around the seated party so
                                 staff pick a guest, not a table number. */}
@@ -288,7 +288,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                     </p>
                                     {occupiedTables.length === 0 ? (
                                         <div className="p-4 rounded-xl border border-dashed border-white/10 bg-zinc-800/30 text-xs text-zinc-500">
-                                            No parties seated yet — seat a guest from the Tables tab first.
+                                            No parties seated yet - seat a guest from the Tables tab first.
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -326,7 +326,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 </div>
                             )}
 
-                            {/* Guest info for non-dine-in — party-only flow with
+                            {/* Guest info for non-dine-in - party-only flow with
                                 no table assignment. */}
                             {orderType !== "dine_in" && (
                                 <div className="space-y-3">
@@ -677,7 +677,7 @@ export default function TakeOrderModal({ open, onClose, preselectedTableId }: Ta
                                 )}
                             >
                                 <Check size={14} strokeWidth={2} />
-                                Confirm — Cash
+                                Confirm - Cash
                             </motion.button>
                         )}
                     </div>

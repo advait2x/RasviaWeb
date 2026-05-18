@@ -22,7 +22,7 @@ export default function StatusBar({ embedded = false }: { embedded?: boolean }) 
 
   const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
 
-  // Pending toggle state — when set, shows confirmation dialog
+  // Pending toggle state - when set, shows confirmation dialog
   const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
 
   // Fetch initial waitlist_open state from Supabase
@@ -140,7 +140,7 @@ export default function StatusBar({ embedded = false }: { embedded?: boolean }) 
 
         </div>
 
-        {/* Center: quoted wait — flex-1 keeps control centered between toggle and count */}
+        {/* Center: quoted wait - flex-1 keeps control centered between toggle and count */}
         <div className="flex flex-1 justify-center px-4">
           <WaitTimeWidget />
         </div>

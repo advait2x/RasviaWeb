@@ -444,7 +444,7 @@ export default function OrdersPanel() {
                                                     {order.orderType === "pre_order" ? "Pre-Order" : "Takeout"}
                                                 </span>
                                             )}
-                                            {/* Notify button — amber pulse when ready but not yet notified */}
+                                            {/* Notify button - amber pulse when ready but not yet notified */}
                                             {order.orderType !== "dine_in" && order.customerPhone && order.status === "ready" && (
                                                 <motion.button
                                                     whileTap={{ scale: 0.9 }}
@@ -489,19 +489,19 @@ export default function OrdersPanel() {
 
                                     {/* Items */}
                                     {order.items.length > 0 && (
-                                        <div className="mb-2 space-y-1">
-                                            {order.items.slice(0, 2).map((item) => (
+                                        <div className="mb-2 space-y-2">
+                                            {order.items.map((item) => (
                                                 <div key={item.id} className="text-xs">
-                                                    <div className="flex items-center justify-between">
+                                                    <div className="flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-1.5 min-w-0">
                                                             <span className="text-zinc-500 tabular-nums">{item.quantity}×</span>
                                                             <span className="text-zinc-300 truncate">{item.menuItemName}</span>
                                                             {item.dietType && (
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
+                                                                <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${item.dietType === "veg" ? "bg-emerald-500" : item.dietType === "halal" ? "bg-blue-400" : "bg-red-500"
                                                                     }`} />
                                                             )}
                                                         </div>
-                                                        <span className="text-zinc-500 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
+                                                        <span className="text-zinc-500 shrink-0 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
                                                     </div>
                                                     {item.specialInstructions && (
                                                         <p className="text-[10px] text-violet-800 mt-0.5 pl-5 break-words max-h-8 overflow-y-auto pr-1 dark:text-violet-300">
@@ -510,9 +510,6 @@ export default function OrdersPanel() {
                                                     )}
                                                 </div>
                                             ))}
-                                            {order.items.length > 2 && (
-                                                <p className="text-[10px] text-zinc-600">+{order.items.length - 2} more items</p>
-                                            )}
                                         </div>
                                     )}
                                     {order.notes && (

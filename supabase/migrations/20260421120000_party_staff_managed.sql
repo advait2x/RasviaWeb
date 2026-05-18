@@ -13,7 +13,7 @@ COMMENT ON COLUMN public.party_sessions.staff_managed IS
   'True for tableside sessions started by restaurant staff. Guests cannot add/edit items; only the host (waiter) can.';
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 2. Guard party_add_item — non-host guests cannot add items in staff-managed
+-- 2. Guard party_add_item - non-host guests cannot add items in staff-managed
 --    sessions, even if they somehow bypass the UI.
 -- ────────────────────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.party_add_item(uuid, uuid, text, bigint, integer, text) TO anon, authenticated;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 3. party_host_add_item_for — host (waiter) adds an item attributed to a
+-- 3. party_host_add_item_for - host (waiter) adds an item attributed to a
 --    specific guest member. Powers the tableside "add to <guest>'s check"
 --    flow so that per_person / assigned ledger math credits the right guest.
 -- ────────────────────────────────────────────────────────────────────────────

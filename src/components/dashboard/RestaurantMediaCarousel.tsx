@@ -31,7 +31,7 @@ function toPublicImageUrl(value: string): string {
 }
 
 /**
- * Guest-facing hero carousel for the restaurant profile — lives under Settings → Restaurant.
+ * Guest-facing hero carousel for the restaurant profile - lives under Settings → Restaurant.
  */
 export default function RestaurantMediaCarousel() {
   const { restaurantId } = useAuth();

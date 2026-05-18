@@ -234,7 +234,7 @@ export default function TeamRolesPanel() {
         // Check if any staff are using this role
         const staffUsingRole = staff.filter((s) => s.role_id === role.id);
         if (staffUsingRole.length > 0) {
-            setError(`Cannot delete "${role.name}" — ${staffUsingRole.length} staff member(s) are assigned to it. Reassign them first.`);
+            setError(`Cannot delete "${role.name}" - ${staffUsingRole.length} staff member(s) are assigned to it. Reassign them first.`);
             setDeletingRole(null);
             return;
         }

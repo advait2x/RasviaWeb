@@ -9,10 +9,10 @@
 //  2) Party Session v2 (new group-order overhaul)
 //     body: { party_session_id, party_member_id, party_member_token,
 //             cover_member_id?, return_url_base?, order_type? }
-//     No client-supplied cart or amounts — everything is derived
+//     No client-supplied cart or amounts - everything is derived
 //     server-side from `party_payments`.
 //
-//  3) Party Session v1 (legacy) — kept so in-flight old sessions don't break.
+//  3) Party Session v1 (legacy) - kept so in-flight old sessions don't break.
 //     body: { party_session_id, cart_items, customer_name, amount, ... }
 //
 // Security invariants:
@@ -36,7 +36,7 @@ const SPLIT_META_PREFIX = '__rasvia_split:'
 const EPSILON = 0.01
 const MAX_CART_ITEMS = 100
 const MAX_ITEM_QUANTITY = 25
-const DEFAULT_TAX_CODE = 'txcd_40060003' // Prepared Food — Hot
+const DEFAULT_TAX_CODE = 'txcd_40060003' // Prepared Food - Hot
 
 type JsonObject = Record<string, unknown>
 type SupabaseClient = ReturnType<typeof createClient>
@@ -157,7 +157,7 @@ type MappedCheckoutError = { error: string; code?: string; title?: string }
 
 function mapStripeError(err: unknown): MappedCheckoutError {
   const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error'
-  // Stripe Connect: destination (restaurant) account is not fully onboarded —
+  // Stripe Connect: destination (restaurant) account is not fully onboarded -
   // it's missing the `transfers` capability (or we never stored a connect
   // account at all). Stripe phrases this a few different ways so we match
   // broadly, and we also surface our own internal "not linked" sentinels
@@ -457,7 +457,7 @@ serve(async (req: Request) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Party Session v2 — new secure path.
+// Party Session v2 - new secure path.
 // ─────────────────────────────────────────────────────────────────────────────
 async function handlePartyV2(args: {
   body: JsonObject
@@ -481,12 +481,12 @@ async function handlePartyV2(args: {
     .maybeSingle()
 
   if (authError || !authedMember) {
-    return json({ error: 'Unauthorized — member not found for this session.' }, 401)
+    return json({ error: 'Unauthorized - member not found for this session.' }, 401)
   }
 
   const providedHash = await sha256Hex(partyMemberToken)
   if (!authedMember.member_token_hash || !constantTimeEqual(providedHash, authedMember.member_token_hash)) {
-    return json({ error: 'Unauthorized — invalid member token.' }, 401)
+    return json({ error: 'Unauthorized - invalid member token.' }, 401)
   }
 
   const { data: sessionRow, error: sessionError } = await supabase
@@ -556,7 +556,7 @@ async function handlePartyV2(args: {
             tax_behavior: 'exclusive',
             product_data: {
               name: `${sanitizeLabel(restaurant.name, 'Rasvia Partner', 120)} · Group order`,
-              description: `${targetLabel} — ${memberLabel}`,
+              description: `${targetLabel} - ${memberLabel}`,
               tax_code: DEFAULT_TAX_CODE,
             },
             unit_amount: amountCents,
@@ -644,7 +644,7 @@ async function handlePartyV2(args: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Solo checkout + legacy party v1 — preserves prior behavior for old clients.
+// Solo checkout + legacy party v1 - preserves prior behavior for old clients.
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleSoloOrLegacyParty(args: {
   body: JsonObject

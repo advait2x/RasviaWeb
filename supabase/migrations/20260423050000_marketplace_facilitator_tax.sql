@@ -66,7 +66,7 @@ DO $$ BEGIN
 END $$;
 
 -- ─── orders ─────────────────────────────────────────────────────────────────
--- Platform fee audit columns (no tax columns — restaurant handles tax)
+-- Platform fee audit columns (no tax columns - restaurant handles tax)
 
 DO $$ BEGIN
   IF NOT EXISTS (

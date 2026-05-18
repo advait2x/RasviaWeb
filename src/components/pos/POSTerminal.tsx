@@ -215,7 +215,7 @@ export default function POSTerminal() {
           <div className="px-4 py-3 border-b border-white/5 shrink-0">
             <h2 className="text-sm font-bold text-zinc-100 truncate">
               {currentOrder
-                ? `Order #${currentOrder.id.slice(-6).toUpperCase()} — Table ${currentOrder.tableNumber}`
+                ? `Order #${currentOrder.id.slice(-6).toUpperCase()} - Table ${currentOrder.tableNumber}`
                 : "New Order"}
             </h2>
             {currentOrder && (

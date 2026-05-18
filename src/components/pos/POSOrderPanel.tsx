@@ -136,7 +136,7 @@ export default function POSOrderPanel({
               </p>
             </div>
             {isVoided && <span className="text-[10px] text-red-400 font-semibold">VOIDED</span>}
-            {isComped && <span className="text-[10px] text-emerald-400 font-semibold">COMP{item.compReason ? ` — ${item.compReason}` : ""}</span>}
+            {isComped && <span className="text-[10px] text-emerald-400 font-semibold">COMP{item.compReason ? ` - ${item.compReason}` : ""}</span>}
             {item.specialInstructions && (
               <p className="text-[10px] text-zinc-500 mt-0.5 italic">{item.specialInstructions}</p>
             )}

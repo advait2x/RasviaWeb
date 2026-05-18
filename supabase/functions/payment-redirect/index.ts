@@ -135,7 +135,7 @@ serve(async (req: Request) => {
       return redirect(buildSuccess(redirectParams))
     }
 
-    // Legacy / solo flow — verify order exists; webhook owns status transitions.
+    // Legacy / solo flow - verify order exists; webhook owns status transitions.
     const { data: order } = await supabase
       .from('orders')
       .select('id, subtotal, party_session_id, order_type, restaurants:restaurant_id(name)')

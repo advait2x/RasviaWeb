@@ -13,21 +13,14 @@ export default function Login({ forceDark = true }: { forceDark?: boolean }) {
         if (!forceDark) return;
         const root = document.documentElement;
         const prevLock = root.getAttribute("data-theme-lock");
-        const prevTheme = root.getAttribute("data-theme");
-        const prevMode = root.getAttribute("data-theme-mode");
-        const prevColorScheme = root.style.colorScheme;
         root.setAttribute("data-theme-lock", "dark");
         root.setAttribute("data-theme", "dark");
         root.setAttribute("data-theme-mode", "dark");
         root.style.colorScheme = "dark";
+        root.classList.add("dark");
         return () => {
             if (prevLock) root.setAttribute("data-theme-lock", prevLock);
             else root.removeAttribute("data-theme-lock");
-            if (prevTheme) root.setAttribute("data-theme", prevTheme);
-            else root.removeAttribute("data-theme");
-            if (prevMode) root.setAttribute("data-theme-mode", prevMode);
-            else root.removeAttribute("data-theme-mode");
-            root.style.colorScheme = prevColorScheme;
         };
     }, [forceDark]);
 

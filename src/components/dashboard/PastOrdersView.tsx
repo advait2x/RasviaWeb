@@ -103,8 +103,8 @@ export default function PastOrdersView() {
     pastOrders, pastOrdersLoading, pastOrdersFilter, setPastOrdersFilter, fetchPastOrders,
   } = useDashboard();
 
-  // Default the advanced filter panel open when landing on a Custom range —
-  // e.g. a deep-link from Sales Reports — so the From/To inputs are visible.
+  // Default the advanced filter panel open when landing on a Custom range -
+  // e.g. a deep-link from Sales Reports - so the From/To inputs are visible.
   const [showFilters, setShowFilters] = useState(() => pastOrdersFilter.range === "custom");
   const [refundTarget, setRefundTarget] = useState<Order | null>(null);
   const [refundBusy, setRefundBusy] = useState(false);
@@ -166,7 +166,7 @@ export default function PastOrdersView() {
         return String((body as { error: unknown }).error);
       }
     } catch {
-      // Not JSON — try text.
+      // Not JSON - try text.
     }
     try {
       const text = await context.clone().text();
@@ -242,7 +242,7 @@ export default function PastOrdersView() {
       if (next <= 0) delete copy[itemId]; else copy[itemId] = next;
       return copy;
     });
-    // User is picking items — drop any manual override so the amount stays in
+    // User is picking items - drop any manual override so the amount stays in
     // sync with the selection.
     setManualAmountDollars(null);
   };
@@ -463,19 +463,16 @@ export default function PastOrdersView() {
                 </div>
 
                 {order.items.length > 0 && (
-                  <div className="mb-2 space-y-0.5">
-                    {order.items.slice(0, 3).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs">
+                  <div className="mb-2 space-y-1.5">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-zinc-400 truncate">
                           <span className="text-zinc-500 tabular-nums">{item.quantity}× </span>
                           {item.menuItemName}
                         </span>
-                        <span className="text-zinc-500 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
+                        <span className="text-zinc-500 shrink-0 tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
-                    {order.items.length > 3 && (
-                      <p className="text-[10px] text-zinc-600">+{order.items.length - 3} more items</p>
-                    )}
                   </div>
                 )}
 
@@ -705,7 +702,7 @@ function RefundDialog({
               {/* Reason */}
               <section className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Reason <span className="text-zinc-600 font-normal normal-case">(optional — logged with the refund & sent to Stripe)</span>
+                  Reason <span className="text-zinc-600 font-normal normal-case">(optional - logged with the refund & sent to Stripe)</span>
                 </label>
                 <textarea
                   disabled={busy}

@@ -223,7 +223,9 @@ export default function VerifyEmailPage() {
         )}
       </motion.div>
 
-      <p className="text-zinc-700 text-xs mt-10">© 2025 Rasvia · All rights reserved</p>
+      <p className="text-zinc-700 text-xs mt-10">
+        {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
+      </p>
     </div>
   );
 }

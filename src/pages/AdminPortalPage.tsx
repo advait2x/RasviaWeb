@@ -638,7 +638,7 @@ export default function AdminPortalPage() {
           ) : (
             <div className="mx-auto max-w-2xl space-y-5 rounded-2xl border border-white/10 bg-zinc-900/50 p-6">
               <h2 className="text-base font-semibold text-white">
-                {groupEditorMode === "create" ? "Create Group" : `Edit Group — ${groupOriginalKey ?? ""}`}
+                {groupEditorMode === "create" ? "Create Group" : `Edit Group - ${groupOriginalKey ?? ""}`}
               </h2>
               <div className="space-y-2">
                 <Label htmlFor="group_key">Group name / key</Label>
@@ -751,7 +751,7 @@ export default function AdminPortalPage() {
             <div className="mx-auto max-w-2xl space-y-6">
               <div className="rounded-2xl border border-white/10 bg-zinc-900/50 p-6 backdrop-blur-sm">
                 <h2 className="text-base font-semibold text-white">
-                  {selectedId === "new" ? "New restaurant" : `Edit — ${selectedRestaurant?.name ?? ""}`}
+                  {selectedId === "new" ? "New restaurant" : `Edit - ${selectedRestaurant?.name ?? ""}`}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500">
                   Owner is linked here and in <code className="rounded bg-black/40 px-1 text-amber-200/90">profiles.role</code>{" "}

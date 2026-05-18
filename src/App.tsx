@@ -9,6 +9,8 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import RestaurantSharePreview from "./pages/RestaurantSharePreview";
 import LandingPage from "./pages/LandingPage";
 import ContactPage from "./pages/ContactPage";
+import ProductPage from "./pages/ProductPage";
+import ProductsHubPage from "./pages/ProductsHubPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import AdminPortalPage from "./pages/AdminPortalPage";
@@ -20,21 +22,17 @@ function DarkThemeLock() {
   useEffect(() => {
     const root = document.documentElement;
     const prevLock = root.getAttribute("data-theme-lock");
-    const prevTheme = root.getAttribute("data-theme");
-    const prevMode = root.getAttribute("data-theme-mode");
-    const prevColorScheme = root.style.colorScheme;
     root.setAttribute("data-theme-lock", "dark");
     root.setAttribute("data-theme", "dark");
     root.setAttribute("data-theme-mode", "dark");
     root.style.colorScheme = "dark";
+    root.classList.add("dark");
     return () => {
       if (prevLock) root.setAttribute("data-theme-lock", prevLock);
       else root.removeAttribute("data-theme-lock");
-      if (prevTheme) root.setAttribute("data-theme", prevTheme);
-      else root.removeAttribute("data-theme");
-      if (prevMode) root.setAttribute("data-theme-mode", prevMode);
-      else root.removeAttribute("data-theme-mode");
-      root.style.colorScheme = prevColorScheme;
+      // Do not restore data-theme / mode / colorScheme here: clearing (or restoring) the lock
+      // triggers ThemeProvider's MutationObserver, which reapplies the user's real preference.
+      // Restoring prev attributes after that was wiping light mode and causing a flash.
     };
   }, []);
   return null;
@@ -326,13 +324,27 @@ function AppContent() {
     );
   }
 
-  return (
-    <>
-      <DarkThemeLock />
+  const pathNoTrailing = window.location.pathname.replace(/\/$/, "") || "/";
+  if (pathNoTrailing === "/products") {
+    return (
       <AppShell>
-        <LandingPage />
+        <ProductsHubPage />
       </AppShell>
-    </>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/products/")) {
+    return (
+      <AppShell>
+        <ProductPage />
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <LandingPage />
+    </AppShell>
   );
 }
 

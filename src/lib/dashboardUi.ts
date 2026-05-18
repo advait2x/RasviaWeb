@@ -1,12 +1,12 @@
 import type { DietType, OrderStatus } from "@/types/dashboard";
 
 /**
- * Shared dashboard UI tokens — amber primary accent, consistent "Add" and notification styling.
+ * Shared dashboard UI tokens - amber primary accent, consistent "Add" and notification styling.
  */
 
 /**
  * Secondary outline actions: Add item, Add slide, Add walk-in, Add period, etc.
- * Light: muted amber surface — not neon on white.
+ * Light: muted amber surface - not neon on white.
  */
 export const DASH_BTN_ADD =
   "inline-flex items-center gap-1.5 rounded-lg border border-amber-800/30 bg-amber-50/95 text-amber-950/90 text-sm font-medium shadow-sm transition-colors hover:bg-amber-100/95 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:shadow-none dark:hover:bg-amber-500/20";
@@ -20,7 +20,7 @@ export const DASH_BTN_ADD_XS =
   "inline-flex items-center gap-1.5 rounded-lg border border-amber-800/30 bg-amber-50/95 text-amber-950/90 text-[11px] font-semibold shadow-sm transition-colors hover:bg-amber-100/95 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:shadow-none dark:hover:bg-amber-500/20";
 
 /**
- * QR / section icon tile (Tableside header, empty state) — same border + fill as {@link DASH_BTN_ADD},
+ * QR / section icon tile (Tableside header, empty state) - same border + fill as {@link DASH_BTN_ADD},
  * without inline-flex/gap (wrap with `flex … items-center justify-center`).
  */
 export const DASH_QR_ICON_SURFACE =
@@ -68,7 +68,7 @@ export function dashWaitRowBgClass(minutes: number): string {
 export const DASH_PRIMARY_CTA =
   "bg-amber-800 text-amber-50 shadow-sm hover:bg-amber-700 dark:bg-amber-600 dark:text-zinc-950 dark:shadow-none dark:hover:bg-amber-500/95";
 
-/** Menu manager primary actions — slightly deeper in light than {@link DASH_PRIMARY_CTA} (less orange glare on white). */
+/** Menu manager primary actions - slightly deeper in light than {@link DASH_PRIMARY_CTA} (less orange glare on white). */
 export const DASH_MENU_PRIMARY_CTA =
   "bg-amber-900 text-amber-50 shadow-sm hover:bg-amber-800 dark:bg-amber-600 dark:text-zinc-950 dark:shadow-none dark:hover:bg-amber-500/95";
 
@@ -79,7 +79,7 @@ export const DASH_PRIMARY_SELECTED =
   "border-amber-800 bg-amber-800 text-amber-50 dark:border-amber-500 dark:bg-amber-600 dark:text-zinc-950";
 
 /**
- * Muted amber outline (Add item, New modifier, icon toolbars) — calmer in light
+ * Muted amber outline (Add item, New modifier, icon toolbars) - calmer in light
  * than `text-amber-400` on `bg-amber-500/10` when the shell is `data-theme=light`.
  */
 export const DASH_AMBER_MUTED =
@@ -99,7 +99,7 @@ export const DASH_AMBER_ICON_RING =
 export const DASH_AMBER_LIST_SELECTED =
   "bg-amber-100/95 text-amber-950 dark:bg-amber-500/10 dark:text-amber-300";
 
-/** Order totals and price emphasis in lists — not neon in light. */
+/** Order totals and price emphasis in lists - not neon in light. */
 export const DASH_MONEY_EMPHASIS = "text-amber-800 dark:text-amber-400";
 
 /** Order filter chips when unselected (Active / Pre-orders diet & meal rows, etc.) */
@@ -158,14 +158,14 @@ export const ORDER_PILL_REFUND_PARTIAL =
 export const ORDER_PILL_NOTIFY_DONE =
   "bg-emerald-100/90 border border-emerald-800/25 text-emerald-900 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400";
 
-/** Pending “Notify” (needs tap) — matches muted CTA, still pulses in dark. */
+/** Pending “Notify” (needs tap) - matches muted CTA, still pulses in dark. */
 export const ORDER_PILL_NOTIFY_PENDING =
   "bg-amber-50/95 border border-amber-800/30 text-amber-950/90 dark:bg-amber-500/10 dark:border-amber-500/40 dark:text-amber-400 animate-pulse dark:shadow-none";
 
 /** Past orders: range + “More” selected segment */
 export const DASH_PAST_FILTER_SELECTED = "bg-amber-200/90 text-amber-950 dark:bg-amber-500/15 dark:text-amber-400";
 
-/** Soft rose — remove / sign out (avoids harsh red-600) */
+/** Soft rose - remove / sign out (avoids harsh red-600) */
 export const DASH_SOFT_DESTRUCTIVE_BTN =
   "border border-rose-400/30 bg-rose-500/15 text-rose-100 shadow-sm transition-colors hover:border-rose-400/50 hover:bg-rose-500/25 hover:text-white";
 

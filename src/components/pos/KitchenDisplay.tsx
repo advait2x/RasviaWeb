@@ -76,7 +76,7 @@ function statusPhrase(status: OrderStatus): {
   switch (status) {
     case "pending":
       return {
-        label: "NEW — Not started",
+        label: "NEW - Not started",
         dot: "bg-amber-600/90",
         text: "text-amber-900 dark:text-amber-500/90",
         bg: "bg-amber-100 dark:bg-amber-950/50",
@@ -84,7 +84,7 @@ function statusPhrase(status: OrderStatus): {
       };
     case "preparing":
       return {
-        label: "IN PROGRESS — Cooking",
+        label: "IN PROGRESS - Cooking",
         dot: "animate-pulse bg-blue-600 dark:bg-blue-500/80",
         text: "text-blue-800 dark:text-blue-400/90",
         bg: "bg-blue-100 dark:bg-blue-950/40",
@@ -92,7 +92,7 @@ function statusPhrase(status: OrderStatus): {
       };
     case "ready":
       return {
-        label: "READY — Pick up",
+        label: "READY - Pick up",
         dot: "bg-emerald-600/90",
         text: "text-emerald-900 dark:text-emerald-400/90",
         bg: "bg-emerald-100 dark:bg-emerald-950/40",
@@ -100,7 +100,7 @@ function statusPhrase(status: OrderStatus): {
       };
     case "served":
       return {
-        label: "SERVED — Floor",
+        label: "SERVED - Floor",
         dot: "bg-violet-600/85",
         text: "text-violet-900 dark:text-violet-400/90",
         bg: "bg-violet-100 dark:bg-violet-950/35",

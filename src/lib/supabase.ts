@@ -22,7 +22,7 @@ if (!isSupabaseConfigured) {
 }
 
 // Never throw at import time: AuthContext imports this module before React can
-// render BootDiagnostics — a throw here yields a blank white page in dev.
+// render BootDiagnostics - a throw here yields a blank white page in dev.
 const resolvedUrl = supabaseUrl || "https://placeholder.supabase.co";
 const resolvedKey =
   supabaseKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder";
@@ -30,7 +30,7 @@ const resolvedKey =
 /**
  * Supabase Kong returns 403 `No API key found in request` if the `apikey`
  * header is missing. Some environments (mis-merged fetch options, strict
- * proxies) can drop it — always inject the anon key on every request.
+ * proxies) can drop it - always inject the anon key on every request.
  */
 function fetchWithApikey(anonKey: string): typeof fetch {
   return (input, init) => {

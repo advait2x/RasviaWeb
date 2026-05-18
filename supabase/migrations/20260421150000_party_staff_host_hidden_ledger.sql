@@ -1,5 +1,5 @@
 -- Staff-managed (tableside) group orders: the restaurant waiter is _only_ a
--- host — they are not a dining guest. The waiter must never owe money on the
+-- host - they are not a dining guest. The waiter must never owe money on the
 -- ledger or be counted in the "split evenly" headcount. This migration
 -- rewrites `_party_compute_ledger` to exclude the host whenever
 -- `party_sessions.staff_managed = true`.
@@ -79,7 +79,7 @@ BEGIN
 
   IF v_mode = 'host_pays' THEN
     IF v_skip_host THEN
-      -- "Host pays" doesn't make sense for a waiter — fall back to splitting
+      -- "Host pays" doesn't make sense for a waiter - fall back to splitting
       -- evenly between guests so we never attribute the full bill to staff.
       IF v_total > 0 THEN
         v_base      := v_total / v_n;

@@ -15,7 +15,9 @@ export function ThemeIconToggle({ className }: ThemeIconToggleProps) {
       type="button"
       onClick={() => setMode(isDark ? "light" : "dark")}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-zinc-900/85 text-zinc-100 shadow-sm transition-colors hover:bg-zinc-800/90",
+        "inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-colors",
+        "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100",
+        "dark:border-white/15 dark:bg-zinc-900/85 dark:text-zinc-100 dark:hover:bg-zinc-800/90",
         className,
       )}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}

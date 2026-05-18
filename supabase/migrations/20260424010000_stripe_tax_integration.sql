@@ -5,12 +5,12 @@
 -- using the connected account's tax registrations.
 --
 -- Adds:
---   • menu_items.stripe_tax_code   — per-item Stripe product tax code
---   • orders.tax_cents             — actual tax collected (from Stripe)
---   • party_payments.tax_cents     — tax on group-order member shares
+--   • menu_items.stripe_tax_code   - per-item Stripe product tax code
+--   • orders.tax_cents             - actual tax collected (from Stripe)
+--   • party_payments.tax_cents     - tax on group-order member shares
 
 -- ─── menu_items ─────────────────────────────────────────────────────────────
--- Default to 'txcd_40060003' (Prepared Food — Hot). Restaurants can override
+-- Default to 'txcd_40060003' (Prepared Food - Hot). Restaurants can override
 -- per-item via the menu editor for non-prepared items (e.g. sealed beverages).
 
 DO $$ BEGIN

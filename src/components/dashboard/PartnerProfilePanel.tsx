@@ -34,7 +34,7 @@ function prettyRole(role: string | null) {
   return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Partner account UI — used inside Settings (embedded) or standalone page. */
+/** Partner account UI - used inside Settings (embedded) or standalone page. */
 export default function PartnerProfilePanel({ embedded = false }: { embedded?: boolean }) {
   const { session, restaurantId, userRole } = useAuth();
   const [loading, setLoading] = useState(true);

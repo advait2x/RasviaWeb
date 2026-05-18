@@ -22,7 +22,7 @@ export default function SeatPartyModal({ open, onClose, entry }: SeatPartyModalP
     if (!entry) return;
     setLoading(true);
     try {
-      // Seat without a specific table — the call marks the entry as seated
+      // Seat without a specific table - the call marks the entry as seated
       await seatParty(entry.id, "");
     } finally {
       setLoading(false);
