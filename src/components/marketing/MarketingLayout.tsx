@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
-import {
-  MARKETING_NAV_PRODUCTS,
-  getMarketingProductPath,
-  type MarketingProductSlug,
-} from "@/data/marketing-products";
+import type { MarketingProductSlug } from "@/data/marketing-products";
+import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
 
 type MarketingLayoutProps = {
   children: React.ReactNode;
@@ -89,32 +86,10 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
                   />
                 </button>
                 {productsOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-1 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white py-2 shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900">
-                    {MARKETING_NAV_PRODUCTS.map((p) => (
-                      <a
-                        key={p.slug}
-                        href={getMarketingProductPath(p.slug)}
-                        className={cn(
-                          "block px-4 py-4 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.05]",
-                          activeSlug === p.slug && "bg-amber-500/10 dark:bg-amber-500/10",
-                        )}
-                        onClick={() => setProductsOpen(false)}
-                      >
-                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">
-                          {p.name}
-                        </span>
-                        <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{p.description}</span>
-                      </a>
-                    ))}
-                    <div className="border-t border-zinc-200/80 dark:border-white/10">
-                      <a
-                        href="/products"
-                        className="block px-4 py-3 text-xs font-semibold text-amber-700 hover:bg-zinc-100 dark:text-amber-400 dark:hover:bg-white/[0.05]"
-                      >
-                        View all product pages →
-                      </a>
-                    </div>
-                  </div>
+                  <ProductsNavDropdown
+                    activeSlug={activeSlug}
+                    onNavigate={() => setProductsOpen(false)}
+                  />
                 )}
               </div>
 
@@ -157,24 +132,7 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
         {mobileOpen ? (
           <div className="border-t border-zinc-200 bg-white/98 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/95 md:hidden">
             <div className="mx-auto max-w-7xl space-y-1 px-4 py-3">
-              <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Products</p>
-              {MARKETING_NAV_PRODUCTS.map((p) => (
-                <a
-                  key={p.slug}
-                  href={getMarketingProductPath(p.slug)}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {p.name}
-                </a>
-              ))}
-              <a
-                href="/products"
-                className="block rounded-lg px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400"
-                onClick={() => setMobileOpen(false)}
-              >
-                All product pages
-              </a>
+              <ProductsNavMobileLinks onNavigate={() => setMobileOpen(false)} />
               <button
                 type="button"
                 className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"

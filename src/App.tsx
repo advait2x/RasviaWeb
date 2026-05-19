@@ -293,12 +293,9 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/support')) {
     return (
-      <>
-        <DarkThemeLock />
-        <AppShell>
-          <ContactPage />
-        </AppShell>
-      </>
+      <AppShell>
+        <ContactPage />
+      </AppShell>
     );
   }
 

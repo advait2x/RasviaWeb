@@ -29,6 +29,7 @@ import { QRCode } from "@/lib/resolve-react-qr-code";
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
+import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
 import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
 
 /** Smooth-scroll to a section id, accounting for the fixed navbar height. */
@@ -292,26 +293,7 @@ function Navbar() {
               />
             </button>
             {activeDropdown === "products" && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900">
-                {MARKETING_NAV_PRODUCTS.map((item) => (
-                  <a
-                    key={item.slug}
-                    href={getMarketingProductPath(item.slug)}
-                    className="block rounded-lg px-3 py-4 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
-                  >
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">{item.name}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{item.description}</span>
-                  </a>
-                ))}
-                <div className="mt-1 border-t border-zinc-200/80 pt-2 dark:border-white/10">
-                  <a
-                    href="/products"
-                    className="block rounded-lg px-3 py-3 text-xs font-semibold text-amber-700 transition-colors hover:bg-zinc-100 dark:text-amber-400 dark:hover:bg-white/[0.05]"
-                  >
-                    All product pages →
-                  </a>
-                </div>
-              </div>
+              <ProductsNavDropdown />
             )}
           </div>
 
@@ -362,24 +344,7 @@ function Navbar() {
               <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Appearance</p>
               <ThemeIconToggle />
             </div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-600">Products</p>
-            {MARKETING_NAV_PRODUCTS.map((item) => (
-              <a
-                key={item.slug}
-                href={getMarketingProductPath(item.slug)}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
-              >
-                {item.name}
-              </a>
-            ))}
-            <a
-              href="/products"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-lg px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400"
-            >
-              All product pages
-            </a>
+            <ProductsNavMobileLinks onNavigate={() => setMobileOpen(false)} />
             <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
             <button
               type="button"
