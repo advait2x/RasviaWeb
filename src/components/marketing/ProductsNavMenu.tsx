@@ -57,7 +57,14 @@ export function ProductsNavDropdown({
 export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
-      <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Products</p>
+      <a
+        href="/products"
+        className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5"
+        onClick={onNavigate}
+      >
+        All products
+      </a>
+      <p className="px-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">By product</p>
       {MARKETING_NAV_PRODUCTS.map((p) => (
         <a
           key={p.slug}

@@ -12,7 +12,6 @@ import {
   DollarSign,
   Heart,
   Leaf,
-  MapPin,
   Menu,
   Pause,
   Play,
@@ -31,15 +30,7 @@ import { cn } from "@/lib/utils";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
 import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
-
-/** Smooth-scroll to a section id, accounting for the fixed navbar height. */
-function scrollToSection(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const navHeight = document.querySelector("header")?.offsetHeight ?? 88;
-  const top = el.getBoundingClientRect().top + window.scrollY - navHeight;
-  window.scrollTo({ top, behavior: "smooth" });
-}
+import { scrollToLandingSection, useLandingHashScroll } from "@/lib/marketing-nav";
 
 type FeatureSlide = {
   name: string;
@@ -102,12 +93,6 @@ const FEATURE_SLIDES: FeatureSlide[] = [
     audience: "user",
     description:
       "See everyone’s items, modifiers, and tax estimate in real time before anyone pays on mobile.",
-  },
-  {
-    name: "Discover & Map",
-    audience: "user",
-    description:
-      "Browse nearby spots, cuisines, and honest wait signals - then jump into menus without leaving the app.",
   },
   {
     name: "Favorites & Dietary Fit",
@@ -228,7 +213,7 @@ const FOUNDERS = [
   {
     name: "Akshaj Ande",
     role: "COO & Co-Founder",
-    bio: "Computer Science student at the University of Texas at Dallas interested in data analytics and cloud infrastructure.",
+    bio: "Computer science student at the University of Texas at Dallas interested in data analytics and cloud infrastructure.",
     initials: "AA",
     gradient: "from-emerald-500 to-teal-600",
     imageSrc: null as string | null,
@@ -253,31 +238,31 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/85 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-        {/* Logo */}
-        <a href="/" className="inline-flex flex-shrink-0 items-center">
-          <img
-            src="/rasvia-logo-transparent.png"
-            alt="Rasvia"
-            className="h-10 w-auto dark:hidden"
-          />
-          <img
-            src="/rasvia-logo.png"
-            alt="Rasvia"
-            className="hidden h-10 w-auto dark:block dark:brightness-110 dark:contrast-100"
-          />
-        </a>
+        <div className="flex min-w-0 flex-1 items-center gap-6">
+          <a href="/" className="inline-flex flex-shrink-0 items-center">
+            <img
+              src="/rasvia-logo-transparent.png"
+              alt="Rasvia"
+              className="h-10 w-auto dark:hidden"
+            />
+            <img
+              src="/rasvia-logo.png"
+              alt="Rasvia"
+              className="hidden h-10 w-auto dark:block dark:brightness-110 dark:contrast-100"
+            />
+          </a>
 
-        {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 md:flex">
           {/* Products dropdown */}
           <div
             className="relative"
             onMouseEnter={() => openDropdown("products")}
             onMouseLeave={closeDropdown}
           >
-            <button
+            <a
+              href="/products"
               className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 activeDropdown === "products"
                   ? "bg-zinc-200/90 text-zinc-900 dark:bg-white/[0.06] dark:text-white"
@@ -291,7 +276,7 @@ function Navbar() {
                   activeDropdown === "products" ? "rotate-180" : ""
                 }`}
               />
-            </button>
+            </a>
             {activeDropdown === "products" && (
               <ProductsNavDropdown />
             )}
@@ -300,7 +285,7 @@ function Navbar() {
           {/* Pricing */}
           <button
             type="button"
-            onClick={() => scrollToSection("pricing")}
+            onClick={() => scrollToLandingSection("pricing")}
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
           >
             Pricing
@@ -309,12 +294,13 @@ function Navbar() {
           {/* About */}
           <button
             type="button"
-            onClick={() => scrollToSection("about")}
+            onClick={() => scrollToLandingSection("about")}
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
           >
             About
           </button>
-        </nav>
+          </nav>
+        </div>
 
         {/* Right side */}
         <div className="flex items-center gap-2 sm:gap-3">
@@ -348,14 +334,14 @@ function Navbar() {
             <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
             <button
               type="button"
-              onClick={() => { scrollToSection("pricing"); setMobileOpen(false); }}
+              onClick={() => { scrollToLandingSection("pricing"); setMobileOpen(false); }}
               className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
             >
               Pricing
             </button>
             <button
               type="button"
-              onClick={() => { scrollToSection("about"); setMobileOpen(false); }}
+              onClick={() => { scrollToLandingSection("about"); setMobileOpen(false); }}
               className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
             >
               About
@@ -453,15 +439,15 @@ function HostDashboardMockup() {
 function SplitReceiptMockup() {
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/40 p-5 backdrop-blur-sm">
-        <div className="mb-4 flex items-center justify-between border-b border-white/[0.06] pb-4">
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-neutral-900/40 dark:shadow-none">
+        <div className="mb-4 flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-white/[0.06]">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Split Receipt</p>
-            <p className="mt-0.5 text-sm font-bold text-zinc-200">Table 44</p>
+            <p className="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-200">Table 44</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-neutral-500">Total</p>
-            <p className="text-base font-black tracking-tight text-white">$84.50</p>
+            <p className="text-[10px] text-zinc-500 dark:text-neutral-500">Total</p>
+            <p className="text-base font-black tracking-tight text-zinc-900 dark:text-white">$84.50</p>
           </div>
         </div>
 
@@ -469,27 +455,27 @@ function SplitReceiptMockup() {
           {PAYOUT_ROWS.map((row) => (
             <div
               key={row.name}
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-zinc-800/30 px-3.5 py-3"
+              className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-3 dark:border-white/[0.06] dark:bg-zinc-800/30"
             >
               <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700/60 text-[11px] font-bold text-zinc-300">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-[11px] font-bold text-zinc-700 dark:bg-zinc-700/60 dark:text-zinc-300">
                   {row.name[0]}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-200">{row.name}</p>
-                  <p className="text-[10px] text-neutral-400">paid {row.amount}</p>
+                  <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{row.name}</p>
+                  <p className="text-[10px] text-zinc-500 dark:text-neutral-400">paid {row.amount}</p>
                 </div>
               </div>
-              <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400">
                 Settled
               </span>
             </div>
           ))}
         </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/15 bg-amber-500/[0.04] px-3.5 py-2.5">
-          <p className="text-[10px] font-semibold text-neutral-500">Restaurant payout</p>
-          <p className="text-sm font-black text-amber-400">$84.50</p>
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5 dark:border-amber-500/15 dark:bg-amber-500/[0.04]">
+          <p className="text-[10px] font-semibold text-zinc-500 dark:text-neutral-500">Restaurant payout</p>
+          <p className="text-sm font-black text-amber-700 dark:text-amber-400">$84.50</p>
         </div>
       </div>
     </div>
@@ -499,104 +485,105 @@ function SplitReceiptMockup() {
 function GroupSplitMockup() {
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-3">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-3.5 py-3 backdrop-blur-sm">
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-3.5 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
 
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <p className="text-xs font-black tracking-tight text-white">Group Order</p>
-            <p className="text-[9px] text-neutral-500">5 items &middot; 2 members</p>
+            <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">Group Order</p>
+            <p className="text-[9px] text-zinc-500 dark:text-neutral-500">5 items &middot; 2 members</p>
           </div>
-          <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-transparent px-2 py-0.5">
-            <span className="text-[9px] font-bold text-amber-400">Party</span>
+          <div className="flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/5 px-2 py-0.5 dark:border-amber-500/30 dark:bg-transparent">
+            <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">Party</span>
             <span className="text-[9px] text-zinc-500">- 2 +</span>
           </div>
         </div>
 
         <div className="mb-1.5 flex gap-1.5">
-          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1 text-[9px] font-semibold text-amber-400">
+          <button type="button" className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/5 py-1 text-[9px] font-semibold text-amber-700 dark:bg-transparent dark:text-amber-400">
             Dine In
           </button>
-          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1 text-[9px] font-semibold text-zinc-500">
+          <button type="button" className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 py-1 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-500">
             Takeout
           </button>
-          <button className="flex-1 rounded-lg border border-amber-500/40 bg-transparent py-1 text-[9px] font-semibold text-amber-400">
+          <button type="button" className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/5 py-1 text-[9px] font-semibold text-amber-700 dark:bg-transparent dark:text-amber-400">
             By Member
           </button>
-          <button className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1 text-[9px] font-semibold text-zinc-500">
+          <button type="button" className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 py-1 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-500">
             All Items
           </button>
         </div>
 
         <div className="flex flex-col gap-1.5 mb-2">
-          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-2.5 py-1.5">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 dark:border-white/[0.05] dark:bg-zinc-900/60">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5">
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
-                <span className="text-[10px] font-bold text-white">Jordan K.</span>
+                <span className="text-[10px] font-bold text-zinc-900 dark:text-white">Jordan K.</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-black text-amber-400">$26.79</span>
-                <p className="text-[8px] text-zinc-600">+ $2.21 tax</p>
+                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400">$26.79</span>
+                <p className="text-[8px] text-zinc-500 dark:text-zinc-600">+ $2.21 tax</p>
               </div>
             </div>
-            <div className="rounded-md border border-white/[0.04] bg-zinc-800/40 px-2 py-1 flex items-center justify-between">
+            <div className="rounded-md border border-zinc-200 bg-white px-2 py-1 flex items-center justify-between dark:border-white/[0.04] dark:bg-zinc-800/40">
               <div className="flex items-center gap-1">
-                <span className="text-[9px] text-neutral-400">Butter Chicken</span>
-                <span className="rounded-full bg-zinc-700/60 px-1 text-[8px] text-zinc-500">x3</span>
+                <span className="text-[9px] text-zinc-600 dark:text-neutral-400">Butter Chicken</span>
+                <span className="rounded-full bg-zinc-200 px-1 text-[8px] text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500">x3</span>
               </div>
-              <span className="text-[9px] text-zinc-400">$26.79</span>
+              <span className="text-[9px] text-zinc-600 dark:text-zinc-400">$26.79</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/[0.05] bg-zinc-900/60 px-2.5 py-1.5">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 dark:border-white/[0.05] dark:bg-zinc-900/60">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5">
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
-                <span className="text-[10px] font-bold text-white">Priya M.</span>
+                <span className="text-[10px] font-bold text-zinc-900 dark:text-white">Priya M.</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-black text-amber-400">$9.34</span>
-                <p className="text-[8px] text-zinc-600">+ $0.77 tax</p>
+                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400">$9.34</span>
+                <p className="text-[8px] text-zinc-500 dark:text-zinc-600">+ $0.77 tax</p>
               </div>
             </div>
-            <div className="rounded-md border border-white/[0.04] bg-zinc-800/40 px-2 py-1 flex items-center justify-between">
+            <div className="rounded-md border border-zinc-200 bg-white px-2 py-1 flex items-center justify-between dark:border-white/[0.04] dark:bg-zinc-800/40">
               <div className="flex items-center gap-1">
-                <span className="text-[9px] text-neutral-400">Garlic Naan</span>
-                <span className="rounded-full bg-zinc-700/60 px-1 text-[8px] text-zinc-500">x2</span>
+                <span className="text-[9px] text-zinc-600 dark:text-neutral-400">Garlic Naan</span>
+                <span className="rounded-full bg-zinc-200 px-1 text-[8px] text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500">x2</span>
               </div>
-              <span className="text-[9px] text-zinc-400">$9.34</span>
+              <span className="text-[9px] text-zinc-600 dark:text-zinc-400">$9.34</span>
             </div>
           </div>
         </div>
 
         <div className="mb-1.5 flex flex-col gap-0.5 px-0.5">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-neutral-500">Subtotal</span>
-            <span className="text-[9px] font-semibold text-zinc-400">$36.13</span>
+            <span className="text-[9px] text-zinc-500 dark:text-neutral-500">Subtotal</span>
+            <span className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400">$36.13</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[9px] text-neutral-500">Sales tax</span>
-            <span className="text-[9px] font-semibold text-zinc-400">$2.98</span>
+            <span className="text-[9px] text-zinc-500 dark:text-neutral-500">Sales tax</span>
+            <span className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400">$2.98</span>
           </div>
-          <div className="mt-0.5 flex items-center justify-between border-t border-white/[0.06] pt-1">
-            <span className="text-[9px] font-bold text-zinc-300">Total</span>
-            <span className="text-xs font-black text-white">$39.11</span>
+          <div className="mt-0.5 flex items-center justify-between border-t border-zinc-200 pt-1 dark:border-white/[0.06]">
+            <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300">Total</span>
+            <span className="text-xs font-black text-zinc-900 dark:text-white">$39.11</span>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-1 mb-1.5">
-          <button className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-1.5 text-[9px] font-bold text-emerald-400">
+          <button type="button" className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-1.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
             I&apos;ll Pay
           </button>
-          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[9px] font-semibold text-zinc-400">
+          <button type="button" className="rounded-lg border border-zinc-200 bg-zinc-100 py-1.5 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-400">
             Split
           </button>
-          <button className="rounded-lg border border-white/[0.06] bg-zinc-800/50 py-1.5 text-[9px] font-semibold text-zinc-400">
+          <button type="button" className="rounded-lg border border-zinc-200 bg-zinc-100 py-1.5 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-400">
             Assign
           </button>
         </div>
 
         <button
+          type="button"
           className="w-full rounded-xl py-2 text-[10px] font-bold text-white"
           style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 3px 14px rgba(34,197,94,0.3)" }}
         >
@@ -720,10 +707,10 @@ const KDS_STAGES = ["Pending", "Preparing", "Ready", "Served"] as const;
 type KdsStage = typeof KDS_STAGES[number];
 
 const KDS_STAGE_STYLES: Record<KdsStage, { pill: string; dot: string; btn: string; pillText: string; pillLabel: string }> = {
-  Pending:   { pill: "bg-amber-950/50 border-amber-800/50", dot: "bg-amber-500", pillText: "text-amber-400/90", btn: "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30", pillLabel: "NEW - Not started" },
-  Preparing: { pill: "bg-blue-950/40 border-blue-800/40", dot: "bg-blue-500 animate-pulse", pillText: "text-blue-400/90", btn: "bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30", pillLabel: "IN PROGRESS - Cooking" },
-  Ready:     { pill: "bg-emerald-950/40 border-emerald-800/40", dot: "bg-emerald-400", pillText: "text-emerald-400/90", btn: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30", pillLabel: "READY - Pick up" },
-  Served:    { pill: "bg-violet-950/40 border-violet-800/40", dot: "bg-violet-400", pillText: "text-violet-400/90", btn: "bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-violet-500/30", pillLabel: "SERVED - Floor" },
+  Pending:   { pill: "bg-amber-100 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800/50", dot: "bg-amber-600 dark:bg-amber-500", pillText: "text-amber-900 dark:text-amber-400/90", btn: "bg-amber-600 border-amber-700 text-white hover:bg-amber-700 dark:bg-amber-500/30 dark:border-amber-500/50 dark:text-amber-100 dark:hover:bg-amber-500/40", pillLabel: "NEW - Not started" },
+  Preparing: { pill: "bg-blue-100 border-blue-300 dark:bg-blue-950/40 dark:border-blue-800/40", dot: "bg-blue-600 animate-pulse dark:bg-blue-500", pillText: "text-blue-900 dark:text-blue-400/90", btn: "bg-blue-600 border-blue-700 text-white hover:bg-blue-700 dark:bg-blue-500/30 dark:border-blue-500/50 dark:text-blue-100 dark:hover:bg-blue-500/40", pillLabel: "IN PROGRESS - Cooking" },
+  Ready:     { pill: "bg-emerald-100 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800/40", dot: "bg-emerald-600 dark:bg-emerald-400", pillText: "text-emerald-900 dark:text-emerald-400/90", btn: "bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700 dark:bg-emerald-500/30 dark:border-emerald-500/50 dark:text-emerald-100 dark:hover:bg-emerald-500/40", pillLabel: "READY - Pick up" },
+  Served:    { pill: "bg-violet-100 border-violet-300 dark:bg-violet-950/40 dark:border-violet-800/40", dot: "bg-violet-600 dark:bg-violet-400", pillText: "text-violet-900 dark:text-violet-400/90", btn: "bg-violet-600 border-violet-700 text-white hover:bg-violet-700 dark:bg-violet-500/30 dark:border-violet-500/50 dark:text-violet-100 dark:hover:bg-violet-500/40", pillLabel: "SERVED - Floor" },
 };
 
 interface KdsTicket {
@@ -759,7 +746,7 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
 
   return (
     <div
-      className="flex flex-col gap-1.5 rounded-xl border border-l-4 border-zinc-800/90 bg-zinc-900/90 p-2.5"
+      className="flex flex-col gap-1.5 rounded-xl border border-l-4 border-zinc-200 bg-white p-2.5 dark:border-zinc-800/90 dark:bg-zinc-900/90"
       style={{ borderLeftColor: borderAccent }}
     >
       <div className={`flex items-center gap-2 rounded-md border px-2 py-0.5 ${styles.pill}`}>
@@ -768,7 +755,7 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <span className="font-mono text-xs font-bold text-zinc-100">#{ticket.id}</span>
+          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">#{ticket.id}</span>
           <span className="ml-1 text-[9px] uppercase text-zinc-500">{ticket.table}</span>
         </div>
         <span className="text-[9px] font-medium text-zinc-500">{ticket.elapsed}</span>
@@ -776,13 +763,13 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
       <p className="text-[9px] text-zinc-500">{ticket.guestName}</p>
       <div className="flex max-h-[52px] flex-col gap-0.5 overflow-hidden">
         {ticket.items.map((item) => (
-          <span key={item} className="truncate text-[9px] text-zinc-300">{item}</span>
+          <span key={item} className="truncate text-[9px] text-zinc-700 dark:text-zinc-300">{item}</span>
         ))}
       </div>
 
-      <div className="flex items-center gap-1 rounded-md border border-white/[0.08] bg-zinc-950/60 px-2 py-1">
+      <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 dark:border-white/[0.08] dark:bg-zinc-950/60">
         <span className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">Status</span>
-        <span className="ml-auto text-[9px] font-semibold text-zinc-200">{stage}</span>
+        <span className="ml-auto text-[9px] font-semibold text-zinc-800 dark:text-zinc-200">{stage}</span>
         <ChevronDown size={12} className="text-zinc-500" />
       </div>
 
@@ -791,7 +778,7 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
           type="button"
           onClick={moveDown}
           disabled={stageIdx === 0}
-          className="flex flex-1 items-center justify-center gap-0.5 rounded-lg border border-zinc-600/50 bg-zinc-800/50 py-1 text-[8px] font-bold uppercase tracking-wide text-zinc-300 transition-colors hover:bg-zinc-800/80 disabled:cursor-not-allowed disabled:opacity-35"
+          className="flex flex-1 items-center justify-center gap-0.5 rounded-lg border border-zinc-300 bg-zinc-100 py-1 text-[8px] font-bold uppercase tracking-wide text-zinc-700 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-35 dark:border-zinc-600/50 dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
         >
           <ArrowDown size={10} />
           Down
@@ -811,7 +798,7 @@ function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?:
 
 function KitchenDisplayMockup({ onInteract }: { onInteract?: () => void }) {
   return (
-    <div className="flex h-full flex-col p-4 gap-3">
+    <div className="flex h-full flex-col gap-3 px-12 py-4 sm:px-14">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ChefHat size={14} className="text-amber-600/80" />
@@ -961,27 +948,25 @@ function RevenueSnapshotMockup({ onInteract }: { onInteract?: () => void }) {
 function OrderHistoryMockup({ onInteract }: { onInteract?: () => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-4">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-3.5 backdrop-blur-sm">
-        {/* Header */}
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs font-black tracking-tight text-white">My Orders</p>
-          <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Completed</span>
+          <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">My Orders</p>
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400">Completed</span>
         </div>
 
-        {/* Order card */}
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2.5">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 dark:border-white/[0.06] dark:bg-zinc-900/60">
           <div className="flex items-center justify-between mb-1.5">
             <div>
-              <p className="text-xs font-bold text-zinc-100">Spice Garden</p>
-              <p className="text-[9px] text-zinc-600">Apr 20, 2026 · Dine In</p>
+              <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Spice Garden</p>
+              <p className="text-[9px] text-zinc-500 dark:text-zinc-600">Apr 20, 2026 · Dine In</p>
             </div>
-            <p className="text-xs font-black text-amber-400">$26.79</p>
+            <p className="text-xs font-black text-amber-700 dark:text-amber-400">$26.79</p>
           </div>
           <div className="flex flex-col gap-0.5 mb-2.5">
             {[{ name: "Butter Chicken", qty: 1, price: "$17.99" }, { name: "Garlic Naan", qty: 2, price: "$7.98" }].map((item) => (
               <div key={item.name} className="flex items-center justify-between">
-                <span className="text-[9px] text-zinc-500">{item.qty}× {item.name}</span>
-                <span className="text-[9px] text-zinc-600">{item.price}</span>
+                <span className="text-[9px] text-zinc-600 dark:text-zinc-500">{item.qty}× {item.name}</span>
+                <span className="text-[9px] text-zinc-500 dark:text-zinc-600">{item.price}</span>
               </div>
             ))}
           </div>
@@ -989,20 +974,19 @@ function OrderHistoryMockup({ onInteract }: { onInteract?: () => void }) {
           <button
             type="button"
             onClick={() => onInteract?.()}
-            className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 py-2 text-[10px] font-bold text-amber-400 transition-colors hover:bg-amber-500/20 active:scale-95 cursor-pointer"
+            className="w-full cursor-pointer rounded-xl border border-amber-500/40 bg-amber-500/10 py-2 text-[10px] font-bold text-amber-700 transition-colors hover:bg-amber-500/20 active:scale-95 dark:text-amber-400"
           >
             Order Again
           </button>
         </div>
 
-        {/* Blurred second card */}
-        <div className="mt-2 rounded-xl border border-white/[0.06] bg-zinc-900/30 px-3 py-2.5 opacity-40">
+        <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 opacity-50 dark:border-white/[0.06] dark:bg-zinc-900/30 dark:opacity-40">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-zinc-300">Biryani House</p>
-              <p className="text-[9px] text-zinc-400">Apr 14, 2026</p>
+              <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300">Biryani House</p>
+              <p className="text-[9px] text-zinc-500 dark:text-zinc-400">Apr 14, 2026</p>
             </div>
-            <p className="text-xs font-black text-zinc-300">$18.50</p>
+            <p className="text-xs font-black text-zinc-600 dark:text-zinc-300">$18.50</p>
           </div>
         </div>
       </div>
@@ -1046,15 +1030,14 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-4">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-4 backdrop-blur-sm">
-        {/* Restaurant header */}
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
         <div className="mb-4 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800 border border-white/[0.06]">
-            <ShoppingBag size={14} className="text-zinc-400" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 dark:border-white/[0.06] dark:bg-zinc-800">
+            <ShoppingBag size={14} className="text-zinc-500 dark:text-zinc-400" />
           </div>
           <div>
-            <p className="text-xs font-bold text-zinc-100">Spice Garden</p>
-            <p className="text-[9px] text-zinc-600">Order #A4F2 · Dine In</p>
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Spice Garden</p>
+            <p className="text-[9px] text-zinc-500 dark:text-zinc-600">Order #A4F2 · Dine In</p>
           </div>
         </div>
 
@@ -1063,7 +1046,7 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
           {/* Circles + connectors */}
           <div className="relative flex items-center justify-between">
             {/* Background connector track */}
-            <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-zinc-700/60" />
+            <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-zinc-300 dark:bg-zinc-700/60" />
             {/* Filled connector segments - one per gap between circles */}
             {TRACKER_STAGES.slice(0, -1).map((seg, i) =>
               i < stageIdx ? (
@@ -1084,20 +1067,28 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
             {TRACKER_STAGES.map((step, idx) => {
               const isCompleted = idx < stageIdx;
               const isActiveStep = idx === stageIdx;
-              const bg = isCompleted ? step.color : isActiveStep ? `${step.color}22` : "rgba(39,39,42,0.9)";
-              const border = isCompleted || isActiveStep ? step.color : "#52525b";
               return (
                 <div
                   key={step.label}
-                  className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300"
-                  style={{ background: bg, borderColor: border }}
+                  className={cn(
+                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
+                    isCompleted && "border-transparent",
+                    !isCompleted && !isActiveStep && "border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/90",
+                  )}
+                  style={
+                    isCompleted
+                      ? { background: step.color, borderColor: step.color }
+                      : isActiveStep
+                        ? { background: `${step.color}22`, borderColor: step.color }
+                        : undefined
+                  }
                 >
                   {isCompleted ? (
                     <Check size={13} color="#fff" />
                   ) : isActiveStep ? (
                     <div className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: step.color }} />
                   ) : (
-                    <step.Icon size={11} color={step.color} opacity={0.25} />
+                    <step.Icon size={11} color={step.color} className="opacity-40 dark:opacity-25" />
                   )}
                 </div>
               );
@@ -1108,8 +1099,11 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
             {TRACKER_STAGES.map((step, idx) => (
               <div key={step.label} className="w-8 text-center">
                 <span
-                  className="text-[8px] font-semibold leading-tight"
-                  style={{ color: idx === stageIdx ? step.color : idx < stageIdx ? "#71717a" : "#3f3f46" }}
+                  className={cn(
+                    "text-[8px] font-semibold leading-tight",
+                    idx === stageIdx ? undefined : idx < stageIdx ? "text-zinc-500" : "text-zinc-400 dark:text-zinc-600",
+                  )}
+                  style={idx === stageIdx ? { color: step.color } : undefined}
                 >
                   {step.label}
                 </span>
@@ -1129,7 +1123,7 @@ function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPause
 
         {/* Hint when not animating */}
         {(!isActive || !isPaused) && (
-          <p className="mt-2 text-center text-[8px] text-zinc-700">Pause the gallery to watch live updates</p>
+          <p className="mt-2 text-center text-[8px] text-zinc-500 dark:text-zinc-700">Pause the gallery to watch live updates</p>
         )}
       </div>
     </div>
@@ -1185,13 +1179,12 @@ function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-3">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] px-4 py-3 backdrop-blur-sm">
-        {/* Header */}
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
         <div className="mb-2.5 text-center">
-          <p className="text-xs font-black tracking-tight text-white">Group Order Created</p>
-          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-3 py-1">
-            <Users size={10} className="text-amber-400" />
-            <span className="text-[9px] font-semibold text-amber-400">Spice Garden</span>
+          <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">Group Order Created</p>
+          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-500/[0.08] px-3 py-1 dark:border-amber-500/30">
+            <Users size={10} className="text-amber-600 dark:text-amber-400" />
+            <span className="text-[9px] font-semibold text-amber-700 dark:text-amber-400">Spice Garden</span>
           </div>
         </div>
 
@@ -1203,19 +1196,18 @@ function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
         </div>
 
         {/* Link */}
-        <div className="mb-2 rounded-xl border border-white/[0.06] bg-zinc-800/40 px-3 py-1.5">
-          <p className="font-mono text-[10px] text-zinc-400 truncate">rasvia.com</p>
+        <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 dark:border-white/[0.06] dark:bg-zinc-800/40">
+          <p className="font-mono text-[10px] text-zinc-600 truncate dark:text-zinc-400">rasvia.com</p>
         </div>
 
-        {/* Buttons */}
         <div className="mb-2 flex gap-2">
           <button
             type="button"
             onClick={handleCopy}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
               copyState === "copied"
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
-                : "border-white/[0.08] bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800/80"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-white/[0.08] dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
             }`}
           >
             {copyState === "copied" ? <Check size={11} /> : <Copy size={11} />}
@@ -1226,8 +1218,8 @@ function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
             onClick={handleShare}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
               shareState === "copied"
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
-                : "border-white/[0.08] bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800/80"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-white/[0.08] dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
             }`}
           >
             {shareState === "copied" ? <Check size={11} /> : <Share2 size={11} />}
@@ -1246,7 +1238,7 @@ function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
           Join Group Order
         </button>
 
-        <p className="mt-2 text-center text-[8px] text-zinc-700">Share the link first and join later.</p>
+        <p className="mt-2 text-center text-[8px] text-zinc-500 dark:text-zinc-700">Share the link first and join later.</p>
       </div>
     </div>
   );
@@ -1264,28 +1256,31 @@ function TablesidePartyMockup() {
           <QrCodeIcon size={14} className="text-amber-500/90" />
           <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Tableside QR</span>
         </div>
-        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Live</span>
+        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Live</span>
       </div>
-      <div className="flex flex-1 gap-3 min-h-0">
-        <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-white p-2">
-          <QRCode value="https://rasvia.com/join" size={76} bgColor="#ffffff" fgColor="#0a0a0a" />
-          <span className="mt-1 text-[8px] font-mono text-zinc-600">rasvia.com/join</span>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div>
+          <p className="text-xs font-bold text-zinc-900 dark:text-white">Table 12 · Spice Garden</p>
+          <p className="text-[9px] text-zinc-500">Party session · 4 members on cart</p>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div>
-            <p className="text-xs font-bold text-white">Table 12 · Spice Garden</p>
-            <p className="text-[9px] text-zinc-500">Party session · 4 members on cart</p>
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 space-y-1.5 dark:border-white/[0.06] dark:bg-zinc-800/40">
+          <div className="flex justify-between text-[9px]">
+            <span className="text-zinc-500">Cart</span>
+            <span className="font-bold text-amber-700 dark:text-amber-400">$186.40</span>
           </div>
-          <div className="rounded-lg border border-white/[0.06] bg-zinc-800/40 px-2.5 py-2 space-y-1.5">
-            <div className="flex justify-between text-[9px]">
-              <span className="text-zinc-500">Cart</span>
-              <span className="font-bold text-amber-400">$186.40</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {["Equal split", "Per person", "Lock cart"].map((tag) => (
-                <span key={tag} className="rounded-md border border-zinc-600/50 bg-zinc-900/60 px-1.5 py-0.5 text-[8px] text-zinc-400">{tag}</span>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1">
+            {["Equal split", "Per person", "Lock cart"].map((tag) => (
+              <span key={tag} className="rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 text-[8px] text-zinc-600 dark:border-zinc-600/50 dark:bg-zinc-900/60 dark:text-zinc-400">{tag}</span>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-zinc-900/50">
+          <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-white/10">
+            <QRCode value="https://rasvia.com/join" size={72} bgColor="#ffffff" fgColor="#0a0a0a" />
+          </div>
+          <div className="min-w-0 text-left">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">Scan to join</p>
+            <p className="font-mono text-[10px] text-zinc-700 dark:text-zinc-300">rasvia.com/join</p>
           </div>
         </div>
       </div>
@@ -1294,22 +1289,29 @@ function TablesidePartyMockup() {
 }
 
 function KioskWalkInMockup() {
+  const [partySize, setPartySize] = useState(4);
+
   return (
     <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900/80 dark:shadow-none">
         <div className="mb-3 flex items-center gap-2">
-          <Tablet size={15} className="text-amber-500" />
+          <Tablet size={15} className="text-amber-600 dark:text-amber-500" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Kiosk · Walk-in</span>
         </div>
         <label className="text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Guest name</label>
-        <div className="mt-1 rounded-xl border border-white/[0.08] bg-zinc-950/80 px-3 py-2.5 text-sm text-zinc-200">Jordan K.</div>
+        <div className="mt-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:text-zinc-200">Jordan K.</div>
         <label className="mt-3 block text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Party size</label>
         <div className="mt-1 flex gap-2">
           {[2, 3, 4, 6].map((n) => (
             <button
               key={n}
               type="button"
-              className={`flex-1 rounded-lg border py-2 text-xs font-bold ${n === 4 ? "border-amber-500/50 bg-amber-500/10 text-amber-400" : "border-white/10 bg-zinc-800/40 text-zinc-500"}`}
+              onClick={(e) => { e.preventDefault(); setPartySize(n); }}
+              className={`flex-1 cursor-pointer rounded-lg border py-2 text-xs font-bold transition-colors ${
+                n === partySize
+                  ? "border-amber-500/50 bg-amber-500/15 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400"
+                  : "border-zinc-200 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800/40 dark:text-zinc-500 dark:hover:bg-zinc-800/60"
+              }`}
             >
               {n}
             </button>
@@ -1317,14 +1319,15 @@ function KioskWalkInMockup() {
         </div>
         <button
           type="button"
-          className="mt-4 w-full rounded-xl py-3 text-xs font-bold text-zinc-950"
+          onClick={(e) => e.preventDefault()}
+          className="mt-4 w-full cursor-pointer rounded-xl py-3 text-xs font-bold text-zinc-950 shadow-md transition-opacity hover:opacity-90 dark:shadow-amber-900/30"
           style={{ background: "linear-gradient(135deg, #FF9933 0%, #ea580c 100%)" }}
         >
           Join waitlist
         </button>
-        <div className="mt-3 flex items-center justify-between rounded-lg border border-white/[0.06] bg-zinc-950/50 px-2.5 py-2">
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 dark:border-white/[0.06] dark:bg-zinc-950/50">
           <span className="text-[9px] text-zinc-500">Queue ahead</span>
-          <span className="text-[9px] font-bold text-zinc-300">3 parties</span>
+          <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300">3 parties</span>
         </div>
       </div>
     </div>
@@ -1395,75 +1398,34 @@ function StripePayoutsMockup() {
   );
 }
 
-function DiscoverMapMockup() {
-  return (
-    <div className="flex h-full flex-col p-4 gap-3">
-      <div className="flex items-center gap-2">
-        <MapPin size={14} className="text-amber-500" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Discover</span>
-      </div>
-      <div
-        className="relative flex-1 overflow-hidden rounded-xl border border-white/[0.08] min-h-[200px]"
-        style={{ background: "linear-gradient(145deg, #1a1f2e 0%, #12151e 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: "radial-gradient(circle at 30% 40%, rgba(245,158,11,0.15), transparent 45%), radial-gradient(circle at 70% 55%, rgba(59,130,246,0.12), transparent 40%)",
-          }}
-        />
-        {[28, 62, 48].map((left, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{ left: `${left}%`, top: `${35 + i * 12}%` }}
-          >
-            <div className="h-3 w-3 rounded-full border-2 border-amber-400 bg-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.5)]" />
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <div className="min-w-0 flex-1 rounded-xl border border-white/[0.06] bg-zinc-900/70 p-2.5">
-          <p className="truncate text-xs font-bold text-white">Chennai Cafe</p>
-          <p className="text-[9px] text-zinc-500">Indian · 12 min wait</p>
-        </div>
-        <div className="min-w-0 flex-1 rounded-xl border border-white/[0.06] bg-zinc-900/70 p-2.5">
-          <p className="truncate text-xs font-bold text-white">Udon Lab</p>
-          <p className="text-[9px] text-zinc-500">Japanese · Open now</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function FavoritesDietMockup() {
   return (
     <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-[#111113] p-4">
+      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs font-black text-white">Saved for you</p>
-          <Heart size={14} className="fill-amber-500/30 text-amber-500/70" />
+          <p className="text-xs font-black text-zinc-900 dark:text-white">Saved for you</p>
+          <Heart size={14} className="fill-amber-500/30 text-amber-600 dark:text-amber-500/70" />
         </div>
         {[
           { name: "Spice Garden", tags: ["Veg options", "Halal"], saved: true },
           { name: "Neon Ramen", tags: ["Late night"], saved: true },
         ].map((r) => (
-          <div key={r.name} className="mb-2 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-zinc-900/60 px-3 py-2.5 last:mb-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 border border-white/[0.06]">
+          <div key={r.name} className="mb-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 last:mb-0 dark:border-white/[0.06] dark:bg-zinc-900/60">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 dark:border-white/[0.06] dark:bg-zinc-800">
               <UtensilsCrossed size={16} className="text-zinc-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-zinc-100">{r.name}</p>
+              <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">{r.name}</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {r.tags.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-0.5 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-400/90">
+                  <span key={t} className="inline-flex items-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400/90">
                     <Leaf size={9} />
                     {t}
                   </span>
                 ))}
               </div>
             </div>
-            <Heart size={14} className={r.saved ? "fill-rose-500/25 text-rose-400" : "text-zinc-600"} />
+            <Heart size={14} className={r.saved ? "fill-rose-500/25 text-rose-600 dark:text-rose-400" : "text-zinc-400 dark:text-zinc-600"} />
           </div>
         ))}
       </div>
@@ -1501,8 +1463,6 @@ function GallerySlideContent({
       return <SplitReceiptMockup />;
     case "Live Cart & Group Checkout":
       return <GroupSplitMockup />;
-    case "Discover & Map":
-      return <DiscoverMapMockup />;
     case "Favorites & Dietary Fit":
       return <FavoritesDietMockup />;
     case "Live Order Progress":
@@ -1542,6 +1502,7 @@ export default function LandingPage() {
     [audience]
   );
 
+  useLandingHashScroll();
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -1590,22 +1551,23 @@ export default function LandingPage() {
 
   const goPrev = () => {
     if (activeSlides.length <= 1) return;
+    setPaused(true);
     setCurrentIndex((p) => (p - 1 + activeSlides.length) % activeSlides.length);
   };
   const goNext = () => {
     if (activeSlides.length <= 1) return;
+    setPaused(true);
     setCurrentIndex((p) => (p + 1) % activeSlides.length);
   };
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden bg-zinc-50 text-zinc-900 transition-colors dark:bg-[#050505] dark:text-zinc-100">
+    <div className="w-full min-h-screen overflow-x-hidden bg-[var(--page-overscroll)] text-zinc-900 dark:text-zinc-100">
       {/* Page-wide cursor glow - fixed so it tracks the mouse anywhere on the page */}
       <div
         ref={heroGlowRef}
-        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.055] will-change-transform dark:opacity-[0.07]"
+        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.1] will-change-transform [background:radial-gradient(ellipse_at_center,#EA580C_0%,transparent_70%)] dark:opacity-[0.07] dark:[background:radial-gradient(ellipse_at_center,#F59E0B_0%,transparent_70%)]"
         style={{
           zIndex: 0,
-          background: "radial-gradient(ellipse at center, #F59E0B 0%, transparent 70%)",
           filter: "blur(70px)",
           transform: "translate(-50%, -50%)",
         }}
@@ -1613,7 +1575,8 @@ export default function LandingPage() {
 
       <Navbar />
 
-      <main className="relative z-10 w-full py-12 pt-28">
+      <div className="pt-[57px]">
+      <main className="relative z-10 w-full py-12">
         <div ref={heroGlowAreaRef} className="mx-auto max-w-7xl px-6 relative overflow-hidden">
 
           <section className="relative grid gap-10 lg:grid-cols-2 lg:items-start">
@@ -1886,7 +1849,7 @@ export default function LandingPage() {
                   </li>
                 ))}
                 <li>
-                  <button type="button" onClick={() => scrollToSection("pricing")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">
+                  <button type="button" onClick={() => scrollToLandingSection("pricing")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">
                     Pricing
                   </button>
                 </li>
@@ -1897,8 +1860,8 @@ export default function LandingPage() {
             <div>
               <p className="text-sm font-medium text-zinc-900 dark:text-white">About</p>
               <ul className="mt-4 flex flex-col gap-3">
-                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Our Mission</button></li>
-                <li><button type="button" onClick={() => scrollToSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Team</button></li>
+                <li><button type="button" onClick={() => scrollToLandingSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Our Mission</button></li>
+                <li><button type="button" onClick={() => scrollToLandingSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Team</button></li>
                 <li><a href="/support" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Contact Support</a></li>
                 <li><a href="/partner-portal" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Partner Login</a></li>
               </ul>
@@ -1922,6 +1885,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

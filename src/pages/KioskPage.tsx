@@ -383,7 +383,7 @@ function FormView({
           fullscreen ? "rounded-2xl py-7 text-[28px]" : "py-4 text-lg",
           isReady && !loading && cn("cursor-pointer shadow-amber-500/25", DASH_PRIMARY_CTA),
           loading && "cursor-not-allowed bg-amber-800/75 text-amber-50 dark:bg-amber-600/80 dark:text-zinc-950",
-          !isReady && !loading && "cursor-not-allowed bg-zinc-800 text-zinc-500 shadow-none",
+          !isReady && !loading && "cursor-not-allowed border border-zinc-600/50 bg-zinc-600 text-zinc-300 shadow-none dark:border-zinc-700 dark:bg-zinc-700 dark:text-zinc-400",
         )}
       >
         {loading ? (

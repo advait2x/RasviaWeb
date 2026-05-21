@@ -11,13 +11,21 @@ const previewAllowedHosts = [
 export default defineConfig({
   base: process.env.NODE_ENV === "development" ? "/" : process.env.VITE_BASE_PATH || "/",
   optimizeDeps: {
-    entries: ["src/main.tsx", "src/tempobook/**/*"],
+    entries: ["src/main.tsx"],
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react-router-dom",
+      "@supabase/supabase-js",
+      "framer-motion",
+      "recharts",
+    ],
   },
   plugins: [
     react(),
   ],
   resolve: {
-    preserveSymlinks: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
@@ -25,8 +33,9 @@ export default defineConfig({
   server: {
     // @ts-ignore
     allowedHosts: process.env.TEMPO === "true" ? true : undefined,
-    host: true, // This exposes the app to your local Wi-Fi
+    host: "localhost",
     port: 5173,
+    strictPort: true,
   },
   preview: {
     host: true,

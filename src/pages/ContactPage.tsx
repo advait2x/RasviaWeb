@@ -1,19 +1,9 @@
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
+
 export default function ContactPage() {
   return (
-    <div className="w-full min-h-screen overflow-x-hidden text-zinc-900 dark:text-zinc-100">
-      <div className="mx-auto max-w-2xl px-6 py-16">
-        <a
-          href="/"
-          className="mb-10 inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-amber-600 dark:text-neutral-500 dark:hover:text-amber-400"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          Back to Home
-        </a>
-
-        <img src="/rasvia-logo.png" alt="Rasvia" className="mb-4 h-6 w-auto dark:hidden" />
-        <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="mb-4 hidden h-6 w-auto dark:block" />
+    <MarketingLayout>
+      <div className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white">Contact Us</h1>
         <p className="mt-3 text-zinc-600 dark:text-neutral-400">
           We are here to help. Reach out anytime and we will get back to you within one business day.
@@ -40,11 +30,7 @@ export default function ContactPage() {
             </a>
           </div>
         </div>
-
-        <p className="mt-10 text-sm text-zinc-500 dark:text-neutral-600">
-          {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
-        </p>
       </div>
-    </div>
+    </MarketingLayout>
   );
 }

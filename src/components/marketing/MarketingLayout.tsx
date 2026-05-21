@@ -4,24 +4,13 @@ import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import type { MarketingProductSlug } from "@/data/marketing-products";
 import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
+import { scrollToLandingSection } from "@/lib/marketing-nav";
 
 type MarketingLayoutProps = {
   children: React.ReactNode;
   /** Highlight current product in nav when set */
   activeSlug?: MarketingProductSlug;
 };
-
-function scrollToLandingSection(id: string) {
-  if (window.location.pathname !== "/" && window.location.pathname !== "") {
-    window.location.href = `/#${id}`;
-    return;
-  }
-  const el = document.getElementById(id);
-  if (!el) return;
-  const navHeight = document.querySelector("header")?.offsetHeight ?? 88;
-  const top = el.getBoundingClientRect().top + window.scrollY - navHeight;
-  window.scrollTo({ top, behavior: "smooth" });
-}
 
 export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,8 +35,8 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-[#050505] dark:text-zinc-100">
-      <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
+    <div className="min-h-screen bg-[var(--page-overscroll)] text-zinc-900 dark:text-zinc-100">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-6">
             <a href="/" className="inline-flex flex-shrink-0 items-center">
@@ -69,8 +58,8 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
                 onMouseEnter={openProducts}
                 onMouseLeave={closeProducts}
               >
-                <button
-                  type="button"
+                <a
+                  href="/products"
                   className={cn(
                     "flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     productsOpen
@@ -84,7 +73,7 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
                     size={14}
                     className={cn("transition-transform duration-200", productsOpen ? "rotate-180" : "")}
                   />
-                </button>
+                </a>
                 {productsOpen && (
                   <ProductsNavDropdown
                     activeSlug={activeSlug}
@@ -171,7 +160,7 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
         ) : null}
       </header>
 
-      {children}
+      <div className="pt-[57px]">{children}</div>
 
       <footer className="mt-16 border-t border-zinc-200/90 dark:border-white/[0.06]">
         <div className="mx-auto max-w-7xl px-6 py-10">

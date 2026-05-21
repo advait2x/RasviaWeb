@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": "22.x",
+    "node": ">=22.0.0",
     "npm": ">=11.0.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host localhost --strictPort",
     "build": "tsc ; vite build",
     "build-no-errors": "tsc ; vite build",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
@@ -83,7 +83,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.3",
+    "typescript": "~5.8.3",
     "vite": "^8.0.8"
   }
 }

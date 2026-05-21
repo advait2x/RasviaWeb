@@ -1,22 +1,13 @@
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
+
 export default function TermsPage() {
   return (
-    <div className="w-full min-h-screen overflow-x-hidden text-zinc-100">
-      <div className="mx-auto max-w-3xl px-6 py-16">
-        <a
-          href="/"
-          className="mb-10 inline-flex items-center gap-2 text-sm text-neutral-500 transition-colors hover:text-amber-400"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          Back to Home
-        </a>
+    <MarketingLayout>
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        <h1 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white">Terms of Service</h1>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-neutral-500">Effective Date: March 1, 2026 &middot; Last Updated: March 26, 2026</p>
 
-        <img src="/rasvia-logo.png" alt="Rasvia" className="mb-4 h-6 w-auto" />
-        <h1 className="text-4xl font-black tracking-tighter text-white">Terms of Service</h1>
-        <p className="mt-2 text-sm text-neutral-500">Effective Date: March 1, 2026 &middot; Last Updated: March 26, 2026</p>
-
-        <div className="mt-10 flex flex-col gap-10 text-neutral-400 leading-relaxed">
+        <div className="mt-10 flex flex-col gap-10 leading-relaxed text-zinc-600 dark:text-neutral-400">
 
           <section>
             <p className="text-sm">
@@ -29,7 +20,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">1. Eligibility</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">1. Eligibility</h2>
             <p className="text-sm">
               You must be at least 18 years of age, or the age of legal majority in your jurisdiction, to use the Platform.
               By creating an account, you represent and warrant that you meet this requirement and that all information you provide
@@ -39,7 +30,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">2. Account Registration &amp; Security</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">2. Account Registration &amp; Security</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</li>
               <li>You agree to notify Rasvia immediately of any unauthorized use of your account or any other breach of security.</li>
@@ -49,15 +40,15 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">3. Platform Services</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">3. Platform Services</h2>
             <p className="text-sm mb-3">Rasvia provides a technology platform for restaurants and their guests, including but not limited to:</p>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
-              <li><span className="text-zinc-300 font-medium">Waitlist Management:</span> Digital waitlist tools for walk-in and app-based guests.</li>
-              <li><span className="text-zinc-300 font-medium">Group Ordering:</span> Real-time collaborative ordering for dining parties.</li>
-              <li><span className="text-zinc-300 font-medium">Table Management:</span> Floor plan and seating management for restaurant operators.</li>
-              <li><span className="text-zinc-300 font-medium">Menu &amp; Inventory Controls:</span> Real-time item availability management and 86 controls.</li>
-              <li><span className="text-zinc-300 font-medium">Payment Processing:</span> Split payments, checkout, and payout facilitation through third-party processors.</li>
-              <li><span className="text-zinc-300 font-medium">Notifications:</span> SMS and push notifications for table readiness, order updates, and operational alerts.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Waitlist Management:</span> Digital waitlist tools for walk-in and app-based guests.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Group Ordering:</span> Real-time collaborative ordering for dining parties.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Table Management:</span> Floor plan and seating management for restaurant operators.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Menu &amp; Inventory Controls:</span> Real-time item availability management and 86 controls.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Payment Processing:</span> Split payments, checkout, and payout facilitation through third-party processors.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Notifications:</span> SMS and push notifications for table readiness, order updates, and operational alerts.</li>
             </ul>
             <p className="mt-3 text-sm">
               Rasvia acts as a technology provider and is not a party to any transaction between restaurants and their guests.
@@ -66,7 +57,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">4. Restaurant Partner Obligations</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">4. Restaurant Partner Obligations</h2>
             <p className="text-sm mb-3">If you are a restaurant partner using the Platform, you agree to:</p>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>Provide accurate and up-to-date business information, including menu items, pricing, hours of operation, and tax details.</li>
@@ -78,7 +69,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">5. Guest Obligations</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">5. Guest Obligations</h2>
             <p className="text-sm mb-3">If you are a guest using the Platform, you agree to:</p>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>Provide accurate information when joining a waitlist, placing an order, or creating an account.</li>
@@ -89,7 +80,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">6. Payments, Fees &amp; Billing</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">6. Payments, Fees &amp; Billing</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>Payment processing is facilitated by third-party payment processors (e.g., Stripe). By using payment features, you also agree to the payment processor&rsquo;s terms of service.</li>
               <li>Restaurant partners are subject to platform fees and transaction fees as outlined in their individual Partner Agreement. Fees are deducted from payouts or invoiced separately as agreed.</li>
@@ -100,7 +91,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">7. Intellectual Property</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">7. Intellectual Property</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>The Platform, including all software, designs, text, graphics, logos, and trademarks, is the exclusive property of Rasvia, Inc. and is protected by United States and international intellectual property laws.</li>
               <li>You are granted a limited, non-exclusive, non-transferable, revocable license to access and use the Platform for its intended purpose.</li>
@@ -110,7 +101,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">8. Prohibited Conduct</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">8. Prohibited Conduct</h2>
             <p className="text-sm mb-3">You agree not to:</p>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>Use the Platform for any unlawful purpose or in violation of these Terms.</li>
@@ -124,7 +115,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">9. Service Availability &amp; Modifications</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">9. Service Availability &amp; Modifications</h2>
             <p className="text-sm">
               Rasvia strives to maintain high uptime but does not guarantee uninterrupted, error-free, or secure access to the Platform.
               We reserve the right to modify, suspend, or discontinue any feature or service at any time, with or without notice.
@@ -134,8 +125,8 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">10. Disclaimer of Warranties</h2>
-            <p className="text-sm uppercase font-semibold text-zinc-300 mb-2">
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">10. Disclaimer of Warranties</h2>
+            <p className="mb-2 text-sm font-semibold uppercase text-zinc-700 dark:text-zinc-300">
               THE PLATFORM IS PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS.
             </p>
             <p className="text-sm">
@@ -147,7 +138,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">11. Limitation of Liability</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">11. Limitation of Liability</h2>
             <p className="text-sm">
               TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL RASVIA, ITS OFFICERS, DIRECTORS, EMPLOYEES,
               AGENTS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING
@@ -163,7 +154,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">12. Indemnification</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">12. Indemnification</h2>
             <p className="text-sm">
               You agree to indemnify, defend, and hold harmless Rasvia, its officers, directors, employees, and agents from and against
               any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys&rsquo; fees) arising out
@@ -173,9 +164,9 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">13. Termination</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">13. Termination</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
-              <li>You may terminate your account at any time by contacting us at <a href="mailto:support@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">support@rasvia.com</a>.</li>
+              <li>You may terminate your account at any time by contacting us at <a href="mailto:support@rasvia.com" className="text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">support@rasvia.com</a>.</li>
               <li>Rasvia may suspend or terminate your access to the Platform at any time, with or without cause, and with or without notice.</li>
               <li>Upon termination, your right to use the Platform ceases immediately. Provisions that by their nature should survive termination (including Sections 7, 10, 11, 12, and 14) shall survive.</li>
               <li>Restaurant partners subject to a Partner Agreement will follow the termination provisions specified therein.</li>
@@ -183,7 +174,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">14. Governing Law &amp; Dispute Resolution</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">14. Governing Law &amp; Dispute Resolution</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
               <li>These Terms shall be governed by and construed in accordance with the laws of the State of Texas, without regard to its conflict of laws principles.</li>
               <li>Any dispute arising out of or relating to these Terms shall first be attempted to be resolved through good-faith negotiation.</li>
@@ -194,19 +185,19 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">15. General Provisions</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">15. General Provisions</h2>
             <ul className="list-disc pl-5 text-sm flex flex-col gap-1.5">
-              <li><span className="text-zinc-300 font-medium">Entire Agreement:</span> These Terms, together with the Privacy Policy and any applicable Partner Agreement, constitute the entire agreement between you and Rasvia regarding the Platform.</li>
-              <li><span className="text-zinc-300 font-medium">Severability:</span> If any provision of these Terms is found to be unenforceable, the remaining provisions shall remain in full force and effect.</li>
-              <li><span className="text-zinc-300 font-medium">Waiver:</span> Rasvia&rsquo;s failure to enforce any right or provision of these Terms shall not constitute a waiver of such right or provision.</li>
-              <li><span className="text-zinc-300 font-medium">Assignment:</span> You may not assign or transfer these Terms without Rasvia&rsquo;s prior written consent. Rasvia may assign its rights and obligations without restriction.</li>
-              <li><span className="text-zinc-300 font-medium">Force Majeure:</span> Rasvia shall not be liable for any failure or delay in performance resulting from causes beyond its reasonable control, including natural disasters, war, terrorism, pandemics, strikes, or government actions.</li>
-              <li><span className="text-zinc-300 font-medium">Notices:</span> We may provide notices to you via email, in-app notifications, or by posting on the Platform. You may provide notices to us at the contact information below.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Entire Agreement:</span> These Terms, together with the Privacy Policy and any applicable Partner Agreement, constitute the entire agreement between you and Rasvia regarding the Platform.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Severability:</span> If any provision of these Terms is found to be unenforceable, the remaining provisions shall remain in full force and effect.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Waiver:</span> Rasvia&rsquo;s failure to enforce any right or provision of these Terms shall not constitute a waiver of such right or provision.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Assignment:</span> You may not assign or transfer these Terms without Rasvia&rsquo;s prior written consent. Rasvia may assign its rights and obligations without restriction.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Force Majeure:</span> Rasvia shall not be liable for any failure or delay in performance resulting from causes beyond its reasonable control, including natural disasters, war, terrorism, pandemics, strikes, or government actions.</li>
+              <li><span className="font-medium text-zinc-800 dark:text-zinc-300">Notices:</span> We may provide notices to you via email, in-app notifications, or by posting on the Platform. You may provide notices to us at the contact information below.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">16. Changes to These Terms</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">16. Changes to These Terms</h2>
             <p className="text-sm">
               Rasvia reserves the right to update or modify these Terms at any time. When we make material changes, we will update the
               &ldquo;Last Updated&rdquo; date and may notify you via email or through the Platform. Your continued use of the Platform after
@@ -216,24 +207,19 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-zinc-100">17. Contact Us</h2>
+            <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">17. Contact Us</h2>
             <p className="text-sm">For questions or concerns about these Terms, please contact us:</p>
-            <div className="mt-3 rounded-xl border border-white/10 bg-neutral-900/50 px-5 py-4 text-sm">
-              <p className="font-semibold text-zinc-200">Rasvia, Inc.</p>
-              <p className="mt-1 text-neutral-400">Email: <a href="mailto:legal@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">legal@rasvia.com</a></p>
-              <p className="text-neutral-400">Phone: <a href="tel:4698917169" className="hover:text-white transition-colors">469-891-7169</a></p>
-              <p className="text-neutral-400">General Support: <a href="mailto:support@rasvia.com" className="text-amber-400 hover:text-amber-300 transition-colors">support@rasvia.com</a></p>
+            <div className="mt-3 rounded-xl border border-zinc-200/80 bg-white px-5 py-4 text-sm shadow-sm dark:border-white/10 dark:bg-neutral-900/50">
+              <p className="font-semibold text-zinc-900 dark:text-zinc-200">Rasvia, Inc.</p>
+              <p className="mt-1 text-zinc-600 dark:text-neutral-400">Email: <a href="mailto:legal@rasvia.com" className="text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">legal@rasvia.com</a></p>
+              <p className="text-zinc-600 dark:text-neutral-400">Phone: <a href="tel:4698917169" className="transition-colors hover:text-zinc-900 dark:hover:text-white">469-891-7169</a></p>
+              <p className="text-zinc-600 dark:text-neutral-400">General Support: <a href="mailto:support@rasvia.com" className="text-amber-600 transition-colors hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">support@rasvia.com</a></p>
             </div>
           </section>
 
         </div>
 
-        <div className="mt-16 border-t border-white/[0.06] pt-8">
-          <p className="text-sm text-neutral-600">
-            {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
-          </p>
-        </div>
       </div>
-    </div>
+    </MarketingLayout>
   );
 }

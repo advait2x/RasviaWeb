@@ -301,23 +301,17 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/privacy')) {
     return (
-      <>
-        <DarkThemeLock />
-        <AppShell>
-          <PrivacyPage />
-        </AppShell>
-      </>
+      <AppShell>
+        <PrivacyPage />
+      </AppShell>
     );
   }
 
   if (window.location.pathname.startsWith('/terms')) {
     return (
-      <>
-        <DarkThemeLock />
-        <AppShell>
-          <TermsPage />
-        </AppShell>
-      </>
+      <AppShell>
+        <TermsPage />
+      </AppShell>
     );
   }
 
