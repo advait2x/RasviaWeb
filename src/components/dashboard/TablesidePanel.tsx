@@ -31,6 +31,7 @@ import {
   paidCount,
   totalCartCents,
   joinSession,
+  staffJoinTableside,
   setPaymentMode,
   assignItemPayer,
   setItemSplit,
@@ -167,6 +168,40 @@ type MenuItemRow = {
 
 const ACTIVE_STATUSES: PartySession["status"][] = ["open", "locked", "paying"];
 
+function sessionTableLabel(session: PartySession, sessionId: string): string {
+  const fromDb = session.table_label?.trim();
+  if (fromDb) return fromDb;
+  return loadLabel(sessionId);
+}
+
+function normalizeTableKey(label: string): string {
+  return label.trim().toLowerCase();
+}
+
+/** Merge manual + menu-QR sessions that share the same table label. */
+function mergeSessionsByLabel(rows: PartySession[]): PartySession[] {
+  const byLabel = new Map<string, PartySession>();
+  const unlabeled: PartySession[] = [];
+  for (const s of rows) {
+    const label = sessionTableLabel(s, s.id);
+    if (!label) {
+      unlabeled.push(s);
+      continue;
+    }
+    const key = normalizeTableKey(label);
+    const existing = byLabel.get(key);
+    if (!existing) {
+      byLabel.set(key, s);
+      continue;
+    }
+    // Prefer manual tableside session over menu_qr when both exist.
+    if (existing.source === "menu_qr" && s.source !== "menu_qr") {
+      byLabel.set(key, s);
+    }
+  }
+  return [...byLabel.values(), ...unlabeled];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level panel
 // ─────────────────────────────────────────────────────────────────────────────
@@ -245,18 +280,38 @@ export default function TablesidePanel() {
   // ── Load active sessions for this restaurant/waiter ────────────────────
   const refreshList = useCallback(async () => {
     if (!restaurantId || !userId) return;
-    const { data, error: listError } = await supabase
-      .from("party_sessions")
-      .select("*")
-      .eq("restaurant_id", restaurantId)
-      .eq("host_user_id", userId)
-      .in("status", ACTIVE_STATUSES)
-      .order("created_at", { ascending: true });
+    const [manualRes, menuQrRes] = await Promise.all([
+      supabase
+        .from("party_sessions")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("host_user_id", userId)
+        .in("status", ACTIVE_STATUSES)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("party_sessions")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("source", "menu_qr")
+        .in("status", ACTIVE_STATUSES)
+        .order("created_at", { ascending: true }),
+    ]);
+    const listError = manualRes.error ?? menuQrRes.error;
     if (listError) {
       console.warn("Tableside list fetch failed:", listError.message);
       return;
     }
-    const rows = (data ?? []) as PartySession[];
+    const combined = [
+      ...((manualRes.data ?? []) as PartySession[]),
+      ...((menuQrRes.data ?? []) as PartySession[]),
+    ];
+    const seen = new Set<string>();
+    const unique = combined.filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+    const rows = mergeSessionsByLabel(unique);
     // Fetch snapshots in parallel so the card previews reflect live state.
     const snaps = await Promise.all(
       rows.map(async (s) => {
@@ -365,12 +420,15 @@ export default function TablesidePanel() {
   useEffect(() => {
     if (!selectedId || !userId || !selectedEntry) return;
     if (hostCreds?.memberToken) return;
-    // Only auto-rejoin when we're actually the session's host.
-    if (selectedEntry.session.host_user_id !== userId) return;
+    const isMenuQr = selectedEntry.session.source === "menu_qr";
+    const isManualHost = selectedEntry.session.host_user_id === userId;
+    if (!isMenuQr && !isManualHost) return;
     let cancelled = false;
     (async () => {
       try {
-        const result = await joinSession(supabase, selectedId, waiterName);
+        const result = isMenuQr
+          ? await staffJoinTableside(supabase, selectedId, waiterName)
+          : await joinSession(supabase, selectedId, waiterName);
         if (cancelled) return;
         const merged = await completeJoinCredentials(supabase, selectedId, result, loadPartyCreds(selectedId));
         savePartyCreds(merged);
@@ -402,6 +460,8 @@ export default function TablesidePanel() {
     try {
       const created = await createSession(supabase, restaurantId, userId, {
         staffManaged: true,
+        source: "tableside_manual",
+        tableLabel: newTableLabel.trim() || undefined,
       });
       // Auto-join as host so we have member_token for host-only RPCs.
       const joined = await joinSession(supabase, created.id, waiterName);
@@ -416,7 +476,12 @@ export default function TablesidePanel() {
         // Non-fatal - waiter can still pick a mode in the UI.
       }
       if (newTableLabel.trim()) {
-        saveLabel(created.id, newTableLabel.trim());
+        const label = newTableLabel.trim();
+        saveLabel(created.id, label);
+        await supabase
+          .from("party_sessions")
+          .update({ table_label: label })
+          .eq("id", created.id);
       }
       setNewTableLabel("");
       setShowStart(false);
@@ -769,7 +834,7 @@ function SessionCard({
   const { session, snapshot } = entry;
   const members = snapshot?.members ?? [];
   const cart = totalCartCents(snapshot?.items ?? []);
-  const label = loadLabel(session.id);
+  const label = sessionTableLabel(session, session.id);
   const badge = statusBadge(session.status);
 
   return (
@@ -786,6 +851,11 @@ function SessionCard({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-zinc-100">
             {label || `Session ${session.id.slice(0, 6)}`}
+            {session.source === "menu_qr" ? (
+              <span className="ml-1.5 inline-flex rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-amber-300">
+                Menu QR
+              </span>
+            ) : null}
           </p>
           <p className="mt-0.5 font-mono text-[10px] text-zinc-500">{session.id.slice(0, 8)}…</p>
         </div>
@@ -868,8 +938,8 @@ function SessionDetail({
   const payments = snapshot?.payments ?? [];
   const cartCents = totalCartCents(items);
 
-  const [label, setLabelState] = useState<string>(() => loadLabel(session.id));
-  useEffect(() => setLabelState(loadLabel(session.id)), [session.id]);
+  const [label, setLabelState] = useState<string>(() => sessionTableLabel(session, session.id));
+  useEffect(() => setLabelState(sessionTableLabel(session, session.id)), [session.id, session.table_label]);
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "err">("idle");
@@ -1025,6 +1095,10 @@ function SessionDetail({
 
   const handleLabelBlur = () => {
     saveLabel(session.id, label);
+    void supabase
+      .from("party_sessions")
+      .update({ table_label: label.trim() || null })
+      .eq("id", session.id);
   };
 
   return (

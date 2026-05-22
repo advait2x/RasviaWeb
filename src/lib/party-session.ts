@@ -65,6 +65,8 @@ export type PartyPayment = {
   updated_at: string;
 };
 
+export type PartySessionSource = 'tableside_manual' | 'menu_qr';
+
 export type PartySession = {
   id: string;
   restaurant_id: number;
@@ -93,6 +95,13 @@ export type PartySession = {
    * add to or edit the shared cart.
    */
   host_in_review?: boolean;
+  /** Free-text table label (e.g. "Table 5", "Patio 4"). */
+  table_label?: string | null;
+  /** How the session was started. Menu-QR sessions persist across payment rounds. */
+  source?: PartySessionSource | null;
+  menu_qr_binding_id?: string | null;
+  /** Last cart/member activity; inactive menu-QR sessions reactivate on next scan. */
+  last_activity_at?: string | null;
 };
 
 export type PartySnapshot = {
@@ -221,7 +230,12 @@ export async function createSession(
   supabase: SupabaseClient,
   restaurantId: number,
   hostUserId: string,
-  options: { staffManaged?: boolean } = {},
+  options: {
+    staffManaged?: boolean;
+    tableLabel?: string;
+    source?: PartySessionSource;
+    menuQrBindingId?: string;
+  } = {},
 ): Promise<PartySession> {
   const { data, error } = await supabase
     .from('party_sessions')
@@ -232,6 +246,10 @@ export async function createSession(
       payment_mode: 'host_pays',
       schema_version: 2,
       staff_managed: options.staffManaged ?? false,
+      table_label: options.tableLabel?.trim() || null,
+      source: options.source ?? (options.staffManaged ? 'tableside_manual' : null),
+      menu_qr_binding_id: options.menuQrBindingId ?? null,
+      last_activity_at: new Date().toISOString(),
     })
     .select('*')
     .single();
@@ -251,6 +269,20 @@ export async function joinSession(
   displayName: string,
 ): Promise<JoinResult> {
   const { data, error } = await supabase.rpc('party_join_session', {
+    p_session_id: sessionId,
+    p_display_name: displayName,
+  });
+  if (error) throw new Error(mapRpcError(error));
+  return data as JoinResult;
+}
+
+/** Restaurant staff joins a menu-QR or tableside session as host (waiter dashboard). */
+export async function staffJoinTableside(
+  supabase: SupabaseClient,
+  sessionId: string,
+  displayName: string,
+): Promise<JoinResult> {
+  const { data, error } = await supabase.rpc('party_staff_join_tableside', {
     p_session_id: sessionId,
     p_display_name: displayName,
   });

@@ -3,6 +3,7 @@ import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification,
 import { initialTables } from "@/data/mock-data";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { fetchActiveTableBindings } from "@/lib/menu-qr-bindings";
 import { toast } from "sonner";
 
 const VALID_NAV_VIEWS: NavView[] = [
@@ -274,6 +275,69 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Prevent notification spam on first load
   const waitlistInitialized = useRef(false);
+
+  /** Match free-text QR labels to mock floor tables (e.g. "Table 5" → tableNumber 5). */
+  const tableMatchesQrLabel = useCallback((table: TableInfo, label: string) => {
+    const key = label.trim().toLowerCase();
+    if (!key) return false;
+    if ((table.guestName ?? "").trim().toLowerCase() === key) return true;
+    if (`table ${table.tableNumber}` === key) return true;
+    return false;
+  }, []);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    let cancelled = false;
+    const syncQrOccupancy = async () => {
+      try {
+        const bindings = await fetchActiveTableBindings(supabase, Number(restaurantId));
+        if (cancelled) return;
+        setTables((prev) =>
+          prev.map((t) => {
+            if (t.isCombinedChild) return t;
+            const match = bindings.find((b) => tableMatchesQrLabel(t, b.tableLabel));
+            if (match) {
+              return {
+                ...t,
+                status: "occupied" as const,
+                qrTableLabel: match.tableLabel,
+                guestName: match.tableLabel,
+              };
+            }
+            if (t.qrTableLabel) {
+              return {
+                ...t,
+                qrTableLabel: undefined,
+                status:
+                  t.status === "occupied" && !t.seatedAt && !t.partySize
+                    ? ("available" as const)
+                    : t.status,
+                guestName: undefined,
+              };
+            }
+            return t;
+          }),
+        );
+      } catch {
+        // Non-fatal: floor plan still works without QR sync
+      }
+    };
+    void syncQrOccupancy();
+    const id = window.setInterval(() => void syncQrOccupancy(), 12_000);
+    const channel = supabase
+      .channel(`floor-qr-bindings:${restaurantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "restaurant_table_qr_bindings", filter: `restaurant_id=eq.${restaurantId}` },
+        () => void syncQrOccupancy(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId, tableMatchesQrLabel]);
 
   const [, setTick] = useState(0);
   useEffect(() => {

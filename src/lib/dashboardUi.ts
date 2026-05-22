@@ -50,16 +50,48 @@ export const DASH_BADGE_UNREAD =
   "rounded-full border border-amber-500/35 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-200";
 
 export function dashWaitTextClass(minutes: number): string {
-  if (minutes < 15) return "text-amber-200/95";
-  if (minutes <= 30) return "text-amber-300/90";
-  return "text-orange-300/90";
+  if (minutes < 15) return "text-amber-900 dark:text-amber-200/95";
+  if (minutes <= 30) return "text-amber-800 dark:text-amber-300/90";
+  return "text-orange-900 dark:text-orange-300/90";
 }
 
 export function dashWaitRowBgClass(minutes: number): string {
-  if (minutes < 15) return "border-amber-400/18 bg-amber-500/[0.07]";
-  if (minutes <= 30) return "border-amber-400/14 bg-amber-500/[0.05]";
-  return "border-orange-400/20 bg-orange-500/[0.06]";
+  if (minutes < 15) return "border-amber-800/25 bg-amber-100/90 dark:border-amber-400/18 dark:bg-amber-500/[0.07]";
+  if (minutes <= 30) return "border-amber-800/20 bg-amber-50/95 dark:border-amber-400/14 dark:bg-amber-500/[0.05]";
+  return "border-orange-800/25 bg-orange-100/90 dark:border-orange-400/20 dark:bg-orange-500/[0.06]";
 }
+
+/** Waitlist: initial Cancel party control */
+export const DASH_WAITLIST_CANCEL_BTN =
+  "flex items-center gap-2 rounded-lg border border-rose-800/30 bg-rose-100/90 px-4 py-2.5 text-sm font-medium text-rose-900 transition-colors hover:bg-rose-200/80 dark:border-rose-400/20 dark:bg-rose-500/[0.08] dark:text-rose-200/90 dark:hover:bg-rose-500/[0.12]";
+
+/** Waitlist: SMS notify confirmation strip */
+export const DASH_WAITLIST_NOTIFY_CONFIRM =
+  "flex items-center gap-2 rounded-lg border border-amber-800/25 bg-amber-100/90 px-3 py-2 dark:border-amber-400/22 dark:bg-amber-500/[0.07]";
+
+export const DASH_WAITLIST_NOTIFY_TEXT =
+  "text-xs font-medium text-amber-900 dark:text-amber-200/95";
+
+export const DASH_WAITLIST_NOTIFY_ICON = "shrink-0 text-amber-800 dark:text-amber-400";
+
+export const DASH_WAITLIST_NOTIFY_SEND =
+  "rounded-md border border-amber-800/40 bg-amber-800 px-2.5 py-1 text-xs font-semibold text-amber-50 transition-colors hover:bg-amber-700 dark:border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/30";
+
+/** Waitlist: remove-from-waitlist confirmation strip */
+export const DASH_WAITLIST_REMOVE_CONFIRM =
+  "flex items-center gap-2 rounded-lg border border-rose-800/25 bg-rose-100/90 px-3 py-2 dark:border-rose-400/25 dark:bg-rose-500/[0.08]";
+
+export const DASH_WAITLIST_REMOVE_TEXT =
+  "text-xs font-medium text-rose-900 dark:text-rose-100/90";
+
+export const DASH_WAITLIST_REMOVE_ICON = "shrink-0 text-rose-800 dark:text-rose-200/90";
+
+export const DASH_WAITLIST_REMOVE_ACTION =
+  "rounded-md border border-rose-800/35 bg-rose-800 px-2.5 py-1 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700 dark:border-rose-400/30 dark:bg-rose-500/[0.15] dark:text-rose-100/95 dark:hover:bg-rose-500/[0.22]";
+
+/** Waitlist: secondary dismiss in inline confirmations (Cancel / Keep) */
+export const DASH_WAITLIST_CONFIRM_DISMISS =
+  "rounded-md border border-zinc-300/55 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-200/90 dark:border-white/10 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600";
 
 /**
  * Primary solid CTA (replaces `bg-amber-500` + black text + `hover:bg-amber-400`).
