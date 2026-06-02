@@ -113,8 +113,12 @@ export interface Order {
   id: string;
   tableId: string;
   tableNumber: number;
+  /** Raw table identifier (e.g. "Patio 7") for tableside/self-serve orders whose label isn't numeric. */
+  tableLabel?: string;
   guestName: string;
   partySize: number;
+  /** Display names of everyone in the group/party session (self-serve tableside orders). */
+  partyMembers?: string[];
   items: OrderItem[];
   status: OrderStatus;
   orderType: OrderType;

@@ -87,6 +87,19 @@ function dedupeLabels(labels: string[]): string[] {
   return out;
 }
 
+type ActiveTableItem = {
+  key: string;
+  name: string;
+  quantity: number;
+  lineCents: number;
+  addedBy: string | null;
+};
+
+type ActiveTableMember = {
+  name: string;
+  role: string;
+};
+
 type ActiveTableSession = {
   id: string;
   table_label: string | null;
@@ -94,7 +107,9 @@ type ActiveTableSession = {
   total_cents: number;
   subtotal_cents: number;
   created_at: string;
-  memberCount: number;
+  members: ActiveTableMember[];
+  items: ActiveTableItem[];
+  liveSubtotalCents: number;
 };
 
 export default function TablesidePanel() {
@@ -146,6 +161,8 @@ export default function TablesidePanel() {
   );
 
   // ── Active self-serve session monitor (read-only) ─────────────────────
+  // Waiters see the live cart (items + prices) and roster for every active
+  // table from the moment guests start ordering, not just after they lock/pay.
   const refreshSessions = useCallback(async () => {
     if (!restaurantId) return;
     const { data, error } = await supabase
@@ -159,23 +176,82 @@ export default function TablesidePanel() {
       // Read-only monitor: don't surface a toast on a transient list fetch.
       return;
     }
-    const rows = (data ?? []) as Omit<ActiveTableSession, "memberCount">[];
+    const rows = (data ?? []) as {
+      id: string;
+      table_label: string | null;
+      status: PartySession["status"];
+      total_cents: number;
+      subtotal_cents: number;
+      created_at: string;
+    }[];
     const ids = rows.map((r) => r.id);
-    const memberCounts = new Map<string, number>();
+
+    const membersBySession = new Map<string, ActiveTableMember[]>();
+    const memberNameById = new Map<string, string>();
+    const itemsBySession = new Map<string, ActiveTableItem[]>();
+    const subtotalBySession = new Map<string, number>();
+
     if (ids.length > 0) {
       const { data: memberRows } = await supabase
         .from("party_members")
-        .select("session_id")
+        .select("id, session_id, display_name, role, joined_at")
         .in("session_id", ids)
-        .is("left_at", null);
-      for (const m of (memberRows ?? []) as { session_id: string }[]) {
-        memberCounts.set(m.session_id, (memberCounts.get(m.session_id) ?? 0) + 1);
+        .is("left_at", null)
+        .order("joined_at", { ascending: true });
+      for (const m of (memberRows ?? []) as Record<string, unknown>[]) {
+        const sid = String(m.session_id);
+        const name = ((m.display_name as string) ?? "").trim() || "Guest";
+        memberNameById.set(String(m.id), name);
+        const list = membersBySession.get(sid) ?? [];
+        list.push({ name, role: (m.role as string) ?? "member" });
+        membersBySession.set(sid, list);
+      }
+
+      const { data: itemRows } = await supabase
+        .from("party_items")
+        .select("id, session_id, menu_item_id, quantity, added_by_member_id")
+        .in("session_id", ids);
+      const rawItems = (itemRows ?? []) as Record<string, unknown>[];
+      const menuItemIds = Array.from(
+        new Set(rawItems.map((it) => it.menu_item_id).filter(Boolean) as (string | number)[]),
+      );
+      const priceById = new Map<string, { name: string; price: number }>();
+      if (menuItemIds.length > 0) {
+        const { data: menuRows } = await supabase
+          .from("menu_items")
+          .select("id, name, price")
+          .in("id", menuItemIds);
+        for (const mi of (menuRows ?? []) as Record<string, unknown>[]) {
+          priceById.set(String(mi.id), {
+            name: (mi.name as string) ?? "Item",
+            price: Number(mi.price) || 0,
+          });
+        }
+      }
+      for (const it of rawItems) {
+        const sid = String(it.session_id);
+        const qty = Number(it.quantity) || 0;
+        const menu = priceById.get(String(it.menu_item_id));
+        const lineCents = Math.round((menu?.price ?? 0) * 100) * qty;
+        const list = itemsBySession.get(sid) ?? [];
+        list.push({
+          key: String(it.id),
+          name: menu?.name ?? "Item",
+          quantity: qty,
+          lineCents,
+          addedBy: it.added_by_member_id ? memberNameById.get(String(it.added_by_member_id)) ?? null : null,
+        });
+        itemsBySession.set(sid, list);
+        subtotalBySession.set(sid, (subtotalBySession.get(sid) ?? 0) + lineCents);
       }
     }
+
     setSessions(
       rows.map((r) => ({
         ...r,
-        memberCount: memberCounts.get(r.id) ?? 0,
+        members: membersBySession.get(r.id) ?? [],
+        items: itemsBySession.get(r.id) ?? [],
+        liveSubtotalCents: subtotalBySession.get(r.id) ?? 0,
       })),
     );
   }, [restaurantId]);
@@ -200,6 +276,16 @@ export default function TablesidePanel() {
 
   useEffect(() => {
     if (!restaurantId) return;
+    // Debounce: a single guest action can fire several row events at once
+    // (session + item + member). Coalesce them into one refresh.
+    let timer: number | undefined;
+    const bump = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => refreshSessions(), 250);
+    };
+    // party_items / party_members have no restaurant_id column, so we listen
+    // broadly and let refreshSessions re-scope to this restaurant. Volume on a
+    // single dashboard is low and the fetch is cheap.
     const channel = supabase
       .channel(`tableside-qr:restaurant:${restaurantId}`)
       .on(
@@ -210,10 +296,21 @@ export default function TablesidePanel() {
           table: "party_sessions",
           filter: `restaurant_id=eq.${restaurantId}`,
         },
-        () => refreshSessions(),
+        bump,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "party_items" },
+        bump,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "party_members" },
+        bump,
       )
       .subscribe();
     return () => {
+      if (timer) window.clearTimeout(timer);
       try {
         supabase.removeChannel(channel);
       } catch {
@@ -554,40 +651,92 @@ function ActiveSessions({
           No tables are ordering right now. Sessions appear here when guests scan a table QR.
         </p>
       ) : (
-        <ul className="space-y-2">
-          {sessions.map((s) => {
-            const badge = statusBadge(s.status);
-            const amount = s.total_cents > 0 ? s.total_cents : s.subtotal_cents;
-            return (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-white/8 bg-zinc-900/40 px-3.5 py-2.5"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-100">
-                    {s.table_label?.trim() || "Unlabeled table"}
-                  </p>
-                  <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-400">
-                    <Users size={11} /> {s.memberCount} {s.memberCount === 1 ? "guest" : "guests"}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                      badge.className,
-                    )}
-                  >
-                    {badge.label}
-                  </span>
-                  <span className="font-mono text-[11px] text-zinc-300">{formatCents(amount)}</span>
-                </div>
-              </li>
-            );
-          })}
+        <ul className="space-y-2.5">
+          {sessions.map((s) => (
+            <ActiveSessionCard key={s.id} session={s} />
+          ))}
         </ul>
       )}
     </motion.div>
+  );
+}
+
+function ActiveSessionCard({ session: s }: { session: ActiveTableSession }) {
+  const badge = statusBadge(s.status);
+  // Show the live cart subtotal while open; once locked/paying the frozen
+  // session total is authoritative (it includes tax quoted at lock time).
+  const amountCents =
+    s.status === "open"
+      ? s.liveSubtotalCents
+      : s.total_cents > 0
+        ? s.total_cents
+        : s.subtotal_cents > 0
+          ? s.subtotal_cents
+          : s.liveSubtotalCents;
+
+  return (
+    <li className="rounded-xl border border-white/8 bg-zinc-900/40 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-zinc-100">
+            {s.table_label?.trim() || "Unlabeled table"}
+          </p>
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-400">
+            <Users size={11} /> {s.members.length} {s.members.length === 1 ? "guest" : "guests"}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+              badge.className,
+            )}
+          >
+            {badge.label}
+          </span>
+          <span className="font-mono text-[11px] font-semibold text-zinc-200">{formatCents(amountCents)}</span>
+        </div>
+      </div>
+
+      {/* Guest roster */}
+      {s.members.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {s.members.map((m, i) => (
+            <span
+              key={`${m.name}-${i}`}
+              className={cn(
+                "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium",
+                m.role === "host"
+                  ? "border border-amber-500/30 bg-amber-500/[0.08] text-amber-300"
+                  : "border border-white/8 bg-zinc-800/60 text-zinc-300",
+              )}
+            >
+              {m.name}
+              {m.role === "host" ? " · host" : ""}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Live cart - items + prices from the very start */}
+      <div className="mt-2 border-t border-white/8 pt-2">
+        {s.items.length === 0 ? (
+          <p className="text-[11px] italic text-zinc-500">No items yet</p>
+        ) : (
+          <ul className="space-y-1">
+            {s.items.map((it) => (
+              <li key={it.key} className="flex items-baseline justify-between gap-2 text-[11px]">
+                <span className="min-w-0 truncate text-zinc-300">
+                  <span className="tabular-nums text-zinc-500">{it.quantity}×</span> {it.name}
+                  {it.addedBy ? <span className="text-zinc-600"> · {it.addedBy}</span> : null}
+                </span>
+                <span className="shrink-0 font-mono text-zinc-400">{formatCents(it.lineCents)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </li>
   );
 }
 

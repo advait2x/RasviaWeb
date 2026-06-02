@@ -860,7 +860,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const mapOrder = useCallback((
     row: Record<string, unknown>,
-    itemRows: Record<string, unknown>[]
+    itemRows: Record<string, unknown>[],
+    partyMembers?: string[]
   ): Order => {
     const parsedOrderNotes = parseMeta(row.notes as string | null);
     const meta = parsedOrderNotes.meta;
@@ -882,12 +883,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     });
     const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
     const tax = Math.round(subtotal * FALLBACK_TAX_RATE_LOCAL * 100) / 100;
+    const rawTableLabel = typeof row.table_number === "string" ? row.table_number.trim() : "";
+    const tableLabel = rawTableLabel && !Number.isFinite(Number(rawTableLabel)) ? rawTableLabel : undefined;
     return {
       id: String(row.id),
       tableId: (meta.tableId as string) ?? "",
       tableNumber: Number(row.table_number) || 0,
+      tableLabel,
       guestName: (row.customer_name as string) ?? (meta.guestName as string) ?? "Guest",
       partySize: (row.party_size as number) ?? 1,
+      partyMembers: partyMembers && partyMembers.length > 0 ? partyMembers : undefined,
       items,
       status: row.status as OrderStatus,
       orderType: row.order_type as OrderType,
@@ -933,12 +938,42 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       itemRows = (items ?? []) as Record<string, unknown>[];
     }
 
-    const mapped = (orderRows ?? []).map((row) =>
-      mapOrder(
-        row as Record<string, unknown>,
-        itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id)
+    // Load the guest roster for any group/party-session orders so the Orders
+    // tab can show everyone involved (self-serve tableside).
+    const sessionIds = Array.from(
+      new Set(
+        (orderRows ?? [])
+          .map((r) => (r as Record<string, unknown>).party_session_id)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
       )
     );
+    const membersBySession = new Map<string, string[]>();
+    if (sessionIds.length > 0) {
+      const { data: memberRows } = await supabase
+        .from("party_members")
+        .select("session_id, display_name, role, joined_at")
+        .in("session_id", sessionIds)
+        .is("left_at", null)
+        .order("joined_at", { ascending: true });
+      for (const m of (memberRows ?? []) as Record<string, unknown>[]) {
+        const sid = String(m.session_id);
+        const name = ((m.display_name as string) ?? "").trim();
+        if (!name) continue;
+        const list = membersBySession.get(sid) ?? [];
+        list.push(name);
+        membersBySession.set(sid, list);
+      }
+    }
+
+    const mapped = (orderRows ?? []).map((row) => {
+      const r = row as Record<string, unknown>;
+      const sid = typeof r.party_session_id === "string" ? r.party_session_id : "";
+      return mapOrder(
+        r,
+        itemRows.filter((ir) => ir.order_id === r.id),
+        sid ? membersBySession.get(sid) : undefined
+      );
+    });
     setOrders(mapped);
   }, [restaurantId, mapOrder]);
 

@@ -423,13 +423,23 @@ export default function OrdersPanel() {
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex items-center gap-2.5">
                                             <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-700/50 border border-white/5">
-                                                <span className="text-xs font-bold text-zinc-200 tabular-nums">T{order.tableNumber}</span>
+                                                <span className="text-xs font-bold text-zinc-200 tabular-nums">
+                                                    {order.tableLabel
+                                                        ? order.tableLabel
+                                                        : order.tableNumber > 0
+                                                            ? `T${order.tableNumber}`
+                                                            : "—"}
+                                                </span>
                                             </div>
                                             <div>
                                                 <p className="text-sm font-semibold text-zinc-100">{order.guestName}</p>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                     <Users size={11} strokeWidth={1.5} className="text-zinc-500" />
-                                                    <span className="text-xs text-zinc-500">{order.partySize}</span>
+                                                    <span className="text-xs text-zinc-500">
+                                                        {order.partyMembers && order.partyMembers.length > 0
+                                                            ? order.partyMembers.length
+                                                            : order.partySize}
+                                                    </span>
                                                     <span className="text-zinc-700">·</span>
                                                     <Clock size={11} strokeWidth={1.5} className={getTimeColor(order.createdAt)} />
                                                     <span className={`text-xs ${getTimeColor(order.createdAt)}`}>{getTimeSince(order.createdAt)}</span>
@@ -471,6 +481,21 @@ export default function OrdersPanel() {
                                             </span>
                                         </div>
                                     </div>
+
+                                    {/* Party roster - everyone who joined the table's self-serve order */}
+                                    {order.partyMembers && order.partyMembers.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1 mb-2">
+                                            <Users size={11} strokeWidth={1.5} className="text-zinc-500 shrink-0" />
+                                            {order.partyMembers.map((name, i) => (
+                                                <span
+                                                    key={`${name}-${i}`}
+                                                    className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-700/50 border border-white/5 text-zinc-300"
+                                                >
+                                                    {name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {/* Phone & notification info for takeout/pre-orders */}
                                     {order.orderType !== "dine_in" && order.customerPhone && (

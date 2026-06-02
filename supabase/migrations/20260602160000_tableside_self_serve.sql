@@ -169,7 +169,11 @@ BEGIN
 END;
 $$;
 
--- ── 4. party_settle_payment (+ table_number from table_label) ─────────────────
+-- ── 4. party_settle_payment (menu_qr-aware base + table_number from table_label) ─
+-- NOTE: This intentionally preserves the menu_qr round-reset behaviour added by
+-- 20260522120000_menu_qr_table_bindings.sql. The ONLY tableside change here is
+-- writing orders.table_number from the session table_label. Do NOT drop the
+-- menu_qr branches or you will regress the menu-QR self-order feature.
 CREATE OR REPLACE FUNCTION public.party_settle_payment(
   p_stripe_session_id   text,
   p_stripe_payment_intent text DEFAULT NULL
@@ -185,7 +189,7 @@ DECLARE
   v_total         integer;
   v_order_id      bigint;
   v_host_name     text;
-  v_table_number  text;
+  v_reset         jsonb;
 BEGIN
   SELECT * INTO v_row FROM public.party_payments
     WHERE stripe_session_id = p_stripe_session_id FOR UPDATE;
@@ -219,9 +223,13 @@ BEGIN
   END IF;
 
   IF v_session.submitted_order_id IS NOT NULL THEN
+    IF v_session.source = 'menu_qr'::public.party_session_source THEN
+      v_reset := public.party_reset_menu_qr_round(v_row.session_id);
+    END IF;
     RETURN jsonb_build_object('ok', true, 'settled', true, 'fully_settled', true,
                               'session_id', v_row.session_id,
-                              'order_id', v_session.submitted_order_id);
+                              'order_id', v_session.submitted_order_id,
+                              'menu_qr_reset', v_reset);
   END IF;
 
   SELECT coalesce(sum(amount_cents), 0) INTO v_total
@@ -231,20 +239,14 @@ BEGIN
     WHERE m.session_id = v_row.session_id AND m.role = 'host'
     ORDER BY m.joined_at LIMIT 1;
 
-  v_table_number := NULL;
-  IF v_session.table_label IS NOT NULL THEN
-    v_table_number := v_session.table_label;
-  END IF;
-
   INSERT INTO public.orders (
     restaurant_id, order_type, status, meal_period, subtotal, tip_amount,
     payment_method, party_session_id, customer_name, created_by, table_number
   ) VALUES (
     v_session.restaurant_id, 'dine_in', 'pending', 'dinner',
     (v_total::numeric / 100.0), 0, 'card',
-    v_row.session_id::text, coalesce(v_host_name, 'Group Order'),
-    coalesce(v_session.host_user_id::text, 'group'),
-    v_table_number
+    v_row.session_id::text, coalesce(v_host_name, coalesce(v_session.table_label, 'Group Order')),
+    coalesce(v_session.host_user_id::text, 'group'), v_session.table_label
   ) RETURNING id INTO v_order_id;
 
   INSERT INTO public.order_items (order_id, menu_item_id, name, price, quantity, is_vegetarian, notes)
@@ -259,6 +261,17 @@ BEGIN
     WHERE pi.session_id = v_row.session_id;
 
   UPDATE public.party_payments SET order_id = v_order_id WHERE session_id = v_row.session_id;
+
+  IF v_session.source = 'menu_qr'::public.party_session_source THEN
+    UPDATE public.party_sessions
+      SET status = 'submitted', submitted_at = now()::text, submitted_order_id = v_order_id
+      WHERE id = v_row.session_id;
+    v_reset := public.party_reset_menu_qr_round(v_row.session_id);
+    RETURN jsonb_build_object('ok', true, 'settled', true, 'fully_settled', true,
+                              'session_id', v_row.session_id, 'order_id', v_order_id,
+                              'menu_qr_reset', v_reset);
+  END IF;
+
   UPDATE public.party_sessions
     SET status = 'submitted', submitted_at = now()::text, submitted_order_id = v_order_id
     WHERE id = v_row.session_id;
