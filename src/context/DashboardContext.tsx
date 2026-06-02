@@ -72,6 +72,8 @@ interface DashboardState {
   removeItemFromOrder: (orderId: string, itemId: string) => void;
   updateItemQuantity: (orderId: string, itemId: string, qty: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateOrderDetails: (orderId: string, patch: OrderDetailsPatch) => Promise<void>;
+  updateOrderItemInstructions: (orderId: string, itemId: string, instructions: string) => Promise<void>;
   getOrdersForTable: (tableId: string) => Order[];
   clearTableWithTip: (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => Promise<void>;
   notifyCustomer: (orderId: string) => void;
@@ -107,6 +109,24 @@ interface DashboardState {
   pastOrdersFilter: PastOrdersFilter;
   setPastOrdersFilter: (filter: PastOrdersFilter) => void;
 }
+
+export type OrderDetailsPatch = {
+  guestName?: string;
+  customerPhone?: string;
+  partySize?: number;
+  /** Floor-plan table id stored in order notes meta. */
+  tableId?: string;
+  /** Numeric table from floor plan. */
+  tableNumber?: number;
+  /** Free-text table label (tableside QR, patio names, etc.). */
+  tableLabel?: string;
+  orderType?: OrderType;
+  paymentMethod?: Order["paymentMethod"];
+  notes?: string;
+  status?: OrderStatus;
+  tipAmount?: number;
+  tipPercent?: number;
+};
 
 export type PastOrdersSort = "newest" | "oldest" | "amount_desc" | "amount_asc";
 export type PastOrdersStatus = "all" | "completed" | "cancelled";
@@ -1208,6 +1228,111 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const updateOrderDetails = useCallback(async (orderId: string, patch: OrderDetailsPatch) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    const dbPatch: Record<string, unknown> = {};
+    if (patch.guestName !== undefined) dbPatch.customer_name = patch.guestName.trim() || "Guest";
+    if (patch.customerPhone !== undefined) dbPatch.customer_phone = patch.customerPhone.trim() || null;
+    if (patch.partySize !== undefined) dbPatch.party_size = Math.max(1, patch.partySize);
+    if (patch.orderType !== undefined) dbPatch.order_type = patch.orderType;
+    if (patch.paymentMethod !== undefined) dbPatch.payment_method = patch.paymentMethod;
+    if (patch.tipAmount !== undefined) dbPatch.tip_amount = patch.tipAmount;
+    if (patch.tipPercent !== undefined) dbPatch.tip_percent = patch.tipPercent;
+
+    if (patch.tableLabel !== undefined) {
+      dbPatch.table_number = patch.tableLabel.trim() || null;
+    } else if (patch.tableNumber !== undefined) {
+      dbPatch.table_number = String(patch.tableNumber);
+    }
+
+    if (patch.status !== undefined) {
+      dbPatch.status = patch.status;
+      if (patch.status === "completed" || patch.status === "cancelled") {
+        dbPatch.closed_at = new Date().toISOString();
+      }
+    }
+
+    const needsMeta =
+      patch.notes !== undefined ||
+      patch.tableId !== undefined;
+    if (needsMeta) {
+      const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).maybeSingle();
+      const parsed = parseMeta((row as Record<string, unknown> | null)?.notes as string | null);
+      const meta = { ...parsed.meta };
+      if (patch.tableId !== undefined) meta.tableId = patch.tableId;
+      if (patch.notes !== undefined) {
+        meta.sessionNotes = patch.notes;
+        meta.notes = patch.notes;
+      }
+      dbPatch.notes = JSON.stringify(meta);
+    }
+
+    const { error } = await supabase.from("orders").update(dbPatch).eq("id", Number(orderId));
+    if (error) {
+      console.error("updateOrderDetails failed:", error.message);
+      throw new Error(error.message);
+    }
+
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const rawTable = patch.tableLabel !== undefined
+        ? patch.tableLabel.trim()
+        : patch.tableNumber !== undefined
+          ? String(patch.tableNumber)
+          : undefined;
+      const tableLabel = rawTable && !Number.isFinite(Number(rawTable)) ? rawTable : undefined;
+      const tableNumber = patch.tableNumber !== undefined
+        ? patch.tableNumber
+        : rawTable && Number.isFinite(Number(rawTable))
+          ? Number(rawTable)
+          : o.tableNumber;
+      return {
+        ...o,
+        guestName: patch.guestName ?? o.guestName,
+        customerPhone: patch.customerPhone ?? o.customerPhone,
+        partySize: patch.partySize ?? o.partySize,
+        tableId: patch.tableId ?? o.tableId,
+        tableNumber,
+        tableLabel: tableLabel ?? (patch.tableLabel === "" ? undefined : o.tableLabel),
+        orderType: patch.orderType ?? o.orderType,
+        paymentMethod: patch.paymentMethod ?? o.paymentMethod,
+        notes: patch.notes ?? o.notes,
+        status: patch.status ?? o.status,
+        tipAmount: patch.tipAmount ?? o.tipAmount,
+        tipPercent: patch.tipPercent ?? o.tipPercent,
+        updatedAt: new Date(),
+        completedAt:
+          patch.status === "completed" || patch.status === "cancelled"
+            ? new Date()
+            : o.completedAt,
+      };
+    }));
+  }, [orders]);
+
+  const updateOrderItemInstructions = useCallback(async (orderId: string, itemId: string, instructions: string) => {
+    const { data: row } = await supabase.from("order_items").select("notes").eq("id", Number(itemId)).maybeSingle();
+    const parsed = parseMeta((row as Record<string, unknown> | null)?.notes as string | null);
+    const trimmed = instructions.trim();
+    const newNotes = JSON.stringify({
+      ...parsed.meta,
+      specialInstructions: trimmed || undefined,
+    });
+    const { error } = await supabase.from("order_items").update({ notes: newNotes }).eq("id", Number(itemId));
+    if (error) {
+      console.error("updateOrderItemInstructions failed:", error.message);
+      throw new Error(error.message);
+    }
+    setOrders((prev) => prev.map((o) => {
+      if (o.id !== orderId) return o;
+      const items = o.items.map((i) =>
+        i.id === itemId ? { ...i, specialInstructions: trimmed || undefined } : i,
+      );
+      return { ...o, items, updatedAt: new Date() };
+    }));
+  }, []);
+
   const getOrdersForTable = useCallback((tableId: string): Order[] => {
     return orders.filter((o) => o.tableId === tableId && o.status !== "completed" && o.status !== "cancelled");
   }, [orders]);
@@ -1843,6 +1968,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         removeItemFromOrder,
         updateItemQuantity,
         updateOrderStatus,
+        updateOrderDetails,
+        updateOrderItemInstructions,
         getOrdersForTable,
         clearTableWithTip,
         notifyCustomer,

@@ -135,7 +135,7 @@ The `AuthContext` cascade:
 All edge functions that modify data or access sensitive APIs:
 - Verify JWT identity with `supabase.auth.getUser(token)` when the endpoint requires authenticated access
 - Use `SUPABASE_SERVICE_ROLE_KEY` for admin database operations
-- Restrict `create-stripe-account`, `check-stripe-status`, and `manage-tax-settings` by restaurant scope (admin or owner)
+- Restrict `create-stripe-account`, `check-stripe-status`, `manage-tax-settings`, and `refund-order` by restaurant scope (platform admin or owner/staff)
 - `create-checkout` must compute payout destination and totals server-side (never trust client amount/account/user fields)
 - `create-checkout` guest path is limited to valid open `party_session_id` flows only
 - `payment-redirect` must use parsed URL allowlisting (`rasvia://`, rasvia.com, localhost) to prevent open redirects
@@ -231,7 +231,7 @@ Theme follows the global `ThemeProvider` (`rasvia:web:theme-mode` on `document.d
 
 **Product marketing pages:** Copy and nav metadata live in `src/data/marketing-products.ts`. Routes: `/products` (hub), `/products/waitlists-kiosk`, `/products/tableside-qr`, `/products/kitchen`, `/products/menu-qr`, `/products/reports`. Layout: `src/components/marketing/MarketingLayout.tsx` (shared header/footer). `App.tsx` wires these paths before the default `/` landing render.
 
-**Tableside self-order QR (June 2026):** Fixed per-table QRs encode `https://rasvia.com/t?r=<restaurantId>&table=<label>`. Public resolver: `src/pages/TableJoin.tsx` + `tableside-session` edge function + `tableside_resolve_session` RPC. Partner dashboard: `TablesidePanel.tsx` (QR grid/PDF via `src/lib/tableside-qr-pdf.ts`) + live `self_serve` sessions. Migration: `20260602160000_tableside_self_serve.sql`. Keep mirrored with Rasvia1. Join UX (`JoinBridge.tsx`) supports **solo diners**: `canProceedToCheckout` allows one guest on `self_serve` sessions; solo path skips split review and goes straight to lock + pay. Shared helpers live in `src/lib/party-session.ts`. **Orders tab cancel:** `OrdersPanel.tsx` calls `refund-order` (via `src/lib/order-refund.ts`) for card/party orders before marking `cancelled`; cash-only orders skip Stripe.
+**Tableside self-order QR (June 2026):** Fixed per-table QRs encode `https://rasvia.com/t?r=<restaurantId>&table=<label>`. Public resolver: `src/pages/TableJoin.tsx` + `tableside-session` edge function + `tableside_resolve_session` RPC. Partner dashboard: `TablesidePanel.tsx` (QR grid/PDF via `src/lib/tableside-qr-pdf.ts`) + live `self_serve` sessions. Migration: `20260602160000_tableside_self_serve.sql`. Keep mirrored with Rasvia1. Join UX (`JoinBridge.tsx`) supports **solo diners**: `canProceedToCheckout` allows one guest on `self_serve` sessions; solo path skips split review and goes straight to lock + pay. Shared helpers live in `src/lib/party-session.ts`. **Orders tab cancel:** `OrdersPanel.tsx` calls `refund-order` (via `src/lib/order-refund.ts`) for card/party orders before marking `cancelled`; cash-only orders skip Stripe. **Order editing:** click a card or **Edit** to open `OrderEditModal.tsx` (details, items, void/comp/discount/split/merge/transfer).
 
 ### Navbar Categories
 

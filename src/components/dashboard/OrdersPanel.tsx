@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Plus, Clock, Users, ChefHat, CheckCircle2, XCircle,
     ShoppingBag, ArrowRight, ArrowLeft, Leaf, Drumstick, Shield, Coffee, Sun, Moon, Star,
-    Filter, X, Receipt, Bell, BellRing, Phone, AlertTriangle,
+    Filter, X, Receipt, Bell, BellRing, Phone, AlertTriangle, Pencil,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { Order, OrderStatus, DietType, MealTime } from "@/types/dashboard";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TakeOrderModal from "./TakeOrderModal";
 import PastOrdersView from "./PastOrdersView";
+import OrderEditModal from "./OrderEditModal";
 import {
     Dialog,
     DialogContent,
@@ -118,6 +119,7 @@ export default function OrdersPanel() {
     const [showTakeOrder, setShowTakeOrder] = useState(false);
     const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
     const [cancelBusy, setCancelBusy] = useState(false);
+    const [editOrder, setEditOrder] = useState<Order | null>(null);
 
     const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
     const completedStatuses: OrderStatus[] = ["completed", "cancelled"];
@@ -438,7 +440,11 @@ export default function OrdersPanel() {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.97 }}
                                     transition={{ duration: 0.15, delay: index * 0.02 }}
-                                    className={`rounded-xl border bg-zinc-800/40 hover:border-white/10 transition-all duration-200 p-3 ${order.orderType !== "dine_in"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setEditOrder(order)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setEditOrder(order); }}
+                                    className={`rounded-xl border bg-zinc-800/40 hover:border-white/10 transition-all duration-200 p-3 cursor-pointer ${order.orderType !== "dine_in"
                                         ? "border-violet-200/40 border-l-2 border-l-violet-600/45 dark:border-purple-500/20 dark:border-l-purple-500/50"
                                         : "border-white/5"
                                         }`}
@@ -584,7 +590,16 @@ export default function OrdersPanel() {
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                            <motion.button
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => setEditOrder(order)}
+                                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-700/60 border border-white/10 text-zinc-300 text-[11px] font-medium hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
+                                                title="Edit order"
+                                            >
+                                                <Pencil size={11} strokeWidth={2} />
+                                                Edit
+                                            </motion.button>
                                             {/* Back button */}
                                             {PREV_STATUS[order.status] && (
                                                 <motion.button
@@ -640,6 +655,16 @@ export default function OrdersPanel() {
             <TakeOrderModal
                 open={showTakeOrder}
                 onClose={() => setShowTakeOrder(false)}
+            />
+
+            <OrderEditModal
+                order={editOrder ? orders.find((o) => o.id === editOrder.id) ?? editOrder : null}
+                open={editOrder !== null}
+                onClose={() => setEditOrder(null)}
+                mergeCandidates={orders.filter(
+                    (o) => o.id !== editOrder?.id && o.status !== "completed" && o.status !== "cancelled",
+                )}
+                onRequestCancel={(o) => setCancelTarget(o)}
             />
 
             {/* Cancel Order Confirmation Dialog */}

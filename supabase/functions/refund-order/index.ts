@@ -171,7 +171,16 @@ serve(async (req: Request) => {
   }
   if (!order) return json({ error: `Order #${orderId} not found.` }, 404)
 
-  // RBAC - owner or restaurant_staff.
+  // Platform admins may refund any restaurant (matches dashboard restaurant switcher).
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+  if (profileErr) console.error('refund-order profile lookup failed:', profileErr.message)
+  const isPlatformAdmin = String(profile?.role ?? '').toLowerCase().trim() === 'admin'
+
+  // RBAC - platform admin, owner, or restaurant_staff.
   const { data: restaurant, error: restErr } = await supabase
     .from('restaurants')
     .select('id, owner_id, name')
@@ -179,8 +188,8 @@ serve(async (req: Request) => {
     .maybeSingle()
   if (restErr) console.error('refund-order restaurant lookup failed:', restErr.message)
 
-  let authorized = restaurant?.owner_id === userId
-  let authorizedVia = authorized ? 'owner' : ''
+  let authorized = isPlatformAdmin || restaurant?.owner_id === userId
+  let authorizedVia = isPlatformAdmin ? 'platform_admin' : authorized ? 'owner' : ''
 
   const { data: membership, error: memErr } = await supabase
     .from('restaurant_staff')
@@ -230,7 +239,7 @@ serve(async (req: Request) => {
     return json({
       error:
         'Refund failed: you do not have permission to refund this order. ' +
-        'You must be the restaurant owner or a staff member with role owner/manager/staff/admin. ' +
+        'You must be a platform admin, the restaurant owner, or a staff member with role owner/manager/staff/admin. ' +
         `Details - ${hints.join('; ')}.`,
     }, 403)
   }
