@@ -758,3 +758,30 @@ export function isFullyPaid(payments: PartyPayment[]): boolean {
 export function paidCount(payments: PartyPayment[]): number {
   return payments.filter((p) => p.status === 'paid' || p.status === 'covered').length;
 }
+
+/** Fixed-QR tableside self-order (one person or a group at the same table). */
+export function isSelfServeTableside(session: PartySession | null | undefined): boolean {
+  return Boolean(session?.self_serve);
+}
+
+/** Solo diner at a tableside QR session (only guest so far). */
+export function isSoloTableside(session: PartySession | null | undefined, memberCount: number): boolean {
+  return isSelfServeTableside(session) && memberCount <= 1;
+}
+
+/** Group orders still require 2+ people; tableside allows checkout alone. */
+export function canProceedToCheckout(session: PartySession | null | undefined, memberCount: number): boolean {
+  if (memberCount < 1) return false;
+  if (isSelfServeTableside(session)) return true;
+  return memberCount >= 2;
+}
+
+/** Header title for join/browse/pay screens. */
+export function orderFlowTitle(session: PartySession | null | undefined, restaurantName?: string | null): string {
+  const name = restaurantName?.trim();
+  const table = session?.table_label?.trim();
+  if (table && name) return `${name} · ${table}`;
+  if (table) return table;
+  if (isSelfServeTableside(session)) return name ?? 'Your table';
+  return name ?? 'Group order';
+}

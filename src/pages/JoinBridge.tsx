@@ -16,6 +16,7 @@ import {
   setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
   startCheckout, cancelSession, leaveSession, CheckoutError, setHostInReview,
   formatCents, totalCartCents, paymentForMember, memberById,
+  isSelfServeTableside, isSoloTableside, canProceedToCheckout, orderFlowTitle,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
 import {
@@ -118,6 +119,9 @@ export default function JoinBridge() {
   const me = creds ? members.find((m) => m.id === creds.memberId) ?? null : null;
   const isHost = me?.role === "host";
   const myPayment = creds ? paymentForMember(payments, creds.memberId) : null;
+  const selfServe = isSelfServeTableside(session);
+  const soloTableside = isSoloTableside(session, members.length);
+  const flowTitle = orderFlowTitle(session, restaurant?.name);
   const hostInReview = session?.host_in_review === true;
   const nonHostCartLocked = !isHost && hostInReview;
 
@@ -458,8 +462,8 @@ export default function JoinBridge() {
   // deciding whether to show the name-entry screen. Avoids a brief flicker of
   // the name prompt for returning users whose creds load a tick later.
   if (loading || !credsLoaded) return <LoadingScreen />;
-  if (error) return <FullScreenMessage title="Can't open group order" body={error} />;
-  if (!session) return <FullScreenMessage title="Not found" body="This group order no longer exists." />;
+  if (error) return <FullScreenMessage title={selfServe ? "Can't open table order" : "Can't open group order"} body={error} />;
+  if (!session) return <FullScreenMessage title="Not found" body={selfServe ? "This table order no longer exists." : "This group order no longer exists."} />;
 
   // Cancelled session kicks everyone out, regardless of whether they'd joined.
   if (session.status === "cancelled") {
@@ -473,7 +477,7 @@ export default function JoinBridge() {
 
   // App interstitial (only before joining & before any checkout return)
   if (showAppOverlay && !creds && !checkoutStatus) {
-    return <OpenInAppOverlay restaurantName={restaurant?.name ?? "this restaurant"} sessionId={sessionId} onContinueWeb={() => setShowAppOverlay(false)} />;
+    return <OpenInAppOverlay restaurantName={restaurant?.name ?? "this restaurant"} sessionId={sessionId} isTableside={selfServe} onContinueWeb={() => setShowAppOverlay(false)} />;
   }
 
   // Name entry
@@ -481,6 +485,8 @@ export default function JoinBridge() {
     return (
       <NameEntryScreen
         restaurantName={restaurant?.name ?? "this restaurant"}
+        tableLabel={session.table_label}
+        isTableside={selfServe}
         nameInput={nameInput}
         setNameInput={setNameInput}
         joining={joining}
@@ -505,9 +511,9 @@ export default function JoinBridge() {
   // Pay & Wait
   if (view === "pay" && (session.status === "locked" || session.status === "paying")) {
     return (
-      <Layout restaurantName={restaurant?.name ?? "Group order"} subtitle="Collecting payments" onBack={() => window.history.back()}>
+      <Layout restaurantName={flowTitle} subtitle={soloTableside ? "Ready to pay" : "Collecting payments"} onBack={() => window.history.back()}>
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-24 pt-6">
-          <SummaryCard total={session.total_cents} itemCount={items.length} memberCount={members.length} subtitle="Cart locked" locked />
+          <SummaryCard total={session.total_cents} itemCount={items.length} memberCount={members.length} subtitle="Cart locked" locked isTableside={selfServe} />
           {myPayment && myPayment.amount_cents > 0 && myPayment.status !== "paid" && myPayment.status !== "covered" ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -552,13 +558,13 @@ export default function JoinBridge() {
                 </button>
               ) : null}
               <button type="button" disabled={busy} onClick={() => setCancelOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/20">
-                <X className="h-4 w-4" /> Cancel group order
+                <X className="h-4 w-4" /> {selfServe ? "Cancel order" : "Cancel group order"}
               </button>
             </div>
           ) : null}
         </div>
 
-        <CancelDialog open={cancelOpen} busy={busy} onClose={() => setCancelOpen(false)} onConfirm={handleCancelSession} />
+        <CancelDialog open={cancelOpen} busy={busy} isTableside={selfServe} onClose={() => setCancelOpen(false)} onConfirm={handleCancelSession} />
         <MemberItemsModal
           memberId={viewingMemberId}
           members={members}
@@ -583,7 +589,7 @@ export default function JoinBridge() {
     return (
       <Layout restaurantName="Review" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
-          <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={members.length} subtitle="Ready to checkout" />
+          <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={members.length} subtitle="Ready to checkout" isTableside={selfServe} />
           <section>
             <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How should the bill be paid?</h3>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -743,16 +749,24 @@ export default function JoinBridge() {
   }
 
   // Default: Browse & Add
+  const browseSubtitle = selfServe
+    ? (soloTableside
+      ? "Order from your table · friends can scan the same QR to join"
+      : `${members.length} at the table · ${items.length} item${items.length === 1 ? "" : "s"}`)
+    : `${members.length} member${members.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`;
+
   return (
     <Layout
-      restaurantName={restaurant?.name ?? "Group order"}
-      subtitle={`${members.length} member${members.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`}
+      restaurantName={flowTitle}
+      subtitle={browseSubtitle}
       onBack={() => window.history.back()}
       rightAction={
+        !soloTableside ? (
         <button type="button" onClick={handleCopyLink} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${linkCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/10 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800"}`}>
           {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {linkCopied ? "Copied!" : "Share"}
+          {linkCopied ? "Copied!" : selfServe ? "Invite" : "Share"}
         </button>
+        ) : null
       }
     >
       <div className="mx-auto max-w-3xl px-4 pb-64">
@@ -805,9 +819,15 @@ export default function JoinBridge() {
         isHost={isHost}
         hostDeciding={hostInReview}
         guestCartLocked={nonHostCartLocked}
+        isTableside={selfServe}
+        soloTableside={soloTableside}
+        canCheckout={canProceedToCheckout(session, members.length)}
         onChangeQty={handleChangeQty}
         onRemove={handleRemoveItem}
-        onReview={() => setView("review")}
+        onReview={() => {
+          if (soloTableside) void handleLock();
+          else setView("review");
+        }}
         onLeave={handleLeave}
       />
       <MemberItemsModal
@@ -849,12 +869,12 @@ function Layout({
   );
 }
 
-function SummaryCard({ total, itemCount, memberCount, subtitle, locked }: { total: number; itemCount: number; memberCount: number; subtitle?: string; locked?: boolean }) {
+function SummaryCard({ total, itemCount, memberCount, subtitle, locked, isTableside }: { total: number; itemCount: number; memberCount: number; subtitle?: string; locked?: boolean; isTableside?: boolean }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Group total</div>
+          <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">{isTableside ? "Order total" : "Group total"}</div>
           <div className="mt-1 text-3xl font-black">{formatCents(total)}</div>
         </div>
         <div className="text-right text-xs text-zinc-500 font-semibold">
@@ -1027,6 +1047,7 @@ function CartStrip(props: {
   items: PartyItem[]; menu: MenuItemRow[]; pendingAdds: Record<number, number>;
   members: PartyMember[]; selfMemberId: string; isHost: boolean;
   hostDeciding?: boolean; guestCartLocked?: boolean;
+  isTableside?: boolean; soloTableside?: boolean; canCheckout?: boolean;
   onChangeQty: (item: PartyItem, delta: number) => void;
   onRemove: (item: PartyItem) => void;
   onReview: () => void;
@@ -1096,10 +1117,14 @@ function CartStrip(props: {
         <div className="flex gap-2 px-4 pb-3">
           <button type="button" onClick={props.onLeave} className="rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Leave</button>
           {props.isHost ? (() => {
-            const needsGuests = props.members.length < 2;
+            const canCheckout = props.canCheckout ?? false;
             const noItems = props.items.length === 0;
-            const disabled = needsGuests || noItems;
-            const label = needsGuests ? "Waiting for guests to join…" : "Review & checkout";
+            const disabled = !canCheckout || noItems;
+            const label = !canCheckout
+              ? "Waiting for guests to join…"
+              : props.soloTableside
+                ? "Checkout"
+                : "Review & checkout";
             return (
               <button
                 type="button" disabled={disabled} onClick={props.onReview}
@@ -1108,7 +1133,7 @@ function CartStrip(props: {
                   DASH_PRIMARY_CTA,
                   disabled && "cursor-not-allowed opacity-50",
                 )}
-                title={needsGuests ? "Share the link so others can join before checking out." : undefined}
+                title={!canCheckout ? "Share the link so others can join before checking out." : undefined}
               >
                 {label}
               </button>
@@ -1228,12 +1253,12 @@ function CheckoutUnavailableDialog({
   );
 }
 
-function CancelDialog({ open, busy, onClose, onConfirm }: { open: boolean; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+function CancelDialog({ open, busy, isTableside, onClose, onConfirm }: { open: boolean; busy: boolean; isTableside?: boolean; onClose: () => void; onConfirm: () => void }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[max(env(safe-area-inset-bottom),16px)] sm:items-center">
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
-        <h3 className="text-lg font-bold">Cancel group order?</h3>
+        <h3 className="text-lg font-bold">{isTableside ? "Cancel order?" : "Cancel group order?"}</h3>
         <p className="mt-2 text-sm text-zinc-400">Any paid shares will be refunded via Stripe. This can't be undone.</p>
         <div className="mt-5 flex flex-col gap-3">
           <button type="button" disabled={busy} onClick={onConfirm} className="w-full rounded-xl bg-red-500 px-4 py-3 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-60">
@@ -1357,18 +1382,34 @@ function MemberItemsModal({
 }
 
 function NameEntryScreen({
-  restaurantName, nameInput, setNameInput, joining, joinError, onJoin,
-}: { restaurantName: string; nameInput: string; setNameInput: (v: string) => void; joining: boolean; joinError?: string | null; onJoin: () => void }) {
+  restaurantName, tableLabel, isTableside, nameInput, setNameInput, joining, joinError, onJoin,
+}: {
+  restaurantName: string;
+  tableLabel?: string | null;
+  isTableside?: boolean;
+  nameInput: string;
+  setNameInput: (v: string) => void;
+  joining: boolean;
+  joinError?: string | null;
+  onJoin: () => void;
+}) {
   const hasPrefill = nameInput.trim().length > 0;
+  const table = tableLabel?.trim();
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-8 shadow-2xl">
         <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-amber-400">
           <Users className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-bold uppercase tracking-wider">Group order</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">{isTableside ? "Table order" : "Group order"}</span>
         </div>
-        <h1 className="mt-3 text-2xl font-black text-zinc-100">Join at {restaurantName}</h1>
-        <p className="mt-2 text-sm text-zinc-400">Your name shows up on the order so everyone knows who added what.</p>
+        <h1 className="mt-3 text-2xl font-black text-zinc-100">
+          {isTableside && table ? `Order at ${table}` : `Join at ${restaurantName}`}
+        </h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          {isTableside
+            ? "Enter your name so the kitchen knows who ordered. Friends at your table can scan the same QR to join later."
+            : "Your name shows up on the order so everyone knows who added what."}
+        </p>
         <input
           autoFocus={!hasPrefill}
           value={nameInput} onChange={(e) => setNameInput(e.target.value)}
@@ -1397,7 +1438,7 @@ function NameEntryScreen({
   );
 }
 
-function OpenInAppOverlay({ restaurantName, sessionId, onContinueWeb }: { restaurantName: string; sessionId: string; onContinueWeb: () => void }) {
+function OpenInAppOverlay({ restaurantName, sessionId, isTableside, onContinueWeb }: { restaurantName: string; sessionId: string; isTableside?: boolean; onContinueWeb: () => void }) {
   const deepLink = `rasvia://join/${sessionId}`;
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-4">
@@ -1406,7 +1447,11 @@ function OpenInAppOverlay({ restaurantName, sessionId, onContinueWeb }: { restau
           <Smartphone className="h-7 w-7 text-amber-400" />
         </div>
         <h2 className="mt-4 text-xl font-black">Open in the Rasvia app?</h2>
-        <p className="mt-2 text-sm text-zinc-400">You're joining a group order at {restaurantName}. The full experience is on mobile.</p>
+        <p className="mt-2 text-sm text-zinc-400">
+          {isTableside
+            ? `Order from your table at ${restaurantName}. The full experience is on mobile.`
+            : `You're joining a group order at ${restaurantName}. The full experience is on mobile.`}
+        </p>
         <a href={deepLink} className={cn("mt-5 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>Open app</a>
         <button type="button" onClick={onContinueWeb} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Continue in browser</button>
       </motion.div>
@@ -1434,7 +1479,11 @@ function SuccessScreen({ snapshot, restaurant, creds, onDone }: { snapshot: Part
           <PartyPopper className="relative h-9 w-9 text-amber-400" />
         </motion.div>
         <h2 className="mt-5 text-3xl font-black">All paid up!</h2>
-        <p className="mt-2 text-sm text-zinc-400">Your group order at {restaurant?.name ?? "the restaurant"} is in. The kitchen is on it.</p>
+        <p className="mt-2 text-sm text-zinc-400">
+          {isSelfServeTableside(snapshot.session)
+            ? `Your order at ${restaurant?.name ?? "the restaurant"} is in. The kitchen is on it.`
+            : `Your group order at ${restaurant?.name ?? "the restaurant"} is in. The kitchen is on it.`}
+        </p>
         <div className="mt-6 space-y-4 text-left">
           <SummaryCard total={snapshot.session.total_cents} itemCount={snapshot.items.length} memberCount={snapshot.members.length} />
           {myPayment && me ? (
