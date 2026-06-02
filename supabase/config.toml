@@ -56,3 +56,9 @@ enabled = true
 verify_jwt = false
 # JWT is verified manually in-function via supabase.auth.getUser(token).
 entrypoint = "./functions/refund-order/index.ts"
+
+[functions.tableside-session]
+enabled = true
+verify_jwt = false
+# Public table QR resolver; validates restaurant + rate limits; calls tableside_resolve_session.
+entrypoint = "./functions/tableside-session/index.ts"

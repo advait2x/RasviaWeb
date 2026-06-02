@@ -68,7 +68,13 @@ export type PartyPayment = {
 export type PartySession = {
   id: string;
   restaurant_id: number;
-  host_user_id: string;
+  /**
+   * Null for self-serve tableside sessions, which are created without a
+   * logged-in host (see `tableside_resolve_session`). For those sessions the
+   * host identity is the `party_members` row with `role = 'host'`, not this
+   * column. Always guard against null before comparing to `auth.uid()`.
+   */
+  host_user_id: string | null;
   status: SessionStatus;
   payment_mode: PaymentMode | 'split' | 'assign'; // legacy aliases
   assigned_payer_name: string | null;
@@ -93,6 +99,18 @@ export type PartySession = {
    * add to or edit the shared cart.
    */
   host_in_review?: boolean;
+  /**
+   * The free-text table identifier baked into the fixed tableside QR (e.g.
+   * "Table 7"). Null for non-tableside group orders. Normalized server-side
+   * by `tableside_resolve_session`.
+   */
+  table_label: string | null;
+  /**
+   * True when this is a self-order tableside session: guests scan a fixed
+   * per-table QR, join the shared cart, add their own items, and pay their
+   * share - no waiter takes the order. The first scanner becomes the host.
+   */
+  self_serve: boolean;
 };
 
 export type PartySnapshot = {

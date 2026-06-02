@@ -27,7 +27,7 @@ export const MARKETING_NAV_PRODUCTS: MarketingNavProduct[] = [
   {
     slug: "tableside-qr",
     name: "Tableside QR",
-    description: "Per-table party sessions: join links, live cart, assign & split",
+    description: "Fixed per-table QR: guests self-order, pay their share, one kitchen ticket",
   },
   {
     slug: "kitchen",
@@ -117,46 +117,46 @@ export const PRODUCT_PAGES: Record<MarketingProductSlug, ProductPageContent> = {
   "tableside-qr": {
     slug: "tableside-qr",
     shortTitle: "Tableside QR",
-    headline: "One QR or link: everyone joins the same live cart",
+    headline: "A fixed QR on every table — guests order and pay themselves",
     subhead:
-      "Spin up a party session per table so guests order together, assign items fairly, and pay their share-while your kitchen still sees normalized tickets and a single settlement story.",
+      "Print one sticker per table. Every scan joins the same live cart; guests add their own items, pay their share, and your kitchen gets one consolidated ticket tagged with the table number.",
     highlights: [
-      "Join via QR, short link, or host-invite from the consumer app",
-      "Live cart with modifiers, quantities, and visibility for the whole party",
-      "Split modes that respect your house rules before checkout",
+      "Fixed per-table QR — no waiter takes the order on a tablet",
+      "Shared live cart; first scanner controls lock and checkout",
+      "Pay-first flow: kitchen fires after everyone has paid their share",
     ],
     sections: [
       {
-        title: "Session lifecycle from seat to paid",
+        title: "Print once, run all night",
         paragraphs: [
-          "When a party sits, staff can open a tableside session tied to that table. Guests scan once or tap a shared link; each phone joins as a member with its own view of the same rolling cart.",
-          "You control when the session is open for ordering, when it is locked for payment, and when it is closed-so fire timing and runner safety stay predictable.",
+          "From the partner dashboard, generate a sheet of QR codes for your dining room — by table count or custom labels like Patio 3 or Bar 2. Each code encodes a stable link that always resolves to that table's active session.",
+          "When the party leaves and the session is submitted, the next scan starts a fresh cart automatically.",
         ],
         bullets: [
-          "Assign items to specific people or leave them shared",
-          "Count-down incomplete payers before you close the night",
-          "Reduce \"we thought the other phone paid\" confusion at checkout",
+          "Works in the Rasvia app or in the mobile browser — no download required",
+          "Late arrivals during payment join the same session to pay their share",
+          "Table label flows straight onto the kitchen ticket",
         ],
       },
       {
-        title: "Splits that match how real groups behave",
+        title: "How guests experience it",
         paragraphs: [
-          "Part of the table might pay cash, part card, and part a corporate card. Rasvia’s split flows are built around member shares instead of one brittle \"split evenly\" button.",
-          "Tax and fee visibility follows your configured restaurant rate so estimates stay honest before guests confirm with Stripe checkout.",
+          "The first person to scan becomes the table host (lock cart, start checkout). Everyone else joins as members, browses the menu on their phone, and adds what they want to the shared cart.",
+          "Each guest pays their own share through Stripe checkout. Tax estimates follow your configured restaurant rate before they confirm.",
         ],
       },
       {
-        title: "Staff and expedite visibility",
+        title: "Kitchen and floor visibility",
         paragraphs: [
-          "Floor tools show which table is in an active party session and how far along payment is. That helps hosts stage dessert or the check without hovering.",
-          "Kitchen and expedite staff see itemized tickets derived from the same cart your guests edited-no double entry from a scribbled chit.",
+          "The dashboard shows which tables have an active self-order session and whether they are still ordering, locked, or paying.",
+          "When every share is settled, one consolidated order hits the kitchen display with the table number — no re-keying from paper chits.",
         ],
       },
       {
-        title: "Guest experience without another app download",
+        title: "Built on the same group-order engine",
         paragraphs: [
-          "Heavy users can stay inside the Rasvia consumer app; one-off guests can join through the same flows on web where you expose them. The goal is zero training for birthday-party tables that only dine out twice a year.",
-          "Hosts can still comp, void, or adjust from the partner dashboard when hospitality exceptions demand it.",
+          "Tableside self-order reuses Rasvia's party sessions, split payments, and Stripe Connect payouts. You get marketplace-grade checkout without training staff to run a separate ordering product.",
+          "Pair with waitlists and kiosk when you want lobby check-in and tableside ordering in one system.",
         ],
       },
     ],

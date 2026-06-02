@@ -13,7 +13,7 @@ function rasviaLogoAbsoluteUrl(): string {
 }
 
 /** QR as PNG data URL with Rasvia logo centered (requires high error correction). */
-async function qrDataUrlWithCenterLogo(link: string): Promise<string> {
+export async function qrDataUrlWithCenterLogo(link: string): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = QR_CANVAS_PX;
   canvas.height = QR_CANVAS_PX;
@@ -64,7 +64,7 @@ async function qrDataUrlWithCenterLogo(link: string): Promise<string> {
 }
 
 /** Match `TablesidePanel` / join links: production share host. */
-function publicSiteOrigin(): string {
+export function publicSiteOrigin(): string {
   const raw = import.meta.env.VITE_PUBLIC_JOIN_ORIGIN?.trim();
   if (raw) return raw.replace(/\/$/, "");
   return "https://rasvia.com";

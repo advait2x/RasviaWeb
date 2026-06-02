@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 /** Lazy so the marketing shell does not load the partner dashboard (and react-qr-code) on first paint. */
 const Home = lazy(() => import("./components/home"));
 import JoinBridge from "./pages/JoinBridge";
+import TableJoin from "./pages/TableJoin";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import RestaurantSharePreview from "./pages/RestaurantSharePreview";
 import LandingPage from "./pages/LandingPage";
@@ -235,6 +236,15 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/join')) {
     return <JoinBridge />;
+  }
+
+  // Fixed per-table QR resolver (`/t?r=<id>&table=<label>`). Matched precisely
+  // so it doesn't swallow `/terms` and friends.
+  if (
+    window.location.pathname === "/t" ||
+    window.location.pathname.startsWith("/t/")
+  ) {
+    return <TableJoin />;
   }
 
   if (window.location.pathname.startsWith('/verify-email')) {
