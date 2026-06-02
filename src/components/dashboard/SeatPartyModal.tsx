@@ -2,11 +2,13 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, X, Users, MessageSquare } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
+import { useTheme } from "@/context/ThemeContext";
 import { WaitlistEntry } from "@/types/dashboard";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface SeatPartyModalProps {
   open: boolean;
@@ -16,6 +18,8 @@ interface SeatPartyModalProps {
 
 export default function SeatPartyModal({ open, onClose, entry }: SeatPartyModalProps) {
   const { seatParty } = useDashboard();
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === "light";
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -34,7 +38,13 @@ export default function SeatPartyModal({ open, onClose, entry }: SeatPartyModalP
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-modal max-w-sm border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 overflow-hidden">
+      <DialogContent
+        hideClose
+        className={cn(
+          "glass-modal max-w-sm backdrop-blur-xl p-0 overflow-hidden",
+          isLight ? "border-zinc-300 bg-white/95" : "border-white/10 bg-zinc-900/95",
+        )}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5">
           <div className="flex items-center gap-2">
@@ -64,10 +74,29 @@ export default function SeatPartyModal({ open, onClose, entry }: SeatPartyModalP
             </div>
           </div>
 
-          {/* SMS notice */}
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-sky-500/5 border border-sky-500/15">
-            <MessageSquare size={13} className="text-sky-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-            <p className="text-xs text-sky-300/80 leading-relaxed">
+          {/* Notification notice */}
+          <div
+            className={cn(
+              "flex items-start gap-2.5 rounded-xl border p-3",
+              isLight
+                ? "border-sky-800/25 bg-sky-100/90"
+                : "border-sky-500/15 bg-sky-500/5",
+            )}
+          >
+            <MessageSquare
+              size={13}
+              className={cn(
+                "mt-0.5 shrink-0",
+                isLight ? "text-sky-800" : "text-sky-400",
+              )}
+              strokeWidth={1.5}
+            />
+            <p
+              className={cn(
+                "text-xs leading-relaxed",
+                isLight ? "text-sky-900" : "text-sky-300/80",
+              )}
+            >
               Confirmation SMS will be sent to party
             </p>
           </div>

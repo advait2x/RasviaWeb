@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Pencil, Trash2, Check, X, Upload, ImageOff,
-  ArrowUpDown, Settings2, Loader2, ChevronUp, ChevronDown, Lock,
-  Leaf, Moon, QrCode,
+  ArrowUpDown, Settings2, Loader2, Lock,
+  Leaf, Moon,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { MenuItem, MealTime, ItemModifier } from "@/types/dashboard";
@@ -28,7 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getMenuItemFallback } from "@/lib/fallbackImages";
 import FallbackImage from "@/components/ui/FallbackImage";
-import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, serializeMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
+import { DEFAULT_MENU_TAGS, normalizeMenuItemTags, parseRestaurantMenuTags, slugifyTag, type MenuTagConfig } from "@/lib/menu-tags";
 import { toast } from "sonner";
 import {
   DASH_AMBER_ICON_RING,
@@ -37,8 +37,7 @@ import {
   DASH_BTN_ADD_SM,
 } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
-import { downloadMenuQrCodesPdf } from "@/lib/menu-share-pdf";
-import MenuTagDialog from "./MenuTagDialog";
+import MenuSettingsPanel from "./MenuSettingsPanel";
 
 // ── Meal time config ──────────────────────────────────────────────────────────
 
@@ -703,7 +702,7 @@ export default function MenuManager() {
   const { resolvedTheme } = useTheme();
   const isLight = resolvedTheme === "light";
   const canEdit = hasPermission("manage_menu");
-  const [menuTab, setMenuTab] = useState<"items" | "modifiers" | "tags">("items");
+  const [menuTab, setMenuTab] = useState<"items" | "modifiers" | "settings">("items");
   const [search, setSearch] = useState("");
   const [activeFilters, setActiveFilters] = useState<MealTime[]>([]);
   const [taxCodeFilter, setTaxCodeFilter] = useState<TaxCodeFilter>("all");
@@ -714,12 +713,6 @@ export default function MenuManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmStockItem, setConfirmStockItem] = useState<MenuItem | null>(null);
   const [menuTags, setMenuTags] = useState<MenuTagConfig[]>(DEFAULT_MENU_TAGS);
-  const [savingTags, setSavingTags] = useState(false);
-  const [tagError, setTagError] = useState<string | null>(null);
-  const [pendingTagDelete, setPendingTagDelete] = useState<{ index: number; label: string } | null>(null);
-  const [tagDialogMode, setTagDialogMode] = useState<"create" | "edit" | null>(null);
-  const [tagDialogTarget, setTagDialogTarget] = useState<MenuTagConfig | null>(null);
-  const [qrPdfLoading, setQrPdfLoading] = useState(false);
   const fetchMenuTags = useCallback(async () => {
     if (!restaurantId) return;
     const { data, error } = await supabase
@@ -735,81 +728,45 @@ export default function MenuManager() {
   useEffect(() => {
     if (!restaurantId) return;
     let mounted = true;
-    setTagError(null);
-    fetchMenuTags().catch((err: any) => {
+    fetchMenuTags().catch(() => {
       if (!mounted) return;
       setMenuTags(DEFAULT_MENU_TAGS);
-      setTagError(err?.message || "Unable to load menu tags right now.");
     });
+    return () => {
+      mounted = false;
+    };
+  }, [restaurantId, fetchMenuTags]);
+
+  // MenuSettingsPanel owns realtime while the settings tab is open (same channel name
+  // cannot register a second postgres_changes handler after subscribe()).
+  useEffect(() => {
+    if (!restaurantId || menuTab === "settings") return;
 
     const tagSub = supabase
-      .channel(`restaurant-menu-tags:${restaurantId}`)
+      .channel(`restaurant-menu-tags:manager:${restaurantId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "restaurant_menu_tags", filter: `restaurant_id=eq.${restaurantId}` },
-        () => { void fetchMenuTags(); }
+        () => { void fetchMenuTags(); },
       )
       .subscribe();
 
     return () => {
-      mounted = false;
       supabase.removeChannel(tagSub);
     };
-  }, [restaurantId, fetchMenuTags]);
+  }, [restaurantId, fetchMenuTags, menuTab]);
 
-  const persistMenuTags = async (next: MenuTagConfig[]) => {
-    if (!restaurantId) return false;
-    if (!Array.isArray(next) || next.length === 0) {
-      setTagError("At least one menu tag is required.");
-      return false;
+  useEffect(() => {
+    if (menuTab === "items" || menuTab === "modifiers") {
+      void fetchMenuTags();
     }
-    const serialized = serializeMenuTags(next);
-    const previous = menuTags;
-    setTagError(null);
-    setMenuTags(serialized);
-    setSavingTags(true);
-    try {
-      const { error } = await supabase
-        .rpc("set_restaurant_menu_tags", {
-          p_restaurant_id: Number(restaurantId),
-          p_tags: serialized as any,
-        });
-      if (error) throw error;
-      await fetchMenuTags();
-      return true;
-    } catch (err) {
-      setMenuTags(previous);
-      setTagError((err as any)?.message || "Unable to save tag changes. Please try again.");
-      return false;
-    } finally {
-      setSavingTags(false);
-    }
-  };
+  }, [menuTab, fetchMenuTags]);
 
   const toggleFilter = (mt: MealTime) => {
     setActiveFilters((prev) =>
       prev.includes(mt) ? prev.filter((x) => x !== mt) : [...prev, mt]
     );
   };
-
-  const handleDownloadMenuQrPdf = useCallback(async () => {
-    if (!restaurantId) return;
-    setQrPdfLoading(true);
-    try {
-      let restaurantName = "Menu";
-      const { data } = await supabase.from("restaurants").select("name").eq("id", restaurantId).maybeSingle();
-      if (data?.name && String(data.name).trim()) {
-        restaurantName = String(data.name).trim();
-      }
-      await downloadMenuQrCodesPdf({ restaurantId, restaurantName });
-      toast.success("Menu QR PDF downloaded.");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not generate PDF.";
-      toast.error(message);
-    } finally {
-      setQrPdfLoading(false);
-    }
-  }, [restaurantId]);
 
   const filteredItems = useMemo(() => {
     let items = menuItems;
@@ -870,7 +827,7 @@ export default function MenuManager() {
     setShowForm(true);
   };
 
-  const tabButtonClass = (tab: "items" | "modifiers" | "tags") =>
+  const tabButtonClass = (tab: "items" | "modifiers" | "settings") =>
     `px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
       menuTab === tab
         ? isLight
@@ -879,38 +836,12 @@ export default function MenuManager() {
         : "text-zinc-500 hover:text-zinc-300"
     }`;
 
-  const menuQrPdfControl = hasPermission("view_menu") ? (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.95 }}
-      onClick={() => void handleDownloadMenuQrPdf()}
-      disabled={!restaurantId || qrPdfLoading}
-      title="Download a PDF with six QR codes linking to your public menu on rasvia.com"
-      className={cn(
-        "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors shrink-0",
-        isLight
-          ? "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-          : "border border-white/10 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-50",
-      )}
-    >
-      {qrPdfLoading ? (
-        <Loader2 size={14} className={cn("animate-spin", isLight ? "text-amber-700" : "text-amber-400")} />
-      ) : (
-        <QrCode size={14} strokeWidth={2} />
-      )}
-      Menu QR PDF
-    </motion.button>
-  ) : null;
-
-  const renderTabBar = (topRight?: ReactNode) => (
+  const renderTabBar = () => (
     <div className="px-5 pt-4 pb-2">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className={`flex gap-1 p-1 rounded-xl w-fit ${isLight ? "bg-zinc-100 border border-zinc-300/80" : "bg-zinc-800/60 border border-white/5"}`}>
-          <button type="button" onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
-          <button type="button" onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
-          <button type="button" onClick={() => setMenuTab("tags")} className={tabButtonClass("tags")}>Menu Tags</button>
-        </div>
-        {topRight ? <div className="flex w-full justify-end sm:w-auto">{topRight}</div> : null}
+      <div className={`flex gap-1 p-1 rounded-xl w-fit ${isLight ? "bg-zinc-100 border border-zinc-300/80" : "bg-zinc-800/60 border border-white/5"}`}>
+        <button type="button" onClick={() => setMenuTab("items")} className={tabButtonClass("items")}>Menu Items</button>
+        <button type="button" onClick={() => setMenuTab("modifiers")} className={tabButtonClass("modifiers")}>Modifiers</button>
+        <button type="button" onClick={() => setMenuTab("settings")} className={tabButtonClass("settings")}>Menu Settings</button>
       </div>
     </div>
   );
@@ -924,204 +855,24 @@ export default function MenuManager() {
   if (menuTab === "modifiers") {
     return (
       <div className="flex flex-col h-full">
-        {renderTabBar(menuQrPdfControl)}
+        {renderTabBar()}
         <ModifiersManager />
       </div>
     );
   }
 
-  if (menuTab === "tags") {
+  if (menuTab === "settings") {
     return (
       <div className="flex flex-col h-full">
-        {renderTabBar(menuQrPdfControl)}
-        <div className="px-5 pb-3">
-          <h2 className="text-xl font-bold text-zinc-100 tracking-tight">Menu Tag Setup</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Manage menu tags shown in item editors and customer filtering.</p>
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="px-5 pb-5">
-            <div className={`rounded-xl border p-3 ${isLight ? "border-zinc-300 bg-white/95 shadow-sm" : "border-white/10 bg-zinc-800/35"}`}>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Menu Tag Setup</p>
-                {savingTags && (
-                  <Loader2
-                    size={13}
-                    className={cn("animate-spin", isLight ? "text-amber-700" : "text-amber-400")}
-                  />
-                )}
-              </div>
-              {!canEdit && (
-                <p className="mb-2 text-[11px] text-zinc-500">You do not have permission to edit tags.</p>
-              )}
-              {tagError && (
-                <p className="mb-2 text-[11px] text-red-400">{tagError}</p>
-              )}
-              <p className="mb-2 text-[11px] text-zinc-500">Ordered top to bottom for display priority.</p>
-              <div className="space-y-2 mb-2">
-                <div
-                  className="rounded-xl border p-2.5"
-                  style={{
-                    borderColor: isLight ? "rgba(15,23,42,0.20)" : "rgba(255,255,255,0.16)",
-                    background: isLight ? "rgba(255,255,255,0.96)" : "rgba(18,18,18,0.95)",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
-                      *
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-zinc-100 truncate">All Menu Items</p>
-                      <p className="text-[11px] text-zinc-500">Pinned default filter • cannot be removed</p>
-                    </div>
-                    <div className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-500 grid place-items-center">
-                      <Lock size={12} />
-                    </div>
-                  </div>
-                </div>
-                {menuTags.map((tag, idx) => (
-                  <div
-                    key={tag.key}
-                    className="rounded-xl border p-2.5"
-                    style={{
-                      borderColor: isLight ? "rgba(15,23,42,0.18)" : "rgba(255,255,255,0.12)",
-                      background: isLight ? "rgba(248,250,252,0.98)" : "rgba(10,10,10,0.9)",
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full border border-zinc-700 flex items-center justify-center text-[11px] font-semibold text-zinc-400">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: tag.color }}>{tag.label}</p>
-                      </div>
-                      {canEdit && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            className={cn(DASH_BTN_ADD, "inline-flex h-7 w-7 items-center justify-center rounded-md p-0")}
-                            onClick={() => {
-                              setTagError(null);
-                              setTagDialogTarget(tag);
-                              setTagDialogMode("edit");
-                            }}
-                            title="Edit tag"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button
-                            className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-400 grid place-items-center disabled:opacity-40 hover:text-zinc-200"
-                            disabled={savingTags || idx === 0}
-                            onClick={() => {
-                              if (idx === 0) return;
-                              const next = [...menuTags];
-                              const temp = next[idx - 1];
-                              next[idx - 1] = next[idx];
-                              next[idx] = temp;
-                              void persistMenuTags(next);
-                            }}
-                          >
-                            <ChevronUp size={12} />
-                          </button>
-                          <button
-                            className="w-7 h-7 rounded-md border border-white/15 bg-zinc-900 text-zinc-400 grid place-items-center disabled:opacity-40 hover:text-zinc-200"
-                            disabled={savingTags || idx >= menuTags.length - 1}
-                            onClick={() => {
-                              if (idx >= menuTags.length - 1) return;
-                              const next = [...menuTags];
-                              const temp = next[idx + 1];
-                              next[idx + 1] = next[idx];
-                              next[idx] = temp;
-                              void persistMenuTags(next);
-                            }}
-                          >
-                            <ChevronDown size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            className="w-7 h-7 rounded-md border border-red-500/30 bg-red-500/10 text-red-300 grid place-items-center disabled:opacity-40 hover:bg-red-500/20"
-                            disabled={savingTags}
-                            onClick={() => setPendingTagDelete({ index: idx, label: tag.label })}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {canEdit && (
-                <button
-                  type="button"
-                  className={cn(DASH_BTN_ADD_SM, "rounded-md px-2.5 py-1.5 font-semibold")}
-                  onClick={() => {
-                    setTagError(null);
-                    setTagDialogTarget(null);
-                    setTagDialogMode("create");
-                  }}
-                >
-                  + Add Tag
-                </button>
-              )}
-            </div>
-          </div>
-        </ScrollArea>
-        <Dialog open={!!pendingTagDelete} onOpenChange={(open) => !open && setPendingTagDelete(null)}>
-        <DialogContent hideClose className={`glass-modal max-w-sm backdrop-blur-xl p-6 ${isLight ? "border-zinc-300 bg-white/95" : "border-white/10 bg-zinc-900/95"}`}>
-          <DialogHeader className="p-0">
-            <DialogTitle className="text-base font-semibold text-zinc-100">Delete Menu Tag?</DialogTitle>
-          </DialogHeader>
-            <p className="text-sm text-zinc-300 mt-3">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-zinc-100">"{pendingTagDelete?.label}"</span>?
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-4">
-              <button
-                className="px-3 py-1.5 rounded-md border border-white/15 bg-zinc-800 text-zinc-300 text-xs font-semibold"
-                onClick={() => setPendingTagDelete(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-md border border-red-500/30 bg-red-500/10 text-red-300 text-xs font-semibold disabled:opacity-50"
-                disabled={savingTags}
-                onClick={() => {
-                  if (!pendingTagDelete) return;
-                  const next = menuTags.filter((_, i) => i !== pendingTagDelete.index);
-                  if (next.length === 0) {
-                    setTagError("At least one menu tag is required.");
-                    setPendingTagDelete(null);
-                    return;
-                  }
-                  void persistMenuTags(next);
-                  setPendingTagDelete(null);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <MenuTagDialog
-          open={tagDialogMode !== null}
-          mode={tagDialogMode ?? "create"}
-          tags={menuTags}
-          editingTag={tagDialogTarget ?? undefined}
-          onClose={() => { setTagDialogMode(null); setTagDialogTarget(null); }}
-          onSubmit={async (next) => {
-            const ok = await persistMenuTags(next);
-            return ok;
-          }}
-        />
+        {renderTabBar()}
+        <MenuSettingsPanel />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full">
-      {renderTabBar(menuQrPdfControl)}
+      {renderTabBar()}
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <div>

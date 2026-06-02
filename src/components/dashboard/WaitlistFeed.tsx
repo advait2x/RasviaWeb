@@ -7,7 +7,21 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import SeatPartyModal from "./SeatPartyModal";
 import AddWalkInModal from "./AddWalkInModal";
 import { formatMinutesHumanReadable } from "@/lib/formatWait";
-import { DASH_BTN_ADD, dashWaitRowBgClass, dashWaitTextClass } from "@/lib/dashboardUi";
+import {
+  DASH_BTN_ADD,
+  DASH_WAITLIST_CANCEL_BTN,
+  DASH_WAITLIST_CONFIRM_DISMISS,
+  DASH_WAITLIST_NOTIFY_CONFIRM,
+  DASH_WAITLIST_NOTIFY_ICON,
+  DASH_WAITLIST_NOTIFY_SEND,
+  DASH_WAITLIST_NOTIFY_TEXT,
+  DASH_WAITLIST_REMOVE_ACTION,
+  DASH_WAITLIST_REMOVE_CONFIRM,
+  DASH_WAITLIST_REMOVE_ICON,
+  DASH_WAITLIST_REMOVE_TEXT,
+  dashWaitRowBgClass,
+  dashWaitTextClass,
+} from "@/lib/dashboardUi";
 
 function getWaitMinutes(addedAt: Date): number {
   return Math.floor((Date.now() - addedAt.getTime()) / 60000);
@@ -118,7 +132,7 @@ export default function WaitlistFeed() {
                         {entry.guestName}
                       </span>
                       {entry.source === "walk_in" && (
-                        <span className="shrink-0 rounded-md border border-amber-400/22 bg-amber-500/[0.08] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
+                        <span className="shrink-0 rounded-md border border-amber-800/25 bg-amber-100/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:border-amber-400/22 dark:bg-amber-500/[0.08] dark:text-amber-200/90">
                           Walk-in
                         </span>
                       )}
@@ -183,7 +197,7 @@ export default function WaitlistFeed() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setNotifyConfirmId(entry.id)}
                             className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${entry.notifiedAt
-                                ? "border-amber-400/22 bg-amber-500/[0.08] text-amber-200/90 hover:bg-amber-500/[0.12]"
+                                ? "border-amber-800/25 bg-amber-100/90 text-amber-900 hover:bg-amber-200/80 dark:border-amber-400/22 dark:bg-amber-500/[0.08] dark:text-amber-200/90 dark:hover:bg-amber-500/[0.12]"
                                 : "border-white/[0.1] bg-white/[0.04] text-zinc-300 hover:bg-white/[0.07]"
                               }`}
                           >
@@ -194,21 +208,21 @@ export default function WaitlistFeed() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 rounded-lg border border-amber-400/22 bg-amber-500/[0.07] px-3 py-2"
+                              className={DASH_WAITLIST_NOTIFY_CONFIRM}
                             >
-                              <Bell size={13} strokeWidth={1.5} className="shrink-0 text-amber-400" />
-                              <span className="text-xs font-medium text-amber-200/95">Party will be notified via SMS</span>
+                              <Bell size={13} strokeWidth={1.5} className={DASH_WAITLIST_NOTIFY_ICON} />
+                              <span className={DASH_WAITLIST_NOTIFY_TEXT}>Party will be notified via SMS</span>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setNotifyConfirmId(null)}
-                                className="px-2.5 py-1 rounded-md bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-600 transition-colors"
+                                className={DASH_WAITLIST_CONFIRM_DISMISS}
                               >
                                 Cancel
                               </motion.button>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => { notifyParty(entry.id); setNotifyConfirmId(null); }}
-                                className="rounded-md border border-amber-500/35 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/30"
+                                className={DASH_WAITLIST_NOTIFY_SEND}
                               >
                                 Send
                               </motion.button>
@@ -218,21 +232,21 @@ export default function WaitlistFeed() {
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 rounded-lg border border-rose-400/25 bg-rose-500/[0.08] px-3 py-2"
+                              className={DASH_WAITLIST_REMOVE_CONFIRM}
                             >
-                              <AlertTriangle size={14} strokeWidth={1.5} className="shrink-0 text-rose-200/90" />
-                              <span className="text-xs font-medium text-rose-100/90">Remove from waitlist?</span>
+                              <AlertTriangle size={14} strokeWidth={1.5} className={DASH_WAITLIST_REMOVE_ICON} />
+                              <span className={DASH_WAITLIST_REMOVE_TEXT}>Remove from waitlist?</span>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleCancelDismiss}
-                                className="px-2.5 py-1 rounded-md bg-zinc-700 border border-white/10 text-zinc-300 text-xs font-medium hover:bg-zinc-600 transition-colors"
+                                className={DASH_WAITLIST_CONFIRM_DISMISS}
                               >
                                 Keep
                               </motion.button>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={(e) => handleCancelConfirm(e, entry.id)}
-                                className="rounded-md border border-rose-400/30 bg-rose-500/[0.15] px-2.5 py-1 text-xs font-semibold text-rose-100/95 transition-colors hover:bg-rose-500/[0.22]"
+                                className={DASH_WAITLIST_REMOVE_ACTION}
                               >
                                 Remove
                               </motion.button>
@@ -241,7 +255,7 @@ export default function WaitlistFeed() {
                             <motion.button
                               whileTap={{ scale: 0.95 }}
                               onClick={(e) => handleCancelRequest(e, entry.id)}
-                              className="flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-500/[0.08] px-4 py-2.5 text-sm font-medium text-rose-200/90 transition-colors hover:bg-rose-500/[0.12]"
+                              className={DASH_WAITLIST_CANCEL_BTN}
                             >
                               <X size={16} strokeWidth={1.5} />
                               Cancel

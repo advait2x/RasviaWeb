@@ -29,6 +29,8 @@ export interface TableInfo {
   seatedAt?: Date;
   guestName?: string;
   partySize?: number;
+  /** Active menu-QR table binding label (floor stays occupied until staff clears link). */
+  qrTableLabel?: string;
   /** IDs of the child tables that make up this combined table */
   combinedTableIds?: string[];
   /** True when this table is hidden because it has been merged into a combined table */
