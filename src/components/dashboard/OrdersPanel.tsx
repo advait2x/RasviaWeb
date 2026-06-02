@@ -16,6 +16,12 @@ import {
     DialogContent,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  remainingRefundable,
+  shouldAutoRefundOnCancel,
+  refundOrderRemaining,
+} from "@/lib/order-refund";
 import {
     DASH_BTN_ADD,
     DASH_MONEY_EMPHASIS,
@@ -110,7 +116,8 @@ export default function OrdersPanel() {
     const [mealFilter, setMealFilter] = useState<MealTime[]>([]);
     const [statusFilter, setStatusFilter] = useState<OrderStatus[]>([]);
     const [showTakeOrder, setShowTakeOrder] = useState(false);
-    const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+    const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+    const [cancelBusy, setCancelBusy] = useState(false);
 
     const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
     const completedStatuses: OrderStatus[] = ["completed", "cancelled"];
@@ -181,9 +188,26 @@ export default function OrdersPanel() {
         if (prev) updateOrderStatus(orderId, prev);
     };
 
-    const handleCancelOrder = (orderId: string) => {
-        updateOrderStatus(orderId, "cancelled");
-        setCancelConfirmId(null);
+    const handleCancelOrder = async (order: Order) => {
+        setCancelBusy(true);
+        try {
+            let refundedCents = 0;
+            if (shouldAutoRefundOnCancel(order)) {
+                refundedCents = await refundOrderRemaining(order);
+            }
+            await updateOrderStatus(order.id, "cancelled");
+            if (refundedCents > 0) {
+                toast.success(`Order #${order.id} cancelled — $${(refundedCents / 100).toFixed(2)} refunded.`);
+            } else {
+                toast.success(`Order #${order.id} cancelled.`);
+            }
+            setCancelTarget(null);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Could not cancel order.";
+            toast.error(msg);
+        } finally {
+            setCancelBusy(false);
+        }
     };
 
     return (
@@ -588,7 +612,7 @@ export default function OrdersPanel() {
                                             {order.status !== "cancelled" && order.status !== "completed" && (
                                                 <motion.button
                                                     whileTap={{ scale: 0.95 }}
-                                                    onClick={() => setCancelConfirmId(order.id)}
+                                                    onClick={() => setCancelTarget(order)}
                                                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-medium hover:bg-red-500/20 transition-colors"
                                                     title="Cancel this order"
                                                 >
@@ -619,7 +643,7 @@ export default function OrdersPanel() {
             />
 
             {/* Cancel Order Confirmation Dialog */}
-            <Dialog open={cancelConfirmId !== null} onOpenChange={(o) => !o && setCancelConfirmId(null)}>
+            <Dialog open={cancelTarget !== null} onOpenChange={(o) => !o && !cancelBusy && setCancelTarget(null)}>
                 <DialogContent className="glass-modal max-w-sm max-h-[80vh] overflow-y-auto border-white/10 bg-zinc-900/95 backdrop-blur-xl p-5">
                     <div className="flex flex-col items-center text-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -628,23 +652,39 @@ export default function OrdersPanel() {
                         <div className="space-y-1.5">
                             <h3 className="text-base font-semibold text-zinc-100">Cancel this order?</h3>
                             <p className="text-sm text-zinc-400">
-                                This will mark the order as cancelled. This cannot be undone.
+                                {cancelTarget && shouldAutoRefundOnCancel(cancelTarget) ? (
+                                    <>
+                                        This will cancel order #{cancelTarget.id} and refund{" "}
+                                        <span className="font-semibold text-zinc-200">
+                                            ${(remainingRefundable(cancelTarget) / 100).toFixed(2)}
+                                        </span>{" "}
+                                        to the customer via Stripe. This cannot be undone.
+                                    </>
+                                ) : (
+                                    <>This will mark the order as cancelled. This cannot be undone.</>
+                                )}
                             </p>
                         </div>
                         <div className="flex gap-3 w-full pt-1">
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => setCancelConfirmId(null)}
-                                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors"
+                                disabled={cancelBusy}
+                                onClick={() => setCancelTarget(null)}
+                                className="flex-1 py-2.5 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors disabled:opacity-50"
                             >
                                 Keep Order
                             </motion.button>
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => cancelConfirmId && handleCancelOrder(cancelConfirmId)}
-                                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-colors"
+                                disabled={cancelBusy}
+                                onClick={() => cancelTarget && void handleCancelOrder(cancelTarget)}
+                                className="flex-1 py-2.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-colors disabled:opacity-50"
                             >
-                                Cancel Order
+                                {cancelBusy
+                                    ? "Cancelling…"
+                                    : cancelTarget && shouldAutoRefundOnCancel(cancelTarget)
+                                        ? "Cancel & refund"
+                                        : "Cancel Order"}
                             </motion.button>
                         </div>
                     </div>

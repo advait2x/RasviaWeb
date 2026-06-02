@@ -63,15 +63,12 @@ const SORT_OPTIONS: { value: PastOrdersSort; label: string }[] = [
   { value: "amount_asc", label: "Lowest total" },
 ];
 
-function orderTotalCents(order: Order): number {
-  return Math.round(((order.subtotal ?? 0) + (order.tipAmount ?? 0)) * 100);
-}
-
-function remainingRefundable(order: Order): number {
-  const total = orderTotalCents(order);
-  const refunded = order.refundedAmountCents ?? 0;
-  return Math.max(0, total - refunded);
-}
+import {
+  orderTotalCents,
+  remainingRefundable,
+  orderHasStripeRefundPath,
+  extractFunctionError,
+} from "@/lib/order-refund";
 
 function computeItemsCents(order: Order, quantities: Record<string, number>): number {
   let sum = 0;
@@ -152,30 +149,7 @@ export default function PastOrdersView() {
     setRefundTarget(null);
   };
 
-  // Supabase Edge Functions wrap HTTP errors as `FunctionsHttpError` whose
-  // message is the useless "Edge Function returned a non-2xx status code".
-  // The actual server-side `{ error: string }` payload lives in
-  // `error.context` (a Response). This helper pulls it out.
-  const extractFunctionError = async (err: unknown): Promise<string> => {
-    const fallback = err instanceof Error ? err.message : "Refund failed.";
-    const context = (err as { context?: Response } | null)?.context;
-    if (!context || typeof context.clone !== "function") return fallback;
-    try {
-      const body = await context.clone().json();
-      if (body && typeof body === "object" && "error" in body && body.error) {
-        return String((body as { error: unknown }).error);
-      }
-    } catch {
-      // Not JSON - try text.
-    }
-    try {
-      const text = await context.clone().text();
-      if (text) return text;
-    } catch {
-      // ignore
-    }
-    return fallback;
-  };
+  // Supabase Edge Functions errors: see extractFunctionError in lib/order-refund.ts.
 
   const submitRefund = async () => {
     if (!refundTarget) return;
@@ -425,7 +399,7 @@ export default function PastOrdersView() {
             const fullyRefunded = refundedCents > 0 && refundedCents >= totalCents;
             const partiallyRefunded = refundedCents > 0 && !fullyRefunded;
             const refundable = remainingRefundable(order);
-            const hasStripeHandle = !!order.stripePaymentIntentId || !!order.partySessionId;
+            const hasStripeHandle = orderHasStripeRefundPath(order);
             const canRefund = refundable > 0 && hasStripeHandle;
             // Keep the Refund control visible for partially-refunded orders so
             // managers can keep chipping away; only hard-disable when the
