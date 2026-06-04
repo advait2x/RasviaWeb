@@ -93,7 +93,13 @@ export interface OrderItem {
   voided?: boolean;
   comped?: boolean;
   compReason?: string;
+  voidReason?: string;
   modifiers?: OrderItemModifier[];
+}
+
+/** Merge identity for active (non-void/comp) lines only. */
+export function orderLineKey(item: Pick<OrderItem, "menuItemId" | "specialInstructions" | "unitPrice">): string {
+  return `${item.menuItemId}|${(item.specialInstructions ?? "").trim()}|${item.unitPrice}`;
 }
 
 export interface OrderDiscount {

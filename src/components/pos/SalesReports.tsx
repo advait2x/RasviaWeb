@@ -208,15 +208,19 @@ export default function SalesReports() {
 
   const topItems = useMemo(() => {
     const map = new Map<string, { qty: number; revenue: number }>();
-    completedOrders.forEach((o) =>
-      o.items.forEach((it) => {
-        const prev = map.get(it.menuItemName) ?? { qty: 0, revenue: 0 };
-        map.set(it.menuItemName, {
-          qty: prev.qty + it.quantity,
-          revenue: prev.revenue + it.unitPrice * it.quantity,
-        });
-      })
-    );
+    completedOrders
+      .filter((o) => o.status === "completed")
+      .forEach((o) =>
+        o.items
+          .filter((it) => !it.voided && !it.comped)
+          .forEach((it) => {
+            const prev = map.get(it.menuItemName) ?? { qty: 0, revenue: 0 };
+            map.set(it.menuItemName, {
+              qty: prev.qty + it.quantity,
+              revenue: prev.revenue + it.unitPrice * it.quantity,
+            });
+          }),
+      );
     return [...map.entries()].sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
   }, [completedOrders]);
 

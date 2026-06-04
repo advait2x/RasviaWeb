@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification, Order, OrderItem, OrderStatus, OrderType, DietType, CompletedTableSession, Shift, Discount, ItemModifier, HeldOrder, OrderDiscount } from "@/types/dashboard";
+import { NavView, WaitlistEntry, TableInfo, MenuItem, MealTime, AppNotification, Order, OrderItem, OrderStatus, OrderType, DietType, CompletedTableSession, Shift, Discount, ItemModifier, HeldOrder, OrderDiscount, orderLineKey } from "@/types/dashboard";
 import { initialTables } from "@/data/mock-data";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -878,30 +878,64 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const mergeOrderLineItems = (items: OrderItem[]): OrderItem[] => {
+    const passthrough: OrderItem[] = [];
+    const billable: OrderItem[] = [];
+    for (const item of items) {
+      if (item.voided || item.comped) passthrough.push(item);
+      else billable.push(item);
+    }
+    const byKey = new Map<string, OrderItem>();
+    for (const item of billable) {
+      const key = orderLineKey(item);
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, item);
+        continue;
+      }
+      byKey.set(key, {
+        ...existing,
+        quantity: existing.quantity + item.quantity,
+      });
+    }
+    return [...Array.from(byKey.values()), ...passthrough];
+  };
+
+  const mapOrderItemRow = (ir: Record<string, unknown>): OrderItem => {
+    const parsedItemNotes = parseMeta(ir.notes as string | null);
+    const itemMeta = parsedItemNotes.meta;
+    return {
+      id: String(ir.id),
+      menuItemId: String(ir.menu_item_id ?? ""),
+      menuItemName: ir.name as string,
+      quantity: ir.quantity as number,
+      unitPrice: Number(ir.price),
+      specialInstructions:
+        (itemMeta.specialInstructions as string) ||
+        parsedItemNotes.plainText ||
+        undefined,
+      dietType: (itemMeta.dietType as DietType) || ((ir.is_vegetarian as boolean) ? "veg" : undefined),
+      voided: Boolean(ir.voided),
+      comped: Boolean(ir.comped),
+      compReason: (ir.comp_reason as string) || undefined,
+    };
+  };
+
+  const applyVoidReasons = (items: OrderItem[], voidReasonByItemId: Map<number, string>) =>
+    items.map((item) => {
+      const reason = voidReasonByItemId.get(Number(item.id));
+      return reason ? { ...item, voidReason: reason } : item;
+    });
+
   const mapOrder = useCallback((
     row: Record<string, unknown>,
-    itemRows: Record<string, unknown>[],
+    items: OrderItem[],
     partyMembers?: string[]
   ): Order => {
     const parsedOrderNotes = parseMeta(row.notes as string | null);
     const meta = parsedOrderNotes.meta;
-    const items: OrderItem[] = itemRows.map((ir) => {
-      const parsedItemNotes = parseMeta(ir.notes as string | null);
-      const itemMeta = parsedItemNotes.meta;
-      return {
-        id: String(ir.id),
-        menuItemId: String(ir.menu_item_id ?? ""),
-        menuItemName: ir.name as string,
-        quantity: ir.quantity as number,
-        unitPrice: Number(ir.price),
-        specialInstructions:
-          (itemMeta.specialInstructions as string) ||
-          parsedItemNotes.plainText ||
-          undefined,
-        dietType: (itemMeta.dietType as DietType) || ((ir.is_vegetarian as boolean) ? "veg" : undefined),
-      };
-    });
-    const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+    const billable = items.filter((i) => !i.voided && !i.comped);
+    const subtotal = billable.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
     const tax = Math.round(subtotal * FALLBACK_TAX_RATE_LOCAL * 100) / 100;
     const rawTableLabel = typeof row.table_number === "string" ? row.table_number.trim() : "";
     const tableLabel = rawTableLabel && !Number.isFinite(Number(rawTableLabel)) ? rawTableLabel : undefined;
@@ -932,6 +966,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       stripePaymentIntentId: (row.stripe_payment_intent_id as string) || undefined,
       refundedAmountCents: row.refunded_amount_cents != null ? Number(row.refunded_amount_cents) : undefined,
       refundedAt: row.refunded_at ? new Date(row.refunded_at as string) : undefined,
+      voidTotal: row.void_total != null ? Number(row.void_total) : undefined,
     };
   }, []);
 
@@ -950,12 +985,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     const ids = (orderRows ?? []).map((r) => r.id as number);
     let itemRows: Record<string, unknown>[] = [];
+    let voidReasonByItemId = new Map<number, string>();
     if (ids.length > 0) {
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("*")
-        .in("order_id", ids);
+      const [{ data: items }, { data: voidRows }] = await Promise.all([
+        supabase.from("order_items").select("*").in("order_id", ids),
+        supabase.from("order_voids").select("order_item_id, reason").in("order_id", ids),
+      ]);
       itemRows = (items ?? []) as Record<string, unknown>[];
+      voidReasonByItemId = new Map(
+        (voidRows ?? [])
+          .filter((v) => v.order_item_id != null)
+          .map((v) => [Number(v.order_item_id), String(v.reason)]),
+      );
     }
 
     // Load the guest roster for any group/party-session orders so the Orders
@@ -988,17 +1029,31 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const mapped = (orderRows ?? []).map((row) => {
       const r = row as Record<string, unknown>;
       const sid = typeof r.party_session_id === "string" ? r.party_session_id : "";
-      return mapOrder(
-        r,
-        itemRows.filter((ir) => ir.order_id === r.id),
-        sid ? membersBySession.get(sid) : undefined
+      const orderItems = applyVoidReasons(
+        mergeOrderLineItems(
+          itemRows
+            .filter((ir) => ir.order_id === r.id)
+            .map((ir) => mapOrderItemRow(ir as Record<string, unknown>)),
+        ),
+        voidReasonByItemId,
       );
+      return mapOrder(r, orderItems, sid ? membersBySession.get(sid) : undefined);
     });
     setOrders(mapped);
   }, [restaurantId, mapOrder]);
 
   const fetchOrdersRef = useRef(fetchOrders);
   fetchOrdersRef.current = fetchOrders;
+
+  /** Skip realtime refetch briefly after local item mutations to avoid list flicker. */
+  const orderItemsFetchPauseUntilRef = useRef(0);
+  const pauseOrderItemsRealtimeFetch = () => {
+    orderItemsFetchPauseUntilRef.current = Date.now() + 900;
+  };
+  const maybeFetchOrdersFromRealtime = () => {
+    if (Date.now() < orderItemsFetchPauseUntilRef.current) return;
+    fetchOrdersRef.current();
+  };
 
   useEffect(() => {
     if (!restaurantId) { setOrders([]); return; }
@@ -1010,8 +1065,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` },
         (payload) => {
+          if (Date.now() < orderItemsFetchPauseUntilRef.current) return;
           fetchOrdersRef.current();
-          // Toast on new takeout / pre-order coming in
+          // Toast on new takeout / pre-order coming in (skip during local item edits)
           if (payload.eventType === "INSERT") {
             const row = payload.new as Record<string, unknown>;
             const meta = parseMeta(row.notes as string | null).meta;
@@ -1037,7 +1093,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
-        () => fetchOrdersRef.current()
+        () => maybeFetchOrdersFromRealtime()
       )
       .subscribe();
 
@@ -1087,10 +1143,30 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Ã¢â€â‚¬Ã¢â€â‚¬ Order mutations Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   const recalcOrderTotals = (items: OrderItem[]): { subtotal: number; tax: number; total: number } => {
-    const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    const billable = items.filter((i) => !i.voided && !i.comped);
+    const subtotal = billable.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
     const tax = Math.round(subtotal * FALLBACK_TAX_RATE_LOCAL * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
     return { subtotal, tax, total };
+  };
+
+  const findMergeableLineItem = (
+    items: OrderItem[],
+    menuItemId: string,
+    specialInstructions?: string,
+  ) =>
+    items.find(
+      (i) =>
+        !i.voided &&
+        !i.comped &&
+        i.menuItemId === menuItemId &&
+        (i.specialInstructions ?? "").trim() === (specialInstructions ?? "").trim(),
+    );
+
+  const syncOrderSubtotalInDb = async (orderId: string, items: OrderItem[]) => {
+    const { subtotal } = recalcOrderTotals(items);
+    const { error } = await supabase.from("orders").update({ subtotal }).eq("id", Number(orderId));
+    if (error) console.error("syncOrderSubtotal failed:", error.message);
   };
 
   const createOrder = useCallback(async (tableId: string, orderType: OrderType, guestName?: string, partySize?: number, customerPhone?: string): Promise<Order> => {
@@ -1146,10 +1222,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const menuItem = menuItems.find((m) => m.id === menuItemId);
     if (!menuItem || menuItem.price == null) return;
 
-    // Prefer the explicit `dietType` arg (e.g. from a customer’s per-line
-    // override), then fall back to whatever the menu item declared. The
-    // `is_vegetarian` column on `order_items` is the source of truth for
-    // reporting, so honor the menu item’s boolean directly too.
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
     const resolvedDietType: DietType | undefined = dietType ?? menuItem.dietType;
     const isVegetarian =
       resolvedDietType === "veg" || menuItem.isVegetarian === true;
@@ -1158,6 +1233,60 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       specialInstructions: specialInstructions || undefined,
       dietType: resolvedDietType,
     });
+
+    const existing = findMergeableLineItem(order.items, menuItemId, specialInstructions);
+
+    pauseOrderItemsRealtimeFetch();
+
+    if (existing) {
+      const newQty = existing.quantity + qty;
+      const priorItems = order.items;
+      const nextItems = priorItems.map((i) =>
+        orderLineKey(i) === orderLineKey(existing) ? { ...i, quantity: newQty } : i,
+      );
+
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id !== orderId) return o;
+          return { ...o, items: nextItems, updatedAt: new Date(), ...recalcOrderTotals(nextItems) };
+        }),
+      );
+
+      const { error } = await supabase
+        .from("order_items")
+        .update({ quantity: newQty })
+        .eq("id", Number(existing.id));
+      if (error) {
+        console.error("addItemToOrder (merge) failed:", error.message);
+        setOrders((prev) =>
+          prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
+        );
+        return;
+      }
+
+      await syncOrderSubtotalInDb(orderId, nextItems);
+      return;
+    }
+
+    const pendingId = `pending-${menuItemId}-${Date.now()}`;
+    const optimisticItem: OrderItem = {
+      id: pendingId,
+      menuItemId,
+      menuItemName: menuItem.name,
+      quantity: qty,
+      unitPrice: menuItem.price!,
+      specialInstructions,
+      dietType: resolvedDietType,
+    };
+    const priorItems = order.items;
+    const optimisticItems = mergeOrderLineItems([...priorItems, optimisticItem]);
+
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        return { ...o, items: optimisticItems, updatedAt: new Date(), ...recalcOrderTotals(optimisticItems) };
+      }),
+    );
 
     const { data, error } = await supabase.from("order_items").insert({
       order_id: Number(orderId),
@@ -1169,54 +1298,150 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       notes: itemMeta,
     }).select().single();
 
-    if (error) { console.error("addItemToOrder failed:", error.message); return; }
-
-    // Optimistic update
-    setOrders((prev) => prev.map((o) => {
-      if (o.id !== orderId) return o;
-      const newItem: OrderItem = {
-        id: String((data as Record<string, unknown>).id),
-        menuItemId,
-        menuItemName: menuItem.name,
-        quantity: qty,
-        unitPrice: menuItem.price!,
-        specialInstructions,
-        dietType: resolvedDietType,
-      };
-      const existing = o.items.find((i) => i.menuItemId === menuItemId && i.specialInstructions === (specialInstructions ?? ""));
-      const items = existing
-        ? o.items.map((i) => i.id === existing.id ? { ...i, quantity: i.quantity + qty } : i)
-        : [...o.items, newItem];
-      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
-    }));
-
-    // Also update order subtotal in DB
-    const order = orders.find((o) => o.id === orderId);
-    if (order) {
-      const newItems = [...order.items, { unitPrice: menuItem.price!, quantity: qty } as OrderItem];
-      const { subtotal } = recalcOrderTotals(newItems);
-      await supabase.from("orders").update({ subtotal }).eq("id", Number(orderId));
+    if (error) {
+      console.error("addItemToOrder failed:", error.message);
+      setOrders((prev) =>
+        prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
+      );
+      return;
     }
+
+    const realId = String((data as Record<string, unknown>).id);
+    let nextItems: OrderItem[] = [];
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const items = o.items.map((i) => (i.id === pendingId ? { ...i, id: realId } : i));
+        nextItems = items;
+        return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+      }),
+    );
+    await syncOrderSubtotalInDb(orderId, nextItems);
   }, [menuItems, orders]);
 
   const removeItemFromOrder = useCallback(async (orderId: string, itemId: string) => {
-    await supabase.from("order_items").delete().eq("id", Number(itemId));
-    setOrders((prev) => prev.map((o) => {
-      if (o.id !== orderId) return o;
-      const items = o.items.filter((i) => i.id !== itemId);
-      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
-    }));
-  }, []);
+    const order = orders.find((o) => o.id === orderId);
+    const target = order?.items.find((i) => i.id === itemId);
+    if (!target) return;
+
+    pauseOrderItemsRealtimeFetch();
+
+    const noteKey = (target.specialInstructions ?? "").trim();
+    // Remove every DB row for this logical line (handles legacy duplicate inserts).
+    const idsToRemove = (order?.items ?? [])
+      .filter(
+        (i) =>
+          i.menuItemId === target.menuItemId &&
+          (i.specialInstructions ?? "").trim() === noteKey,
+      )
+      .map((i) => Number(i.id))
+      .filter((id) => Number.isFinite(id));
+
+    if (idsToRemove.length === 0) {
+      throw new Error("This line item cannot be removed from the database.");
+    }
+
+    const { data, error } = await supabase
+      .from("order_items")
+      .delete()
+      .in("id", idsToRemove)
+      .eq("order_id", Number(orderId))
+      .select("id");
+
+    if (error) {
+      console.error("removeItemFromOrder failed:", error.message);
+      throw new Error(error.message);
+    }
+    if (!data?.length) {
+      throw new Error(
+        "Item was not removed. Apply the latest database migration (order_items delete policy) or check staff permissions.",
+      );
+    }
+
+    const removedIds = new Set(data.map((row) => String((row as { id: number }).id)));
+
+    let nextItems: OrderItem[] = [];
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const items = o.items.filter((i) => !removedIds.has(i.id));
+        nextItems = items;
+        return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+      }),
+    );
+    await syncOrderSubtotalInDb(orderId, nextItems);
+  }, [orders]);
 
   const updateItemQuantity = useCallback(async (orderId: string, itemId: string, qty: number) => {
-    if (qty <= 0) { removeItemFromOrder(orderId, itemId); return; }
-    await supabase.from("order_items").update({ quantity: qty }).eq("id", Number(itemId));
-    setOrders((prev) => prev.map((o) => {
-      if (o.id !== orderId) return o;
-      const items = o.items.map((i) => i.id === itemId ? { ...i, quantity: qty } : i);
-      return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
-    }));
-  }, [removeItemFromOrder]);
+    if (qty <= 0) {
+      await removeItemFromOrder(orderId, itemId);
+      return;
+    }
+
+    pauseOrderItemsRealtimeFetch();
+
+    const order = orders.find((o) => o.id === orderId);
+    const target = order?.items.find((i) => i.id === itemId);
+    if (!target) return;
+
+    const noteKey = (target.specialInstructions ?? "").trim();
+    const { data: dbRows, error: fetchErr } = await supabase
+      .from("order_items")
+      .select("id, notes")
+      .eq("order_id", Number(orderId))
+      .eq("menu_item_id", Number(target.menuItemId));
+
+    if (fetchErr) {
+      console.error("updateItemQuantity fetch failed:", fetchErr.message);
+      throw new Error(fetchErr.message);
+    }
+
+    const matchingIds = (dbRows ?? [])
+      .filter((row) => {
+        const parsed = parseMeta((row as { notes: string | null }).notes);
+        const instr =
+          (parsed.meta.specialInstructions as string) || parsed.plainText || "";
+        return instr.trim() === noteKey;
+      })
+      .map((row) => Number((row as { id: number }).id))
+      .filter((id) => Number.isFinite(id));
+
+    const primaryId = matchingIds.includes(Number(itemId)) ? Number(itemId) : matchingIds[0];
+    if (!Number.isFinite(primaryId)) {
+      throw new Error("Could not find this line item in the database.");
+    }
+
+    const duplicateIds = matchingIds.filter((id) => id !== primaryId);
+    if (duplicateIds.length > 0) {
+      const { error: dedupeErr } = await supabase.from("order_items").delete().in("id", duplicateIds);
+      if (dedupeErr) {
+        console.error("updateItemQuantity dedupe failed:", dedupeErr.message);
+        throw new Error(dedupeErr.message);
+      }
+    }
+
+    const { error } = await supabase.from("order_items").update({ quantity: qty }).eq("id", primaryId);
+    if (error) {
+      console.error("updateItemQuantity failed:", error.message);
+      throw new Error(error.message);
+    }
+
+    let nextItems: OrderItem[] = [];
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const items = o.items.map((i) =>
+          i.menuItemId === target.menuItemId &&
+          (i.specialInstructions ?? "").trim() === noteKey
+            ? { ...i, id: String(primaryId), quantity: qty }
+            : i,
+        );
+        nextItems = mergeOrderLineItems(items);
+        return { ...o, items: nextItems, updatedAt: new Date(), ...recalcOrderTotals(nextItems) };
+      }),
+    );
+    await syncOrderSubtotalInDb(orderId, nextItems);
+  }, [orders, removeItemFromOrder]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const patch: Record<string, unknown> = { status };
@@ -1504,50 +1729,113 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const voidOrderItem = useCallback(async (orderId: string, itemId: string, reason: string, approvedBy: string) => {
     const order = orders.find((o) => o.id === orderId);
     const item = order?.items.find((i) => i.id === itemId);
-    if (!order || !item) return;
+    if (!order || !item || item.voided) return;
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) throw new Error("A void reason is required.");
+
+    const numericItemId = Number(itemId);
+    if (!Number.isFinite(numericItemId)) {
+      throw new Error("This line item cannot be voided in the database.");
+    }
 
     const originalAmount = item.unitPrice * item.quantity;
+    const priorItems = order.items;
 
-    await supabase.from("order_items").update({ voided: true }).eq("id", Number(itemId));
-    await supabase.from("order_voids").insert({
+    pauseOrderItemsRealtimeFetch();
+
+    const optimisticItems = priorItems.map((i) =>
+      i.id === itemId ? { ...i, voided: true, voidReason: trimmedReason } : i,
+    );
+    const totals = recalcOrderTotals(optimisticItems);
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id !== orderId
+          ? o
+          : {
+              ...o,
+              items: optimisticItems,
+              voidTotal: (o.voidTotal ?? 0) + originalAmount,
+              ...totals,
+              updatedAt: new Date(),
+            },
+      ),
+    );
+
+    const { data: updatedRows, error: voidItemErr } = await supabase
+      .from("order_items")
+      .update({ voided: true })
+      .eq("id", numericItemId)
+      .select("id");
+
+    if (voidItemErr) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
+      );
+      throw new Error(voidItemErr.message);
+    }
+    if (!updatedRows?.length) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
+      );
+      throw new Error("Could not void item — update was blocked or the item was not found.");
+    }
+
+    const { error: voidLogErr } = await supabase.from("order_voids").insert({
       order_id: Number(orderId),
-      order_item_id: Number(itemId),
-      reason,
+      order_item_id: numericItemId,
+      reason: trimmedReason,
       voided_by: approvedBy,
       approved_by: approvedBy,
       original_amount: originalAmount,
     });
 
-    const currentVoidTotal = Number(order.voidTotal ?? 0);
-    await supabase.from("orders").update({
-      void_total: currentVoidTotal + originalAmount,
-    }).eq("id", Number(orderId));
+    if (voidLogErr) {
+      await supabase.from("order_items").update({ voided: false }).eq("id", numericItemId);
+      setOrders((prev) =>
+        prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
+      );
+      throw new Error(voidLogErr.message);
+    }
 
-    setOrders((prev) => prev.map((o) => {
-      if (o.id !== orderId) return o;
-      const items = o.items.map((i) => i.id === itemId ? { ...i, voided: true } : i);
-      const activeItems = items.filter((i) => !i.voided && !i.comped);
-      const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-      const tax = Math.round(subtotal * FALLBACK_TAX_RATE * 100) / 100;
-      return { ...o, items, voidTotal: (o.voidTotal ?? 0) + originalAmount, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
-    }));
-    toast("Item voided", { description: `${item.menuItemName} Ã¢â‚¬â€ ${reason}` });
+    const currentVoidTotal = Number(order.voidTotal ?? 0);
+    const { error: orderErr } = await supabase
+      .from("orders")
+      .update({ void_total: currentVoidTotal + originalAmount })
+      .eq("id", Number(orderId));
+
+    if (orderErr) {
+      console.error("voidOrderItem void_total failed:", orderErr.message);
+    }
+
+    toast.success("Item voided", { description: `${item.menuItemName} — ${trimmedReason}` });
   }, [orders]);
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ POS: Comp an order item Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   const compOrderItem = useCallback(async (orderId: string, itemId: string, reason: string) => {
-    await supabase.from("order_items").update({ comped: true, comp_reason: reason }).eq("id", Number(itemId));
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) throw new Error("A comp reason is required.");
 
-    setOrders((prev) => prev.map((o) => {
-      if (o.id !== orderId) return o;
-      const items = o.items.map((i) => i.id === itemId ? { ...i, comped: true, compReason: reason } : i);
-      const activeItems = items.filter((i) => !i.voided && !i.comped);
-      const subtotal = activeItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-      const tax = Math.round(subtotal * FALLBACK_TAX_RATE * 100) / 100;
-      return { ...o, items, subtotal, tax, total: Math.round((subtotal + tax) * 100) / 100 };
-    }));
-    toast("Item comped");
+    pauseOrderItemsRealtimeFetch();
+
+    const { error } = await supabase
+      .from("order_items")
+      .update({ comped: true, comp_reason: trimmedReason })
+      .eq("id", Number(itemId));
+
+    if (error) throw new Error(error.message);
+
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const items = o.items.map((i) =>
+          i.id === itemId ? { ...i, comped: true, compReason: trimmedReason } : i,
+        );
+        return { ...o, items, updatedAt: new Date(), ...recalcOrderTotals(items) };
+      }),
+    );
+    toast.success("Item comped");
   }, []);
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ POS: Apply discount to order Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1868,12 +2156,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (!orderRows || orderRows.length === 0) { setPastOrders([]); return []; }
 
       const ids = orderRows.map((r) => r.id as number);
-      const { data: itemData } = await supabase.from("order_items").select("*").in("order_id", ids);
-      const itemRows = (itemData ?? []) as Record<string, unknown>[];
+      let itemRows: Record<string, unknown>[] = [];
+      let voidReasonByItemId = new Map<number, string>();
+      if (ids.length > 0) {
+        const [{ data: itemData }, { data: voidRows }] = await Promise.all([
+          supabase.from("order_items").select("*").in("order_id", ids),
+          supabase.from("order_voids").select("order_item_id, reason").in("order_id", ids),
+        ]);
+        itemRows = (itemData ?? []) as Record<string, unknown>[];
+        voidReasonByItemId = new Map(
+          (voidRows ?? [])
+            .filter((v) => v.order_item_id != null)
+            .map((v) => [Number(v.order_item_id), String(v.reason)]),
+        );
+      }
 
-      let mapped = orderRows.map((row) =>
-        mapOrder(row as Record<string, unknown>, itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id))
-      );
+      let mapped = orderRows.map((row) => {
+        const r = row as Record<string, unknown>;
+        const orderItems = applyVoidReasons(
+          mergeOrderLineItems(
+            itemRows
+              .filter((ir) => ir.order_id === r.id)
+              .map((ir) => mapOrderItemRow(ir as Record<string, unknown>)),
+          ),
+          voidReasonByItemId,
+        );
+        return mapOrder(r, orderItems);
+      });
 
       if (filter.search.trim()) {
         const q = filter.search.trim().toLowerCase();
@@ -1898,7 +2207,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .from("orders")
       .select("*")
       .eq("restaurant_id", restaurantId)
-      .in("status", ["completed", "cancelled"])
+      .eq("status", "completed")
       .order("created_at", { ascending: false });
 
     if (dateFrom) query = query.gte("created_at", dateFrom.toISOString());
@@ -1908,12 +2217,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!orderRows || orderRows.length === 0) { setCompletedOrders([]); return []; }
 
     const ids = orderRows.map((r) => r.id as number);
-    const { data: itemData } = await supabase.from("order_items").select("*").in("order_id", ids);
-    const itemRows = (itemData ?? []) as Record<string, unknown>[];
+    let itemRows: Record<string, unknown>[] = [];
+    let voidReasonByItemId = new Map<number, string>();
+    if (ids.length > 0) {
+      const [{ data: itemData }, { data: voidRows }] = await Promise.all([
+        supabase.from("order_items").select("*").in("order_id", ids),
+        supabase.from("order_voids").select("order_item_id, reason").in("order_id", ids),
+      ]);
+      itemRows = (itemData ?? []) as Record<string, unknown>[];
+      voidReasonByItemId = new Map(
+        (voidRows ?? [])
+          .filter((v) => v.order_item_id != null)
+          .map((v) => [Number(v.order_item_id), String(v.reason)]),
+      );
+    }
 
-    const mapped = orderRows.map((row) =>
-      mapOrder(row as Record<string, unknown>, itemRows.filter((ir) => ir.order_id === (row as Record<string, unknown>).id))
-    );
+    const mapped = orderRows.map((row) => {
+      const r = row as Record<string, unknown>;
+      const orderItems = applyVoidReasons(
+        mergeOrderLineItems(
+          itemRows
+            .filter((ir) => ir.order_id === r.id)
+            .map((ir) => mapOrderItemRow(ir as Record<string, unknown>)),
+        ),
+        voidReasonByItemId,
+      );
+      return mapOrder(r, orderItems);
+    });
     setCompletedOrders(mapped);
     return mapped;
   }, [restaurantId, mapOrder]);

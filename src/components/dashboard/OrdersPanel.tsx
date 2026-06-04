@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Plus, Clock, Users, ChefHat, CheckCircle2, XCircle,
@@ -63,6 +63,29 @@ const PREV_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
 type TabKey = "active" | "preorders" | "completed" | "past";
 
+const ACTIVE_ORDER_STATUSES: OrderStatus[] = ["pending", "preparing", "ready", "served"];
+
+function readOrdersTabFromUrl(): TabKey | null {
+    if (typeof window === "undefined") return null;
+    const t = new URL(window.location.href).searchParams.get("ordersTab");
+    if (t === "past" || t === "preorders" || t === "completed" || t === "active") return t as TabKey;
+    return null;
+}
+
+/** Default tab: active when no pre-order backlog or dine-in has orders; else pre-orders. */
+function resolveDefaultOrdersTab(orders: Order[]): TabKey {
+    const activeCount = orders.filter(
+        (o) => ACTIVE_ORDER_STATUSES.includes(o.status) && o.orderType === "dine_in",
+    ).length;
+    const preorderCount = orders.filter(
+        (o) =>
+            ACTIVE_ORDER_STATUSES.includes(o.status) &&
+            (o.orderType === "pre_order" || o.orderType === "takeout"),
+    ).length;
+    if (preorderCount === 0 || activeCount > 0) return "active";
+    return "preorders";
+}
+
 const DIET_FILTERS: { value: DietType; label: string; icon: typeof Leaf }[] = [
     { value: "veg", label: "Veg", icon: Leaf },
     { value: "non_veg", label: "Non-Veg", icon: Drumstick },
@@ -93,23 +116,36 @@ function getTimeColor(date: Date): string {
 
 export default function OrdersPanel() {
     const { orders, updateOrderStatus, notifyCustomer } = useDashboard();
+    const tabLocked = useRef(false);
+
     const [tab, setTab] = useState<TabKey>(() => {
-        if (typeof window === "undefined") return "active";
-        const url = new URL(window.location.href);
-        const t = url.searchParams.get("ordersTab");
-        return t === "past" || t === "preorders" || t === "completed" ? (t as TabKey) : "active";
+        const urlTab = readOrdersTabFromUrl();
+        if (urlTab) {
+            tabLocked.current = true;
+            return urlTab;
+        }
+        return "active";
     });
+
+    const selectTab = useCallback((key: TabKey) => {
+        tabLocked.current = true;
+        setTab(key);
+    }, []);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const url = new URL(window.location.href);
-        const t = url.searchParams.get("ordersTab");
-        if (t === "past" || t === "preorders" || t === "completed" || t === "active") {
-            setTab(t as TabKey);
+        const urlTab = readOrdersTabFromUrl();
+        if (urlTab) {
+            tabLocked.current = true;
+            setTab(urlTab);
+            const url = new URL(window.location.href);
             url.searchParams.delete("ordersTab");
             window.history.replaceState({}, "", url.toString());
+            return;
         }
-    }, []);
+        if (tabLocked.current) return;
+        setTab(resolveDefaultOrdersTab(orders));
+    }, [orders]);
 
     const [search, setSearch] = useState("");
     const [showFilters, setShowFilters] = useState(false);
@@ -121,7 +157,7 @@ export default function OrdersPanel() {
     const [cancelBusy, setCancelBusy] = useState(false);
     const [editOrder, setEditOrder] = useState<Order | null>(null);
 
-    const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
+    const activeStatuses = ACTIVE_ORDER_STATUSES;
     const completedStatuses: OrderStatus[] = ["completed", "cancelled"];
 
     // Base filter by tab
@@ -268,7 +304,7 @@ export default function OrdersPanel() {
                     ]).map(({ key, label, count }) => (
                         <button
                             key={key}
-                            onClick={() => setTab(key)}
+                            onClick={() => selectTab(key)}
                             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${tab === key
                                 ? "bg-zinc-700 text-zinc-100"
                                 : "text-zinc-500 hover:text-zinc-300"

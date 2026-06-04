@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Ban, Bell, Gift, Minus, Plus, Search, Split, StickyNote, Tag, Trash2,
@@ -7,6 +7,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -71,6 +79,80 @@ function tableDisplay(order: Order): string | null {
   return null;
 }
 
+type DetailsSnapshot = {
+  guestName: string;
+  customerPhone: string;
+  partySize: string;
+  tableId: string;
+  tableLabel: string;
+  orderType: OrderType;
+  paymentMethod: Order["paymentMethod"];
+  status: OrderStatus;
+  notes: string;
+  tipAmount: string;
+  tipPercent: string;
+};
+
+function snapshotFromOrder(order: Order): DetailsSnapshot {
+  return {
+    guestName: order.guestName,
+    customerPhone: order.customerPhone ?? "",
+    partySize: String(order.partySize || 1),
+    tableId: order.tableId || "",
+    tableLabel: order.tableLabel ?? (order.tableNumber > 0 ? String(order.tableNumber) : ""),
+    orderType: order.orderType,
+    paymentMethod: order.paymentMethod,
+    status: order.status,
+    notes: order.notes ?? "",
+    tipAmount: order.tipAmount != null ? String(order.tipAmount) : "",
+    tipPercent: order.tipPercent != null ? String(order.tipPercent) : "",
+  };
+}
+
+function snapshotFromForm(
+  guestName: string,
+  customerPhone: string,
+  partySize: string,
+  tableId: string,
+  tableLabel: string,
+  orderType: OrderType,
+  paymentMethod: Order["paymentMethod"],
+  status: OrderStatus,
+  notes: string,
+  tipAmount: string,
+  tipPercent: string,
+): DetailsSnapshot {
+  return {
+    guestName,
+    customerPhone,
+    partySize,
+    tableId,
+    tableLabel,
+    orderType,
+    paymentMethod,
+    status,
+    notes,
+    tipAmount,
+    tipPercent,
+  };
+}
+
+function snapshotsEqual(a: DetailsSnapshot, b: DetailsSnapshot): boolean {
+  return (
+    a.guestName === b.guestName &&
+    a.customerPhone === b.customerPhone &&
+    a.partySize === b.partySize &&
+    a.tableId === b.tableId &&
+    a.tableLabel === b.tableLabel &&
+    a.orderType === b.orderType &&
+    a.paymentMethod === b.paymentMethod &&
+    a.status === b.status &&
+    a.notes === b.notes &&
+    a.tipAmount === b.tipAmount &&
+    a.tipPercent === b.tipPercent
+  );
+}
+
 function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 10);
   if (digits.length <= 3) return digits.length ? `(${digits}` : "";
@@ -132,25 +214,90 @@ export default function OrderEditModal({
   const [showSplit, setShowSplit] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState("");
+  const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+  const [removeConfirmItem, setRemoveConfirmItem] = useState<{ id: string; name: string } | null>(null);
+  const [voidTarget, setVoidTarget] = useState<{ id: string; name: string } | null>(null);
+  const [voidReasonDraft, setVoidReasonDraft] = useState("Kitchen error");
+  const [voidBusy, setVoidBusy] = useState(false);
+  const [compTarget, setCompTarget] = useState<{ id: string; name: string } | null>(null);
+  const [compReasonDraft, setCompReasonDraft] = useState("Guest recovery");
+  const [compBusy, setCompBusy] = useState(false);
+  /** Voided line ids hidden from this session's items list (view only, not deleted). */
+  const [hiddenVoidIds, setHiddenVoidIds] = useState<string[]>([]);
+
+  const prevOpenRef = useRef(false);
+  const prevOrderIdRef = useRef<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState<DetailsSnapshot | null>(null);
+
+  const loadFormFromOrder = useCallback((o: Order) => {
+    const snap = snapshotFromOrder(o);
+    setSavedSnapshot(snap);
+    setGuestName(snap.guestName);
+    setCustomerPhone(snap.customerPhone);
+    setPartySize(snap.partySize);
+    setTableId(snap.tableId);
+    setTableLabel(snap.tableLabel);
+    setOrderType(snap.orderType);
+    setPaymentMethod(snap.paymentMethod);
+    setStatus(snap.status);
+    setNotes(snap.notes);
+    setTipAmount(snap.tipAmount);
+    setTipPercent(snap.tipPercent);
+  }, []);
 
   useEffect(() => {
-    if (!order || !open) return;
-    setGuestName(order.guestName);
-    setCustomerPhone(order.customerPhone ?? "");
-    setPartySize(String(order.partySize || 1));
-    setTableId(order.tableId || "");
-    setTableLabel(order.tableLabel ?? (order.tableNumber > 0 ? String(order.tableNumber) : ""));
-    setOrderType(order.orderType);
-    setPaymentMethod(order.paymentMethod);
-    setStatus(order.status);
-    setNotes(order.notes ?? "");
-    setTipAmount(order.tipAmount != null ? String(order.tipAmount) : "");
-    setTipPercent(order.tipPercent != null ? String(order.tipPercent) : "");
-    setTab("details");
-    setMenuSearch("");
-    setEditingNoteItemId(null);
-    setMergeTargetId("");
-  }, [order, open]);
+    if (!order || !open) {
+      prevOpenRef.current = false;
+      return;
+    }
+
+    const justOpened = open && !prevOpenRef.current;
+    const orderChanged = prevOrderIdRef.current !== order.id;
+    if (justOpened || orderChanged) {
+      setTab("details");
+      setMenuSearch("");
+      setEditingNoteItemId(null);
+      setMergeTargetId("");
+      setShowUnsavedPrompt(false);
+      setRemoveConfirmItem(null);
+      setHiddenVoidIds([]);
+      loadFormFromOrder(order);
+      prevOrderIdRef.current = order.id;
+    }
+
+    prevOpenRef.current = true;
+  }, [order, open, loadFormFromOrder]);
+
+  const detailsDirty = useMemo(() => {
+    if (!savedSnapshot) return false;
+    const current = snapshotFromForm(
+      guestName,
+      customerPhone,
+      partySize,
+      tableId,
+      tableLabel,
+      orderType,
+      paymentMethod,
+      status,
+      notes,
+      tipAmount,
+      tipPercent,
+    );
+    return !snapshotsEqual(savedSnapshot, current);
+  }, [
+    savedSnapshot,
+    guestName,
+    customerPhone,
+    partySize,
+    tableId,
+    tableLabel,
+    orderType,
+    paymentMethod,
+    status,
+    notes,
+    tipAmount,
+    tipPercent,
+  ]);
 
   const filteredMenu = useMemo(() => {
     const q = menuSearch.trim().toLowerCase();
@@ -163,8 +310,41 @@ export default function OrderEditModal({
   const isTerminal = order?.status === "completed" || order?.status === "cancelled";
   const canEditItems = !isTerminal;
 
-  const handleSaveDetails = async () => {
-    if (!order) return;
+  const sortedItems = useMemo(
+    () =>
+      order
+        ? [...order.items].sort((a, b) =>
+            a.menuItemName.localeCompare(b.menuItemName, undefined, { sensitivity: "base" }),
+          )
+        : [],
+    [order],
+  );
+
+  const hiddenVoidSet = useMemo(() => new Set(hiddenVoidIds), [hiddenVoidIds]);
+
+  const voidedItems = useMemo(
+    () => sortedItems.filter((i) => i.voided),
+    [sortedItems],
+  );
+
+  const visibleItems = useMemo(
+    () => sortedItems.filter((i) => !i.voided || !hiddenVoidSet.has(i.id)),
+    [sortedItems, hiddenVoidSet],
+  );
+
+  const hiddenVoidCount = voidedItems.filter((i) => hiddenVoidSet.has(i.id)).length;
+  const visibleVoidCount = voidedItems.length - hiddenVoidCount;
+
+  const hideVoidFromView = (itemId: string) => {
+    setHiddenVoidIds((prev) => (prev.includes(itemId) ? prev : [...prev, itemId]));
+  };
+
+  const hideAllVoidedFromView = () => {
+    setHiddenVoidIds(voidedItems.map((i) => i.id));
+  };
+
+  const handleSaveDetails = async (): Promise<boolean> => {
+    if (!order) return false;
     setSaving(true);
     try {
       const selectedTable = tables.find((t) => t.id === tableId);
@@ -184,12 +364,76 @@ export default function OrderEditModal({
         tipAmount: parsedTip != null && Number.isFinite(parsedTip) ? parsedTip : undefined,
         tipPercent: parsedTipPct != null && Number.isFinite(parsedTipPct) ? parsedTipPct : undefined,
       });
+      setSavedSnapshot(
+        snapshotFromForm(
+          guestName.trim() || "Guest",
+          customerPhone,
+          partySize,
+          tableId,
+          tableLabel,
+          orderType,
+          paymentMethod,
+          status,
+          notes,
+          tipAmount,
+          tipPercent,
+        ),
+      );
       toast.success("Order updated");
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save order");
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const requestClose = useCallback(() => {
+    if (detailsDirty) {
+      setShowUnsavedPrompt(true);
+      return;
+    }
+    onClose();
+  }, [detailsDirty, onClose]);
+
+  const handleDiscardAndClose = () => {
+    setShowUnsavedPrompt(false);
+    onClose();
+  };
+
+  const handleSaveAndClose = async () => {
+    const ok = await handleSaveDetails();
+    if (ok) {
+      setShowUnsavedPrompt(false);
+      onClose();
+    }
+  };
+
+  const promptRemoveItem = (item: { id: string; menuItemName: string }) => {
+    setRemoveConfirmItem({ id: item.id, name: item.menuItemName });
+  };
+
+  const handleConfirmRemoveItem = async () => {
+    if (!order || !removeConfirmItem) return;
+    try {
+      await removeItemFromOrder(order.id, removeConfirmItem.id);
+      toast.success(`Removed ${removeConfirmItem.name}`);
+      setRemoveConfirmItem(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove item");
+    }
+  };
+
+  const handleDecreaseQuantity = (item: Order["items"][number]) => {
+    if (!order) return;
+    if (item.quantity <= 1) {
+      promptRemoveItem(item);
+      return;
+    }
+    void updateItemQuantity(order.id, item.id, item.quantity - 1).catch((err) => {
+      toast.error(err instanceof Error ? err.message : "Could not update quantity");
+    });
   };
 
   const handleSaveItemNote = async (itemId: string) => {
@@ -203,18 +447,30 @@ export default function OrderEditModal({
     }
   };
 
-  const handleVoid = async (itemId: string, itemName: string) => {
-    if (!order) return;
-    const reason = window.prompt(`Reason for voiding "${itemName}"?`, "Kitchen error")?.trim();
-    if (!reason) return;
-    await voidOrderItem(order.id, itemId, reason, staffId);
+  const handleConfirmVoid = async () => {
+    if (!order || !voidTarget) return;
+    setVoidBusy(true);
+    try {
+      await voidOrderItem(order.id, voidTarget.id, voidReasonDraft, staffId);
+      setVoidTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not void item");
+    } finally {
+      setVoidBusy(false);
+    }
   };
 
-  const handleComp = async (itemId: string, itemName: string) => {
-    if (!order) return;
-    const reason = window.prompt(`Reason for comping "${itemName}"?`, "Guest recovery")?.trim();
-    if (!reason) return;
-    await compOrderItem(order.id, itemId, reason);
+  const handleConfirmComp = async () => {
+    if (!order || !compTarget) return;
+    setCompBusy(true);
+    try {
+      await compOrderItem(order.id, compTarget.id, compReasonDraft);
+      setCompTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not comp item");
+    } finally {
+      setCompBusy(false);
+    }
   };
 
   const handleMerge = async () => {
@@ -228,17 +484,29 @@ export default function OrderEditModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) requestClose(); }}>
         <DialogContent
           hideClose
-          className="glass-modal max-w-2xl max-h-[90vh] overflow-hidden border-white/10 bg-zinc-900/95 backdrop-blur-xl p-0 flex flex-col gap-0"
+          className="glass-modal max-w-2xl max-h-[90vh] overflow-hidden border-zinc-200/90 bg-white/95 dark:border-white/10 dark:bg-zinc-900/95 backdrop-blur-xl p-0 flex flex-col gap-0"
+          onEscapeKeyDown={(e) => {
+            if (detailsDirty) {
+              e.preventDefault();
+              setShowUnsavedPrompt(true);
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            if (detailsDirty) {
+              e.preventDefault();
+              setShowUnsavedPrompt(true);
+            }
+          }}
         >
           <Tabs value={tab} onValueChange={setTab} className="flex flex-col flex-1 min-h-0">
-            {/* Header */}
-            <div className="relative shrink-0 border-b border-white/10 bg-gradient-to-b from-amber-500/[0.08] via-zinc-900/40 to-zinc-900/80">
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+            {/* Header — light: gradient ends at zinc-100 to match tab strip below */}
+            <div className="relative shrink-0 border-b border-zinc-200/90 dark:border-white/10">
+              <div className="absolute inset-x-0 top-0 z-10 h-0.5 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent dark:via-amber-500/60" />
 
-              <div className="px-5 pt-4 pb-3">
+              <div className="bg-gradient-to-b from-amber-50/90 via-white to-[#f1f5f9] px-5 pt-4 pb-3 dark:from-amber-500/[0.08] dark:via-zinc-900/40 dark:to-zinc-800/90">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -276,7 +544,7 @@ export default function OrderEditModal({
                 </div>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   aria-label="Close"
                   className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-800/80 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
                 >
@@ -324,26 +592,24 @@ export default function OrderEditModal({
                 )}
               </div>
 
-              <div className="px-5 pb-3">
-                <TabsList className="h-10 w-full grid grid-cols-3 rounded-xl bg-zinc-950/60 border border-white/10 p-1 text-zinc-500">
+              <div className="bg-[#f1f5f9] px-5 pb-3 pt-0 dark:bg-zinc-800/90">
+                <TabsList className="h-10 w-full grid grid-cols-3 rounded-xl bg-[#e2e8f0]/70 border border-zinc-300/40 p-1 text-zinc-500 dark:bg-zinc-950/60 dark:border-white/10">
                   <TabsTrigger
                     value="details"
-                    className="rounded-lg text-xs font-semibold data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-300"
+                    className="rounded-lg text-xs font-semibold justify-center data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-700 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-100 dark:data-[state=inactive]:hover:text-zinc-300"
                   >
                     Details
                   </TabsTrigger>
                   <TabsTrigger
                     value="items"
-                    className="group rounded-lg text-xs font-semibold data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-300"
+                    className="rounded-lg text-xs font-semibold justify-center gap-1 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-700 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-100 dark:data-[state=inactive]:hover:text-zinc-300"
                   >
-                    Items
-                    <span className="ml-1.5 tabular-nums text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-700/80 group-data-[state=active]:bg-amber-500/20 group-data-[state=active]:text-amber-400">
-                      {order.items.length}
-                    </span>
+                    <span>Items</span>
+                    <span className="tabular-nums text-[10px] font-bold opacity-70">{order.items.length}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="actions"
-                    className="rounded-lg text-xs font-semibold data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-300"
+                    className="rounded-lg text-xs font-semibold justify-center data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm data-[state=inactive]:hover:text-zinc-700 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-zinc-100 dark:data-[state=inactive]:hover:text-zinc-300"
                   >
                     Actions
                   </TabsTrigger>
@@ -450,32 +716,53 @@ export default function OrderEditModal({
                   </span>
                 </div>
               </ScrollArea>
-              <div className="px-5 py-3 border-t border-white/5 flex gap-2">
-                <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-white/10 text-sm text-zinc-400 hover:bg-zinc-800">
-                  Close
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void handleSaveDetails()}
-                  className={cn("flex-[2] py-2.5 rounded-lg text-sm font-bold", DASH_PRIMARY_CTA, saving && "opacity-60")}
-                >
-                  {saving ? "Saving…" : "Save details"}
-                </button>
-              </div>
+              <EditModalFooter saving={saving} onClose={requestClose} onSave={() => void handleSaveDetails()} />
             </TabsContent>
 
             <TabsContent value="items" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden flex flex-col">
-              <ScrollArea className="flex-1 px-5 py-3 max-h-[min(44vh,400px)]">
+              <ScrollArea className="h-[min(52vh,480px)] px-5 py-3">
+                {voidedItems.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2">
+                    <span className="text-[10px] font-medium text-zinc-500">
+                      {visibleVoidCount > 0
+                        ? `${visibleVoidCount} voided item${visibleVoidCount === 1 ? "" : "s"} shown`
+                        : "All voided items hidden from view"}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {hiddenVoidCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setHiddenVoidIds([])}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-md border border-zinc-300/60 text-zinc-600 hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        >
+                          Show voided ({hiddenVoidCount})
+                        </button>
+                      )}
+                      {visibleVoidCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={hideAllVoidedFromView}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-md border border-red-500/25 text-red-700 hover:bg-red-500/10 dark:text-red-400"
+                        >
+                          Hide all voided
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  {order.items.length === 0 ? (
+                  {sortedItems.length === 0 ? (
                     <p className="text-sm text-zinc-500 text-center py-6">No items on this order yet.</p>
-                  ) : order.items.map((item) => (
+                  ) : visibleItems.length === 0 ? (
+                    <p className="text-sm text-zinc-500 text-center py-6">
+                      No items to show. Use &ldquo;Show voided&rdquo; to bring hidden lines back.
+                    </p>
+                  ) : visibleItems.map((item) => (
                     <div
                       key={item.id}
                       className={cn(
                         "rounded-xl border px-3 py-2.5",
-                        item.voided ? "border-red-500/20 bg-red-500/5 opacity-70"
+                        item.voided ? "border-red-500/30 bg-red-500/8 dark:bg-red-500/5"
                           : item.comped ? "border-emerald-500/20 bg-emerald-500/5"
                             : "border-white/5 bg-zinc-800/40",
                       )}
@@ -484,16 +771,55 @@ export default function OrderEditModal({
                         <div className="min-w-0 flex-1">
                           <p className={cn("text-sm font-medium text-zinc-100", (item.voided || item.comped) && "line-through")}>
                             {item.menuItemName}
+                            {item.quantity > 1 && (
+                              <span className="ml-1.5 text-zinc-500 font-normal tabular-nums">×{item.quantity}</span>
+                            )}
                           </p>
-                          {item.voided && <span className="text-[10px] font-semibold text-red-400">VOIDED</span>}
-                          {item.comped && <span className="text-[10px] font-semibold text-emerald-400">COMP</span>}
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {item.voided && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-red-500 dark:text-red-400">
+                                Voided
+                              </span>
+                            )}
+                            {item.comped && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                                Comped
+                              </span>
+                            )}
+                          </div>
+                          {item.voided && item.voidReason && (
+                            <p className="text-[10px] text-red-600/90 dark:text-red-300/90 mt-1">
+                              Reason: {item.voidReason}
+                            </p>
+                          )}
+                          {item.comped && item.compReason && (
+                            <p className="text-[10px] text-emerald-700/90 dark:text-emerald-300/90 mt-1">
+                              Reason: {item.compReason}
+                            </p>
+                          )}
                           {item.specialInstructions && editingNoteItemId !== item.id && (
                             <p className="text-[10px] text-zinc-500 italic mt-0.5">{item.specialInstructions}</p>
                           )}
                         </div>
-                        <span className="text-sm font-semibold text-amber-400 tabular-nums">
-                          ${(item.unitPrice * item.quantity).toFixed(2)}
-                        </span>
+                        <div className="flex items-start gap-1 shrink-0">
+                          <span className={cn(
+                            "text-sm font-semibold tabular-nums",
+                            item.voided || item.comped ? "text-zinc-500 line-through" : "text-amber-400",
+                          )}>
+                            ${(item.unitPrice * item.quantity).toFixed(2)}
+                          </span>
+                          {item.voided && (
+                            <button
+                              type="button"
+                              title="Hide from list"
+                              aria-label={`Hide voided ${item.menuItemName} from list`}
+                              onClick={() => hideVoidFromView(item.id)}
+                              className="flex h-6 w-6 items-center justify-center rounded-md border border-zinc-300/50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:border-white/10 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            >
+                              <X size={12} strokeWidth={2} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {editingNoteItemId === item.id ? (
                         <div className="mt-2 flex gap-2">
@@ -504,7 +830,7 @@ export default function OrderEditModal({
                       {canEditItems && !item.voided && !item.comped && (
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
                           <div className="flex items-center gap-1">
-                            <QtyBtn onClick={() => updateItemQuantity(order.id, item.id, item.quantity - 1)}><Minus size={12} /></QtyBtn>
+                            <QtyBtn onClick={() => handleDecreaseQuantity(item)}><Minus size={12} /></QtyBtn>
                             <span className="w-6 text-center text-xs font-bold tabular-nums">{item.quantity}</span>
                             <QtyBtn onClick={() => updateItemQuantity(order.id, item.id, item.quantity + 1)}><Plus size={12} /></QtyBtn>
                           </div>
@@ -512,13 +838,25 @@ export default function OrderEditModal({
                             <IconBtn title="Edit note" onClick={() => { setEditingNoteItemId(item.id); setNoteDraft(item.specialInstructions ?? ""); }}>
                               <StickyNote size={12} />
                             </IconBtn>
-                            <IconBtn title="Void item" onClick={() => void handleVoid(item.id, item.menuItemName)}>
+                            <IconBtn
+                              title="Void item"
+                              onClick={() => {
+                                setVoidReasonDraft("Kitchen error");
+                                setVoidTarget({ id: item.id, name: item.menuItemName });
+                              }}
+                            >
                               <Ban size={12} className="text-red-400" />
                             </IconBtn>
-                            <IconBtn title="Comp item" onClick={() => void handleComp(item.id, item.menuItemName)}>
+                            <IconBtn
+                              title="Comp item"
+                              onClick={() => {
+                                setCompReasonDraft("Guest recovery");
+                                setCompTarget({ id: item.id, name: item.menuItemName });
+                              }}
+                            >
                               <Gift size={12} className="text-emerald-400" />
                             </IconBtn>
-                            <IconBtn title="Remove" onClick={() => removeItemFromOrder(order.id, item.id)}>
+                            <IconBtn title="Remove" onClick={() => promptRemoveItem(item)}>
                               <Trash2 size={12} className="text-red-400" />
                             </IconBtn>
                           </div>
@@ -554,9 +892,10 @@ export default function OrderEditModal({
                   </div>
                 )}
               </ScrollArea>
+              <EditModalFooter saving={saving} onClose={requestClose} onSave={() => void handleSaveDetails()} />
             </TabsContent>
 
-            <TabsContent value="actions" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <TabsContent value="actions" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden flex flex-col">
               <ScrollArea className="h-[min(52vh,480px)] px-5 py-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <ActionBtn icon={MapPin} label="Transfer table" onClick={() => setShowTransfer(true)} disabled={isTerminal} />
@@ -602,15 +941,15 @@ export default function OrderEditModal({
                 )}
 
                 {mergeCandidates.length > 0 && !isTerminal && (
-                  <div className="mt-4 rounded-xl border border-white/5 bg-zinc-800/30 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
+                  <div className="mt-4 rounded-xl border border-white/5 bg-zinc-800/30 p-3 text-center">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center justify-center gap-1.5">
                       <Merge size={12} /> Merge into another order
                     </p>
                     <p className="text-[11px] text-zinc-600 mb-2">Items from this order move into the selected order; this order is cancelled.</p>
                     <select
                       value={mergeTargetId}
                       onChange={(e) => setMergeTargetId(e.target.value)}
-                      className="w-full h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-100 mb-2"
+                      className="w-full h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-100 mb-2 text-left"
                     >
                       <option value="">Select order…</option>
                       {mergeCandidates.map((o) => (
@@ -623,7 +962,7 @@ export default function OrderEditModal({
                       type="button"
                       disabled={!mergeTargetId}
                       onClick={() => void handleMerge()}
-                      className={cn("w-full py-2 rounded-lg text-xs font-semibold", DASH_BTN_ADD, !mergeTargetId && "opacity-50")}
+                      className={cn("w-full py-2 rounded-lg text-xs font-semibold justify-center", DASH_BTN_ADD, !mergeTargetId && "opacity-50")}
                     >
                       Merge orders
                     </button>
@@ -642,10 +981,163 @@ export default function OrderEditModal({
                   )}
                 </div>
               </ScrollArea>
+              <EditModalFooter saving={saving} onClose={requestClose} onSave={() => void handleSaveDetails()} />
             </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showUnsavedPrompt} onOpenChange={setShowUnsavedPrompt}>
+        <AlertDialogContent className="glass-modal z-[60] max-w-sm border-zinc-200/90 bg-white/95 dark:border-white/10 dark:bg-zinc-900/95">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-900 dark:text-zinc-100">Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
+              Changes unsaved. Would you like to save them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <button
+              type="button"
+              onClick={handleDiscardAndClose}
+              className="flex-1 py-2.5 rounded-lg border border-zinc-300/90 bg-zinc-100 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+            >
+              No
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSaveAndClose()}
+              className={cn(
+                "flex-1 py-2.5 rounded-lg text-sm font-semibold border border-emerald-500/45 bg-emerald-500/15 text-emerald-800",
+                "shadow-[0_0_16px_rgba(52,211,153,0.35)] hover:bg-emerald-500/25 hover:shadow-[0_0_20px_rgba(52,211,153,0.45)]",
+                "dark:text-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/35",
+                saving && "opacity-60",
+              )}
+            >
+              {saving ? "Saving…" : "Yes"}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={removeConfirmItem !== null} onOpenChange={(o) => !o && setRemoveConfirmItem(null)}>
+        <AlertDialogContent className="glass-modal z-[60] max-w-sm border-zinc-200/90 bg-white/95 dark:border-white/10 dark:bg-zinc-900/95">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-900 dark:text-zinc-100">Remove item?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
+              {removeConfirmItem
+                ? `Remove "${removeConfirmItem.name}" from this order?`
+                : "Remove this item from the order?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setRemoveConfirmItem(null)}
+              className="flex-1 py-2.5 rounded-lg border border-zinc-300/90 bg-zinc-100 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmRemoveItem()}
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-400"
+            >
+              Remove
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={voidTarget !== null}
+        onOpenChange={(o) => {
+          if (!o && !voidBusy) setVoidTarget(null);
+        }}
+      >
+        <AlertDialogContent className="glass-modal z-[60] max-w-sm border-zinc-200/90 bg-white/95 dark:border-white/10 dark:bg-zinc-900/95">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-900 dark:text-zinc-100">Void item?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
+              {voidTarget ? `"${voidTarget.name}" will be voided and removed from the order total.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="block text-left">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1 block">
+              Reason
+            </span>
+            <Input
+              value={voidReasonDraft}
+              onChange={(e) => setVoidReasonDraft(e.target.value)}
+              placeholder="e.g. Kitchen error, wrong item"
+              className="bg-zinc-50 border-zinc-300/80 text-zinc-900 dark:bg-zinc-950 dark:border-white/10 dark:text-zinc-100"
+            />
+          </label>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <button
+              type="button"
+              disabled={voidBusy}
+              onClick={() => setVoidTarget(null)}
+              className="flex-1 py-2.5 rounded-lg border border-zinc-300/90 bg-zinc-100 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={voidBusy || !voidReasonDraft.trim()}
+              onClick={() => void handleConfirmVoid()}
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-red-500/35 bg-red-500/12 text-red-700 hover:bg-red-500/18 dark:text-red-400 disabled:opacity-50"
+            >
+              {voidBusy ? "Voiding…" : "Void item"}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={compTarget !== null}
+        onOpenChange={(o) => {
+          if (!o && !compBusy) setCompTarget(null);
+        }}
+      >
+        <AlertDialogContent className="glass-modal z-[60] max-w-sm border-zinc-200/90 bg-white/95 dark:border-white/10 dark:bg-zinc-900/95">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-900 dark:text-zinc-100">Comp item?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
+              {compTarget ? `"${compTarget.name}" will be comped at no charge.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="block text-left">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1 block">
+              Reason
+            </span>
+            <Input
+              value={compReasonDraft}
+              onChange={(e) => setCompReasonDraft(e.target.value)}
+              placeholder="e.g. Guest recovery"
+              className="bg-zinc-50 border-zinc-300/80 text-zinc-900 dark:bg-zinc-950 dark:border-white/10 dark:text-zinc-100"
+            />
+          </label>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <button
+              type="button"
+              disabled={compBusy}
+              onClick={() => setCompTarget(null)}
+              className="flex-1 py-2.5 rounded-lg border border-zinc-300/90 bg-zinc-100 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={compBusy || !compReasonDraft.trim()}
+              onClick={() => void handleConfirmComp()}
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-emerald-500/35 bg-emerald-500/12 text-emerald-800 hover:bg-emerald-500/18 dark:text-emerald-300 disabled:opacity-50"
+            >
+              {compBusy ? "Saving…" : "Comp item"}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DiscountSelector
         open={showDiscount}
@@ -685,6 +1177,36 @@ export default function OrderEditModal({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function EditModalFooter({
+  saving,
+  onClose,
+  onSave,
+}: {
+  saving: boolean;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="shrink-0 px-5 py-3 border-t border-zinc-200/80 dark:border-white/5 flex gap-2">
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex-1 py-2.5 rounded-lg border border-zinc-300/80 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
+      >
+        Close
+      </button>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={onSave}
+        className={cn("flex-[2] py-2.5 rounded-lg text-sm font-bold", DASH_PRIMARY_CTA, saving && "opacity-60")}
+      >
+        {saving ? "Saving…" : "Save details"}
+      </button>
+    </div>
   );
 }
 
