@@ -22,7 +22,7 @@ import { useDashboard } from "@/context/DashboardContext";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import {
-  DASH_MONEY_EMPHASIS, DASH_PRIMARY_CTA, DASH_BTN_ADD, ORDER_STATUS_PILL,
+  DASH_MONEY_EMPHASIS, DASH_PRIMARY_CTA, DASH_BTN_ADD, DASH_ORDER_MEMBER_PILL, ORDER_STATUS_PILL,
   ORDER_PILL_TYPE_PRE, ORDER_PILL_TYPE_TAKEOUT, ORDER_PILL_GROUP,
 } from "@/lib/dashboardUi";
 import type { Order, OrderStatus, OrderType } from "@/types/dashboard";
@@ -583,7 +583,7 @@ export default function OrderEditModal({
                     {order.partyMembers.map((name, i) => (
                       <span
                         key={`${name}-${i}`}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/70 border border-white/5 text-zinc-300"
+                        className={DASH_ORDER_MEMBER_PILL}
                       >
                         {name}
                       </span>

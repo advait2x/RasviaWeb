@@ -34,6 +34,7 @@ import {
     ORDER_PILL_TYPE_PRE,
     ORDER_PILL_TYPE_TAKEOUT,
     ORDER_STATUS_PILL,
+    DASH_ORDER_MEMBER_PILL,
 } from "@/lib/dashboardUi";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -315,9 +316,7 @@ export default function OrdersPanel() {
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                     tab === key
                                         ? "bg-amber-200/90 text-amber-950 dark:bg-amber-500/20 dark:text-amber-400"
-                                        : key === "preorders"
-                                            ? "bg-red-500 text-white"
-                                            : "bg-zinc-300/60 text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500"
+                                        : "bg-zinc-300/60 text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500"
                                     }`}>
                                     {count}
                                 </span>
@@ -555,7 +554,7 @@ export default function OrdersPanel() {
                                             {order.partyMembers.map((name, i) => (
                                                 <span
                                                     key={`${name}-${i}`}
-                                                    className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-700/50 border border-white/5 text-zinc-300"
+                                                    className={DASH_ORDER_MEMBER_PILL}
                                                 >
                                                     {name}
                                                 </span>

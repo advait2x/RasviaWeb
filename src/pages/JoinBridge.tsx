@@ -17,6 +17,7 @@ import {
   startCheckout, cancelSession, leaveSession, CheckoutError, setHostInReview,
   formatCents, totalCartCents, paymentForMember, memberById,
   isSelfServeTableside, isSoloTableside, canProceedToCheckout, orderFlowTitle,
+  partyGuestMembers,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
 import {
@@ -80,6 +81,7 @@ export default function JoinBridge() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
   const [showAppOverlay, setShowAppOverlay] = useState(
     !(checkoutStatus === "success" || checkoutStatus === "cancel"),
@@ -114,13 +116,14 @@ export default function JoinBridge() {
 
   const session = snapshot?.session ?? null;
   const members = snapshot?.members ?? [];
+  const guestMembers = useMemo(() => partyGuestMembers(members), [members]);
   const items = snapshot?.items ?? [];
   const payments = snapshot?.payments ?? [];
   const me = creds ? members.find((m) => m.id === creds.memberId) ?? null : null;
   const isHost = me?.role === "host";
   const myPayment = creds ? paymentForMember(payments, creds.memberId) : null;
   const selfServe = isSelfServeTableside(session);
-  const soloTableside = isSoloTableside(session, members.length);
+  const soloTableside = isSoloTableside(session, guestMembers.length);
   const flowTitle = orderFlowTitle(session, restaurant?.name);
   const hostInReview = session?.host_in_review === true;
   const nonHostCartLocked = !isHost && hostInReview;
@@ -425,16 +428,17 @@ export default function JoinBridge() {
     }
   };
 
-  const handleCancelSession = async () => {
+  const handleCancelSession = async (reason?: string) => {
     setBusy(true);
     try {
-      const result = await cancelSession(supabase, creds!);
+      const trimmed = reason?.trim();
+      const result = await cancelSession(supabase, creds!, trimmed ? { reason: trimmed } : undefined);
       toast.success(`Cancelled - ${result.refunded} payment${result.refunded === 1 ? "" : "s"} refunded.`);
       clearPartyCreds(sessionId);
       window.location.href = "/";
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Cancel failed");
-    } finally { setBusy(false); setCancelOpen(false); }
+    } finally { setBusy(false); setCancelOpen(false); setCancelReason(""); }
   };
 
   const handleLeave = async () => {
@@ -456,6 +460,27 @@ export default function JoinBridge() {
     catch { toast.error("Could not copy link."); }
   };
 
+  const groupOrderHeaderActions = (
+    <div className="flex shrink-0 items-center gap-2">
+      <DownloadAppButton variant="header" />
+      {!soloTableside ? (
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+            linkCopied
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-white/10 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800",
+          )}
+        >
+          {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {linkCopied ? "Copied!" : selfServe ? "Invite" : "Share"}
+        </button>
+      ) : null}
+    </div>
+  );
+
   // ── Early returns ──────────────────────────────────────────────────────
   if (!sessionId) return <FullScreenMessage title="Missing id" body="This link is invalid." />;
   // Wait for BOTH the initial snapshot load AND the saved-creds read before
@@ -470,6 +495,7 @@ export default function JoinBridge() {
     return (
       <CancelledScreen
         restaurantName={restaurant?.name ?? null}
+        cancellationReason={session.cancellation_reason ?? null}
         onHome={() => { clearPartyCreds(sessionId); window.location.href = "/"; }}
       />
     );
@@ -511,9 +537,14 @@ export default function JoinBridge() {
   // Pay & Wait
   if (view === "pay" && (session.status === "locked" || session.status === "paying")) {
     return (
-      <Layout restaurantName={flowTitle} subtitle={soloTableside ? "Ready to pay" : "Collecting payments"} onBack={() => window.history.back()}>
+      <Layout
+        restaurantName={flowTitle}
+        subtitle={soloTableside ? "Ready to pay" : "Collecting payments"}
+        onBack={() => window.history.back()}
+        rightAction={groupOrderHeaderActions}
+      >
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-24 pt-6">
-          <SummaryCard total={session.total_cents} itemCount={items.length} memberCount={members.length} subtitle="Cart locked" locked isTableside={selfServe} />
+          <SummaryCard total={session.total_cents} itemCount={items.length} memberCount={guestMembers.length} subtitle="Cart locked" locked isTableside={selfServe} />
           {myPayment && myPayment.amount_cents > 0 && myPayment.status !== "paid" && myPayment.status !== "covered" ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -541,7 +572,7 @@ export default function JoinBridge() {
           ) : null}
 
           <PartyLedger
-            members={members}
+            members={guestMembers}
             payments={payments}
             selfMemberId={creds.memberId}
             isHost={isHost}
@@ -564,10 +595,18 @@ export default function JoinBridge() {
           ) : null}
         </div>
 
-        <CancelDialog open={cancelOpen} busy={busy} isTableside={selfServe} onClose={() => setCancelOpen(false)} onConfirm={handleCancelSession} />
+        <CancelDialog
+          open={cancelOpen}
+          busy={busy}
+          isTableside={selfServe}
+          reason={cancelReason}
+          onReasonChange={setCancelReason}
+          onClose={() => { setCancelOpen(false); setCancelReason(""); }}
+          onConfirm={() => void handleCancelSession(cancelReason)}
+        />
         <MemberItemsModal
           memberId={viewingMemberId}
-          members={members}
+          members={guestMembers}
           items={items}
           selfMemberId={creds.memberId}
           onClose={() => setViewingMemberId(null)}
@@ -587,9 +626,14 @@ export default function JoinBridge() {
     const serverMode = (session.payment_mode === "split" ? "per_person" : session.payment_mode === "assign" ? "assigned" : session.payment_mode) as PaymentMode;
     const mode = pendingMode ?? serverMode;
     return (
-      <Layout restaurantName="Review" subtitle={restaurant?.name ?? undefined} onBack={() => setView("browse")}>
+      <Layout
+        restaurantName="Review"
+        subtitle={restaurant?.name ?? undefined}
+        onBack={() => setView("browse")}
+        rightAction={groupOrderHeaderActions}
+      >
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
-          <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={members.length} subtitle="Ready to checkout" isTableside={selfServe} />
+          <SummaryCard total={totalCartCents(items)} itemCount={items.length} memberCount={guestMembers.length} subtitle="Ready to checkout" isTableside={selfServe} />
           <section>
             <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">How should the bill be paid?</h3>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -619,7 +663,7 @@ export default function JoinBridge() {
               <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Choose a payer for each item</h3>
               <div className="mt-3 space-y-2">
                 {items.map((it) => (
-                  <AssignRow key={it.id} item={it} members={members} onAssign={(pid) => handleAssignPayer(it.id, pid)} />
+                  <AssignRow key={it.id} item={it} members={guestMembers} onAssign={(pid) => handleAssignPayer(it.id, pid)} />
                 ))}
               </div>
             </section>
@@ -631,7 +675,7 @@ export default function JoinBridge() {
               <p className="mt-1 text-xs text-zinc-500">By default each person pays for the items they added. Tap names below to share an item between multiple people.</p>
               <div className="mt-3 space-y-2">
                 {items.map((it) => (
-                  <SplitRow key={it.id} item={it} members={members} onSetSplit={(ids) => handleSetSplit(it.id, ids)} />
+                  <SplitRow key={it.id} item={it} members={guestMembers} onSetSplit={(ids) => handleSetSplit(it.id, ids)} />
                 ))}
               </div>
             </section>
@@ -669,8 +713,9 @@ export default function JoinBridge() {
     return (
       <Layout
         restaurantName={restaurant?.name ?? "Tableside"}
-        subtitle={`${members.length} at the table · waiter is taking the order`}
+        subtitle={`${guestMembers.length} at the table · waiter is taking the order`}
         onBack={() => window.history.back()}
+        rightAction={groupOrderHeaderActions}
       >
         <div className="mx-auto max-w-2xl space-y-5 px-4 pb-32 pt-6">
           <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
@@ -687,7 +732,7 @@ export default function JoinBridge() {
           <section>
             <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">At the table</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {members.map((m, idx) => (
+              {guestMembers.map((m, idx) => (
                 <MemberChip
                   key={m.id}
                   member={m}
@@ -739,7 +784,7 @@ export default function JoinBridge() {
 
         <MemberItemsModal
           memberId={viewingMemberId}
-          members={members}
+          members={guestMembers}
           items={items}
           selfMemberId={creds.memberId}
           onClose={() => setViewingMemberId(null)}
@@ -752,26 +797,19 @@ export default function JoinBridge() {
   const browseSubtitle = selfServe
     ? (soloTableside
       ? "Order from your table · friends can scan the same QR to join"
-      : `${members.length} at the table · ${items.length} item${items.length === 1 ? "" : "s"}`)
-    : `${members.length} member${members.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`;
+      : `${guestMembers.length} at the table · ${items.length} item${items.length === 1 ? "" : "s"}`)
+    : `${guestMembers.length} member${guestMembers.length === 1 ? "" : "s"} · ${items.length} item${items.length === 1 ? "" : "s"}`;
 
   return (
     <Layout
       restaurantName={flowTitle}
       subtitle={browseSubtitle}
       onBack={() => window.history.back()}
-      rightAction={
-        !soloTableside ? (
-        <button type="button" onClick={handleCopyLink} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${linkCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-white/10 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800"}`}>
-          {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {linkCopied ? "Copied!" : selfServe ? "Invite" : "Share"}
-        </button>
-        ) : null
-      }
+      rightAction={groupOrderHeaderActions}
     >
       <div className="mx-auto max-w-3xl px-4 pb-64">
         <div className="flex items-center gap-2 overflow-x-auto py-3">
-          {members.map((m, idx) => {
+          {guestMembers.map((m, idx) => {
             const count = items
               .filter((it) => it.added_by_member_id === m.id)
               .reduce((sum, it) => sum + (it.quantity ?? 1), 0);
@@ -814,14 +852,14 @@ export default function JoinBridge() {
         items={items}
         menu={menu}
         pendingAdds={pendingAdds}
-        members={members}
+        members={guestMembers}
         selfMemberId={creds.memberId}
         isHost={isHost}
         hostDeciding={hostInReview}
         guestCartLocked={nonHostCartLocked}
         isTableside={selfServe}
         soloTableside={soloTableside}
-        canCheckout={canProceedToCheckout(session, members.length)}
+        canCheckout={canProceedToCheckout(session, guestMembers.length)}
         onChangeQty={handleChangeQty}
         onRemove={handleRemoveItem}
         onReview={() => {
@@ -832,7 +870,7 @@ export default function JoinBridge() {
       />
       <MemberItemsModal
         memberId={viewingMemberId}
-        members={members}
+        members={guestMembers}
         items={items}
         selfMemberId={creds.memberId}
         onClose={() => setViewingMemberId(null)}
@@ -844,6 +882,34 @@ export default function JoinBridge() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Presentational components
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Placeholder until App Store / Play Store links are ready. */
+function DownloadAppButton({ variant }: { variant: "header" | "overlay" }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        /* App Store / Play Store links coming soon */
+      }}
+      className={cn(
+        "transition-colors active:scale-[0.98]",
+        variant === "header"
+          ? "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:border-sky-400/60 hover:bg-sky-500/30 hover:text-sky-50"
+          : "mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-xl border border-sky-400/50 bg-sky-600 px-5 py-3 text-sm font-bold text-white shadow-sm shadow-sky-900/30 hover:border-sky-300/60 hover:bg-sky-500",
+      )}
+      aria-label="Download app (coming soon)"
+    >
+      {variant === "header" ? (
+        <>
+          <Smartphone className="h-3.5 w-3.5" />
+          Download app
+        </>
+      ) : (
+        "Download app"
+      )}
+    </button>
+  );
+}
 
 function Layout({
   children, restaurantName, subtitle, onBack, rightAction,
@@ -1253,13 +1319,36 @@ function CheckoutUnavailableDialog({
   );
 }
 
-function CancelDialog({ open, busy, isTableside, onClose, onConfirm }: { open: boolean; busy: boolean; isTableside?: boolean; onClose: () => void; onConfirm: () => void }) {
+function CancelDialog({
+  open, busy, isTableside, reason, onReasonChange, onClose, onConfirm,
+}: {
+  open: boolean;
+  busy: boolean;
+  isTableside?: boolean;
+  reason: string;
+  onReasonChange: (v: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[max(env(safe-area-inset-bottom),16px)] sm:items-center">
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
         <h3 className="text-lg font-bold">{isTableside ? "Cancel order?" : "Cancel group order?"}</h3>
         <p className="mt-2 text-sm text-zinc-400">Any paid shares will be refunded via Stripe. This can't be undone.</p>
+        <label className="mt-4 block">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Reason for guests (optional)
+          </span>
+          <textarea
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            rows={3}
+            maxLength={280}
+            placeholder="Let everyone know why…"
+            className="mt-1.5 w-full resize-none rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+          />
+        </label>
         <div className="mt-5 flex flex-col gap-3">
           <button type="button" disabled={busy} onClick={onConfirm} className="w-full rounded-xl bg-red-500 px-4 py-3 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-60">
             {busy ? "Cancelling…" : "Cancel & refund"}
@@ -1403,7 +1492,7 @@ function NameEntryScreen({
           <span className="text-[11px] font-bold uppercase tracking-wider">{isTableside ? "Table order" : "Group order"}</span>
         </div>
         <h1 className="mt-3 text-2xl font-black text-zinc-100">
-          {isTableside && table ? `Order at ${table}` : `Join at ${restaurantName}`}
+          {isTableside ? `Table order at ${restaurantName}` : `Join at ${restaurantName}`}
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
           {isTableside
@@ -1453,6 +1542,7 @@ function OpenInAppOverlay({ restaurantName, sessionId, isTableside, onContinueWe
             : `You're joining a group order at ${restaurantName}. The full experience is on mobile.`}
         </p>
         <a href={deepLink} className={cn("mt-5 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>Open app</a>
+        <DownloadAppButton variant="overlay" />
         <button type="button" onClick={onContinueWeb} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 hover:bg-zinc-800">Continue in browser</button>
       </motion.div>
     </div>
@@ -1495,7 +1585,7 @@ function SuccessScreen({ snapshot, restaurant, creds, onDone }: { snapshot: Part
               </div>
             </div>
           ) : null}
-          <PartyLedger members={snapshot.members} payments={snapshot.payments} selfMemberId={creds.memberId} isHost={me?.role === "host"} />
+          <PartyLedger members={partyGuestMembers(snapshot.members)} payments={snapshot.payments} selfMemberId={creds.memberId} isHost={me?.role === "host"} />
         </div>
         <button type="button" onClick={onDone} className={cn("mt-8 w-full rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>Done</button>
       </div>
@@ -1532,7 +1622,16 @@ function ConfettiBurst() {
   );
 }
 
-function CancelledScreen({ restaurantName, onHome }: { restaurantName: string | null; onHome: () => void }) {
+function CancelledScreen({
+  restaurantName,
+  cancellationReason,
+  onHome,
+}: {
+  restaurantName: string | null;
+  cancellationReason?: string | null;
+  onHome: () => void;
+}) {
+  const reason = cancellationReason?.trim();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-6 text-center">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500/15">
@@ -1540,9 +1639,15 @@ function CancelledScreen({ restaurantName, onHome }: { restaurantName: string | 
       </motion.div>
       <h2 className="mt-5 text-2xl font-black text-zinc-100">Group order ended</h2>
       <p className="mt-2 max-w-md text-sm text-zinc-400">
-        {restaurantName ? `The host cancelled the group order at ${restaurantName}.` : "The host cancelled this group order."}
+        {restaurantName ? `The order at ${restaurantName} was cancelled.` : "This order was cancelled."}
         {" "}Any paid shares have been refunded.
       </p>
+      {reason ? (
+        <p className="mt-3 max-w-md rounded-xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300">
+          <span className="font-semibold text-zinc-200">Reason: </span>
+          {reason}
+        </p>
+      ) : null}
       <button type="button" onClick={onHome} className={cn("mt-6 rounded-xl px-5 py-3 text-base font-bold", DASH_PRIMARY_CTA)}>
         Back to home
       </button>

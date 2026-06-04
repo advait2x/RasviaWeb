@@ -1012,11 +1012,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (sessionIds.length > 0) {
       const { data: memberRows } = await supabase
         .from("party_members")
-        .select("session_id, display_name, role, joined_at")
+        .select("session_id, display_name, role, joined_at, is_tableside_staff")
         .in("session_id", sessionIds)
         .is("left_at", null)
         .order("joined_at", { ascending: true });
       for (const m of (memberRows ?? []) as Record<string, unknown>[]) {
+        if (m.is_tableside_staff === true) continue;
         const sid = String(m.session_id);
         const name = ((m.display_name as string) ?? "").trim();
         if (!name) continue;
@@ -2250,9 +2251,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const activeStatuses: OrderStatus[] = ["pending", "preparing", "ready", "served"];
-  const preorderCount = orders.filter(
-    (o) => activeStatuses.includes(o.status) && (o.orderType === "pre_order" || o.orderType === "takeout")
+  const activeDineInCount = orders.filter(
+    (o) => activeStatuses.includes(o.status) && o.orderType === "dine_in",
   ).length;
+  const activePreorderCount = orders.filter(
+    (o) =>
+      activeStatuses.includes(o.status) &&
+      (o.orderType === "pre_order" || o.orderType === "takeout"),
+  ).length;
+  /** Nav badge: all open kitchen work (dine-in active + pre-orders/takeout). */
+  const preorderCount = activeDineInCount + activePreorderCount;
 
   return (
     <DashboardContext.Provider

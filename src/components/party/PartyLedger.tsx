@@ -6,6 +6,7 @@ import { Check, Clock, Crown, AlertCircle, RefreshCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   formatCents,
+  partyGuestMembers,
   type PartyMember,
   type PartyPayment,
 } from "@/lib/party-session";
@@ -53,6 +54,8 @@ export function PartyLedger(props: {
 }) {
   const { members, payments, selfMemberId, isHost = false, onCoverMember, onRetry, onMemberTap } = props;
 
+  const guests = useMemo(() => partyGuestMembers(members), [members]);
+
   const paidCount = useMemo(
     () => payments.filter((p) => p.status === "paid" || p.status === "covered").length,
     [payments],
@@ -90,7 +93,7 @@ export function PartyLedger(props: {
 
       <ul className="mt-4 space-y-2">
         <AnimatePresence initial={false}>
-          {members.map((m, idx) => {
+          {guests.map((m, idx) => {
             const payment = payments.find((p) => p.member_id === m.id);
             const status = payment?.status ?? "idle";
             const amount = payment?.amount_cents ?? 0;

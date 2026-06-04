@@ -1,15 +1,16 @@
 // src/pages/TableJoin.tsx
-// Fixed per-table QR resolver. A table's QR encodes
-//   https://rasvia.com/t?r=<restaurantId>&table=<label>
-// This page calls the `tableside-session` edge function to find-or-create the
-// table's shared self-serve group order, then redirects to the standard
-// /join?id=<sessionId> bridge. Public route - no auth required.
-import { useEffect, useState } from "react";
+// Fixed per-table QR resolver.
+// New: https://rasvia.com/t/{code}
+// Legacy: https://rasvia.com/t?r=<restaurantId>&table=<label>
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, Loader2, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { supabase } from "@/lib/supabase";
+import { resolveTablesideSession } from "@/lib/tableside-session-resolve";
+
+const TABLE_CODE_RE = /^[A-Za-z0-9]{6,8}$/;
 
 function parseRestaurantId(raw: string | null): number | null {
   if (!raw) return null;
@@ -18,32 +19,45 @@ function parseRestaurantId(raw: string | null): number | null {
   return n;
 }
 
+/** Path `/t/{code}` — single segment, not legacy query form. */
+function parseTableCodeFromPath(): string | null {
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts.length !== 2 || parts[0].toLowerCase() !== "t") return null;
+  let code = parts[1].trim();
+  try {
+    code = decodeURIComponent(code);
+  } catch {
+    // use raw segment
+  }
+  if (!TABLE_CODE_RE.test(code)) return null;
+  return code;
+}
+
 export default function TableJoin() {
-  const params = new URLSearchParams(window.location.search);
-  const restaurantId = parseRestaurantId(params.get("r"));
-  const tableLabel = (params.get("table") ?? "").trim();
+  const tableCode = useMemo(() => parseTableCodeFromPath(), []);
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const restaurantId = useMemo(() => parseRestaurantId(params.get("r")), [params]);
+  const tableLabel = useMemo(() => (params.get("table") ?? "").trim(), [params]);
 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (restaurantId === null || !tableLabel) {
+    const useCode = Boolean(tableCode);
+    const useLegacy = restaurantId !== null && Boolean(tableLabel);
+    if (!useCode && !useLegacy) {
       setError("This table link is missing or invalid. Please rescan the QR code on your table.");
       return;
     }
+
     let cancelled = false;
     (async () => {
       try {
-        const { data, error: fnError } = await supabase.functions.invoke("tableside-session", {
-          body: { restaurant_id: restaurantId, table_label: tableLabel },
-        });
+        const input = useCode
+          ? { table_code: tableCode! }
+          : { restaurant_id: restaurantId!, table_label: tableLabel };
+
+        const sessionId = await resolveTablesideSession(supabase, input);
         if (cancelled) return;
-        if (fnError) {
-          throw new Error(fnError.message || "Could not open this table.");
-        }
-        const sessionId = (data as { sessionId?: string } | null)?.sessionId;
-        if (!sessionId) {
-          throw new Error("Could not open this table. Please try again or ask your server.");
-        }
         window.location.replace(`/join?id=${encodeURIComponent(sessionId)}`);
       } catch (err) {
         if (cancelled) return;
@@ -53,7 +67,7 @@ export default function TableJoin() {
     return () => {
       cancelled = true;
     };
-  }, [restaurantId, tableLabel]);
+  }, [tableCode, restaurantId, tableLabel]);
 
   if (error) {
     return (
@@ -78,12 +92,9 @@ export default function TableJoin() {
         <QrCode className="h-7 w-7 text-amber-400" />
       </motion.div>
       <div className="flex items-center gap-2 text-sm font-medium text-zinc-400">
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
         Opening your table…
       </div>
-      {tableLabel ? (
-        <p className="text-xs text-zinc-600">{tableLabel}</p>
-      ) : null}
     </div>
   );
 }

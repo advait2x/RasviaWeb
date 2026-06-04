@@ -184,6 +184,7 @@ export type Permission =
   | "manage_waitlist"
   | "view_orders"
   | "manage_orders"
+  | "manage_tableside_qr"
   | "update_order_status"
   | "view_menu"
   | "manage_menu"
@@ -199,7 +200,12 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; description: str
   { key: "view_dashboard", label: "View Dashboard", description: "See the overview dashboard" },
   { key: "manage_waitlist", label: "Manage Waitlist", description: "Add walk-ins, notify, cancel, seat parties" },
   { key: "view_orders", label: "View Orders", description: "See the orders panel" },
-  { key: "manage_orders", label: "Manage Orders & Tableside", description: "Create orders, add items, run tableside sessions" },
+  { key: "manage_orders", label: "Manage Orders", description: "Create orders, add items, run tableside sessions" },
+  {
+    key: "manage_tableside_qr",
+    label: "Manage Tableside QR",
+    description: "Configure table QR codes, print sheets, and bulk setup",
+  },
   { key: "update_order_status", label: "Update Order Status", description: "Change order status (preparing, ready, served)" },
   { key: "view_menu", label: "View Menu", description: "See the menu editor" },
   { key: "manage_menu", label: "Manage Menu", description: "Add, edit, delete menu items" },

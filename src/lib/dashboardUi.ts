@@ -45,6 +45,10 @@ export const DASH_HEADER_DOT = "relative inline-flex h-2 w-2 rounded-full bg-amb
 export const DASH_NAV_COUNT_BADGE =
   "absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-amber-500/35 bg-amber-500/25 px-1 text-[10px] font-semibold tabular-nums text-amber-800 dark:text-amber-100 ring-1 ring-amber-400/20";
 
+/** Guest name pills on Active Orders cards (Orders panel + order modal). */
+export const DASH_ORDER_MEMBER_PILL =
+  "text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-700/50 border border-white/5 text-zinc-300";
+
 /** Unread / emphasis pill (notifications preview) */
 export const DASH_BADGE_UNREAD =
   "rounded-full border border-amber-500/35 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-200";
