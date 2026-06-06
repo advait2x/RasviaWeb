@@ -531,14 +531,14 @@ export function TablesideSessionDetailOverlay({
     if (target.role === "host") return;
     if (
       !window.confirm(
-        `Add ${target.display_name} as a host? They can lock the cart and pay. You stay on this table as staff.`,
+        `Make ${target.display_name} the host? They can lock the cart and pay.`,
       )
     ) {
       return;
     }
     void runHost(async (activeCreds) => {
       await hostTransferHost(supabase, activeCreds, target.id);
-      toast.success(`${target.display_name} can now host this order.`);
+      toast.success(`${target.display_name} is now the host.`);
     });
   };
 
@@ -780,7 +780,7 @@ export function TablesideSessionDetailOverlay({
                   <Users size={12} /> Guests in group
                 </h4>
                 <p className="mb-2 text-xs text-zinc-500">
-                  Hosts appear first. Add hosts without removing others.
+                  One host per order. Transfer host to hand off checkout.
                 </p>
                 <ul className="space-y-2">
                   {guestsForList.map((m) => {
@@ -811,7 +811,7 @@ export function TablesideSessionDetailOverlay({
                               onClick={() => handleMakeHost(m)}
                               className="rounded-lg border border-white/15 px-2 py-1 text-[10px] font-semibold text-zinc-300 hover:text-zinc-100 disabled:opacity-50"
                             >
-                              Add as host
+                              Make host
                             </button>
                         ) : null}
                         {editable ? (

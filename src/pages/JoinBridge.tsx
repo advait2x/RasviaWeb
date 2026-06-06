@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Check, Copy, Crown, CreditCard, Lock, Minus, Plus, ShoppingCart, Smartphone,
-  Trash2, Users, X, Search, AlertCircle, PartyPopper, Unlock, ChevronUp, ChevronDown,
+  Trash2, Users, UserMinus, X, Search, AlertCircle, PartyPopper, Unlock, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,9 +15,10 @@ import {
   fetchSnapshot, joinSession, completeJoinCredentials, addItem, updateItemQuantity, removeItem,
   setItemSplit, assignItemPayer, setPaymentMode, lockSession, unlockSession,
   startCheckout, cancelSession, leaveSession, CheckoutError, setHostInReview,
+  hostTransferHost, hostRemoveMember, canBecomePartyHost, HOST_REQUIRES_APP_MESSAGE,
   formatCents, totalCartCents, paymentForMember, memberById,
   isSelfServeTableside, isSoloTableside, canProceedToCheckout, orderFlowTitle,
-  partyGuestMembers,
+  partyGuestMembers, isTablesideStaffMember,
   type PartySnapshot, type PartyCreds, type PaymentMode, type PartyMember, type PartyItem,
 } from "@/lib/party-session";
 import {
@@ -121,6 +122,11 @@ export default function JoinBridge() {
   const payments = snapshot?.payments ?? [];
   const me = creds ? members.find((m) => m.id === creds.memberId) ?? null : null;
   const isHost = me?.role === "host";
+  const canManageGuests = isHost && session?.status === "open";
+  const viewingMember = useMemo(
+    () => (viewingMemberId ? members.find((m) => m.id === viewingMemberId) ?? null : null),
+    [viewingMemberId, members],
+  );
   const myPayment = creds ? paymentForMember(payments, creds.memberId) : null;
   const selfServe = isSelfServeTableside(session);
   const soloTableside = isSoloTableside(session, guestMembers.length);
@@ -449,6 +455,97 @@ export default function JoinBridge() {
     window.location.href = "/";
   };
 
+  const handleAssignHost = useCallback(
+    (target: PartyMember) => {
+      if (!creds || !canManageGuests || target.role === "host" || isTablesideStaffMember(target)) return;
+      if (!canBecomePartyHost(target, session)) {
+        toast.error(HOST_REQUIRES_APP_MESSAGE);
+        return;
+      }
+      if (
+        !window.confirm(
+          `Make ${target.display_name} the host? They can lock the cart and choose how to pay. You will no longer be the host.`,
+        )
+      ) {
+        return;
+      }
+      void (async () => {
+        setBusy(true);
+        try {
+          await hostTransferHost(supabase, creds, target.id);
+          setViewingMemberId(null);
+          await loadAll();
+          toast.success(`${target.display_name} is now the host.`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not transfer host.");
+        } finally {
+          setBusy(false);
+        }
+      })();
+    },
+    [creds, canManageGuests, session, loadAll],
+  );
+
+  const handleRemoveGuest = useCallback(
+    (target: PartyMember) => {
+      if (!creds || !canManageGuests || isTablesideStaffMember(target)) return;
+      if (target.id === creds.memberId) return;
+      if (
+        !window.confirm(
+          `Remove ${target.display_name} from this group order? Their unpaid items will be cleared while the cart is open.`,
+        )
+      ) {
+        return;
+      }
+      void (async () => {
+        setBusy(true);
+        try {
+          await hostRemoveMember(supabase, creds, target.id);
+          setViewingMemberId(null);
+          await loadAll();
+          toast.success(`${target.display_name} removed from the group.`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not remove guest.");
+        } finally {
+          setBusy(false);
+        }
+      })();
+    },
+    [creds, canManageGuests, loadAll],
+  );
+
+  const memberModalManageProps = useMemo(
+    () => ({
+      showAssignHost: Boolean(
+        canManageGuests &&
+        viewingMember &&
+        viewingMember.role !== "host" &&
+        !isTablesideStaffMember(viewingMember),
+      ),
+      assignHostEnabled: Boolean(viewingMember && canBecomePartyHost(viewingMember, session)),
+      onAssignHost: viewingMember ? () => handleAssignHost(viewingMember) : undefined,
+      assignHostBusy: busy,
+      showRemoveGuest: Boolean(
+        canManageGuests &&
+        viewingMember &&
+        creds &&
+        viewingMember.id !== creds.memberId &&
+        !isTablesideStaffMember(viewingMember),
+      ),
+      onRemoveGuest: viewingMember ? () => handleRemoveGuest(viewingMember) : undefined,
+      removeGuestBusy: busy,
+    }),
+    [
+      canManageGuests,
+      viewingMember,
+      session,
+      creds,
+      busy,
+      handleAssignHost,
+      handleRemoveGuest,
+    ],
+  );
+
   const [linkCopied, setLinkCopied] = useState(false);
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/join?id=${sessionId}`;
@@ -610,6 +707,7 @@ export default function JoinBridge() {
           items={items}
           selfMemberId={creds.memberId}
           onClose={() => setViewingMemberId(null)}
+          {...memberModalManageProps}
         />
         <CheckoutUnavailableDialog
           open={!!checkoutUnavailable}
@@ -788,6 +886,7 @@ export default function JoinBridge() {
           items={items}
           selfMemberId={creds.memberId}
           onClose={() => setViewingMemberId(null)}
+          {...memberModalManageProps}
         />
       </Layout>
     );
@@ -874,6 +973,7 @@ export default function JoinBridge() {
         items={items}
         selfMemberId={creds.memberId}
         onClose={() => setViewingMemberId(null)}
+        {...memberModalManageProps}
       />
     </Layout>
   );
@@ -1368,12 +1468,21 @@ function CancelDialog({
 
 function MemberItemsModal({
   memberId, members, items, selfMemberId, onClose,
+  showAssignHost, assignHostEnabled, onAssignHost, assignHostBusy,
+  showRemoveGuest, onRemoveGuest, removeGuestBusy,
 }: {
   memberId: string | null;
   members: PartyMember[];
   items: PartyItem[];
   selfMemberId: string;
   onClose: () => void;
+  showAssignHost?: boolean;
+  assignHostEnabled?: boolean;
+  onAssignHost?: () => void;
+  assignHostBusy?: boolean;
+  showRemoveGuest?: boolean;
+  onRemoveGuest?: () => void;
+  removeGuestBusy?: boolean;
 }) {
   const member = memberId ? members.find((m) => m.id === memberId) ?? null : null;
   const memberIdx = memberId ? Math.max(0, members.findIndex((m) => m.id === memberId)) : 0;
@@ -1435,6 +1544,46 @@ function MemberItemsModal({
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {showAssignHost && onAssignHost ? (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  disabled={assignHostBusy || removeGuestBusy}
+                  onClick={() => {
+                    if (!assignHostEnabled) {
+                      toast.error(HOST_REQUIRES_APP_MESSAGE);
+                      return;
+                    }
+                    onAssignHost();
+                  }}
+                  className={cn(
+                    DASH_PRIMARY_CTA,
+                    "w-full rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50",
+                    !assignHostEnabled && "opacity-45",
+                  )}
+                >
+                  {assignHostBusy ? "Transferring…" : "Make host"}
+                </button>
+                {!assignHostEnabled ? (
+                  <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+                    {HOST_REQUIRES_APP_MESSAGE}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showRemoveGuest && onRemoveGuest ? (
+              <button
+                type="button"
+                disabled={assignHostBusy || removeGuestBusy}
+                onClick={onRemoveGuest}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/15 disabled:opacity-50"
+              >
+                <UserMinus className="h-3.5 w-3.5" />
+                {removeGuestBusy ? "Removing…" : "Remove from group"}
+              </button>
+            ) : null}
 
             <div className="mt-4 max-h-[60vh] overflow-y-auto">
               {theirItems.length === 0 ? (
