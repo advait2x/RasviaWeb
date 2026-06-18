@@ -11,7 +11,80 @@ import { AboutTab } from "@/clove/tabs/AboutTab";
 import { MenuTab } from "@/clove/tabs/MenuTab";
 import { CateringTab } from "@/clove/tabs/CateringTab";
 import { ContactTab } from "@/clove/tabs/ContactTab";
-import { pathToTab, tabToPath, type CloveTabId } from "@/clove/data";
+import {
+  CLOVE_ABOUT_SHORT,
+  CLOVE_HOME_CATERING_BLURB,
+  pathToTab,
+  tabToPath,
+  type CloveTabId,
+} from "@/clove/data";
+
+// ── Per-tab SEO meta (title + description + Open Graph) ─────────────────────
+const PAGE_META: Record<CloveTabId, { title: string; description: string }> = {
+  home: {
+    title: "Clove Dining — Modern Indian Restaurant",
+    description: CLOVE_ABOUT_SHORT,
+  },
+  about: {
+    title: "About Us | Clove Dining — Modern Indian Restaurant",
+    description:
+      "Discover the story behind Clove Dining — a contemporary Indian kitchen where heirloom spice blends meet a refined, seasonal table.",
+  },
+  menu: {
+    title: "Our Menu | Clove Dining — Modern Indian Restaurant",
+    description:
+      "Explore our menu of handcrafted Indian dishes — from the tandoor to slow-cooked curries and fragrant biryanis, made daily with house-ground spices.",
+  },
+  catering: {
+    title: "Catering | Clove Dining — Modern Indian Restaurant",
+    description: CLOVE_HOME_CATERING_BLURB,
+  },
+  contact: {
+    title: "Contact Us | Clove Dining — Modern Indian Restaurant",
+    description:
+      "Get in touch with Clove Dining for reservations, event inquiries, and catering requests.",
+  },
+};
+
+function useClovePageMeta(activeTab: CloveTabId) {
+  useEffect(() => {
+    const { title, description } = PAGE_META[activeTab];
+
+    document.title = title;
+
+    // Upsert <meta name="description">
+    let descEl = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!descEl) {
+      descEl = document.createElement("meta");
+      descEl.name = "description";
+      document.head.appendChild(descEl);
+    }
+    descEl.content = description;
+
+    // Upsert Open Graph tags so social crawlers see rich previews
+    const ogMeta: Record<string, string> = {
+      "og:title": title,
+      "og:description": description,
+      "og:type": "website",
+      "og:site_name": "Clove Dining",
+    };
+    for (const [property, content] of Object.entries(ogMeta)) {
+      let el = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", property);
+        document.head.appendChild(el);
+      }
+      el.content = content;
+    }
+
+    return () => {
+      document.title = "Rasvia";
+      const d = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+      if (d) d.content = "Rasvia - Built for restaurants. Loved by guests.";
+    };
+  }, [activeTab]);
+}
 
 function CloveDiningShell() {
   const { itemCount } = useCloveCart();
@@ -21,6 +94,8 @@ function CloveDiningShell() {
   const [cartOpen, setCartOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  useClovePageMeta(activeTab);
 
   // Keep the active tab in sync with browser back/forward.
   useEffect(() => {

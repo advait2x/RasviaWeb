@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Leaf, Loader2, Plus } from "lucide-react";
 import { MenuItemNoImage } from "@/clove/components/MenuItemNoImage";
 import { MenuItemDetailOverlay } from "@/clove/components/MenuItemDetailOverlay";
@@ -9,6 +10,21 @@ import {
   type CloveMenuItem,
 } from "@/clove/lib/menu";
 import { useCloveCart } from "@/clove/CloveCartContext";
+
+// Staggered grid reveal — each card fans in with a short delay
+const gridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+  },
+};
 
 export function MenuTab() {
   const { addItem } = useCloveCart();
@@ -52,6 +68,10 @@ export function MenuTab() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
+      {/*
+        The <header> below is always present in the DOM — not gated by any loading
+        state — so Google sees "Our Menu" and the description in the initial HTML.
+      */}
       <header className="text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Menu</p>
         <h1 className="mt-3 text-4xl font-black tracking-tight text-foreground">Our Menu</h1>
@@ -72,32 +92,45 @@ export function MenuTab() {
         </p>
       ) : (
         <>
+          {/* Category filter bar — rounded-xl harmonizes with rounded-2xl card containers */}
           <div className="sticky top-[60px] z-20 -mx-6 mt-8 border-b border-border bg-background px-6 py-3">
             <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((cat) => {
                 const isActive = cat.name === activeCategory;
                 return (
-                  <button
+                  <motion.button
                     key={cat.name}
                     type="button"
                     onClick={() => setActiveCategory(cat.name)}
-                    className={`whitespace-nowrap rounded-full border-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className={`whitespace-nowrap rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-colors ${
                       isActive
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-primary bg-card text-primary hover:bg-secondary"
                     }`}
                   >
                     {cat.name}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {/* Item grid — staggered reveal when category changes */}
+          <motion.div
+            key={activeCategory}
+            variants={gridVariants}
+            initial="hidden"
+            animate="visible"
+            className="mt-6 grid gap-4 sm:grid-cols-2"
+          >
             {activeItems.map((item) => (
-              <article
+              <motion.article
                 key={item.id}
+                variants={cardVariants}
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelectedItem(item)}
@@ -107,12 +140,12 @@ export function MenuTab() {
                     setSelectedItem(item);
                   }
                 }}
-                className="flex cursor-pointer gap-4 rounded-2xl border-2 border-border bg-card p-3.5 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex cursor-pointer gap-4 rounded-2xl border-2 border-border bg-card p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <MenuItemNoImage className="h-24 w-24 rounded-xl border border-border" compact />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="flex items-center gap-1.5 text-base font-bold text-foreground">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-foreground">
                       <span className="truncate">{item.name}</span>
                       {item.isVegetarian ? (
                         <Leaf size={14} className="flex-shrink-0 text-primary" />
@@ -127,21 +160,23 @@ export function MenuTab() {
                       {item.description}
                     </p>
                   ) : null}
-                  <button
+                  <motion.button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAdd(item);
                     }}
-                    className="mt-auto inline-flex w-fit items-center gap-1.5 self-end rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="mt-auto inline-flex w-fit items-center gap-2 self-end rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
                   >
                     <Plus size={13} />
                     {justAdded === item.id ? "Added!" : "Add to cart"}
-                  </button>
+                  </motion.button>
                 </div>
-              </article>
+              </motion.article>
             ))}
-          </div>
+          </motion.div>
         </>
       )}
 

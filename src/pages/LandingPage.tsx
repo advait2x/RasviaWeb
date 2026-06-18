@@ -1,30 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ArrowDown,
-  BarChart3,
+  ArrowLeft,
+  ArrowRight,
   Check,
-  ChefHat,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Copy,
-  DollarSign,
-  Heart,
+  Home,
   Leaf,
   Menu,
-  Pause,
-  Play,
-  QrCode as QrCodeIcon,
-  Share2,
+  Palette,
+  Plug,
+  Plus,
+  Search,
+  ShieldCheck,
   ShoppingBag,
-  Sparkles,
-  Tablet,
+  Star,
   UtensilsCrossed,
-  Users,
+  User,
   X,
 } from "lucide-react";
-import { QRCode } from "@/lib/resolve-react-qr-code";
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
@@ -32,158 +25,79 @@ import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/market
 import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
 import { scrollToLandingSection, useLandingHashScroll } from "@/lib/marketing-nav";
 
-type FeatureSlide = {
-  name: string;
-  description: string;
-  audience: "business" | "user";
-};
-
-/** Product story beats - keep in sync with partner nav + mobile app surfaces. */
-const FEATURE_SLIDES: FeatureSlide[] = [
-  {
-    name: "Live Menu & 86s",
-    audience: "business",
-    description:
-      "Toggle in-stock from the same menu editor your guests see - party carts and kiosks respect it instantly.",
-  },
-  {
-    name: "Tableside QR & Party Pay",
-    audience: "business",
-    description:
-      "Spin up a session per table: QR join, live cart, assign items, split modes, and lock before guests pay.",
-  },
-  {
-    name: "Kitchen Expedite & Status",
-    audience: "business",
-    description:
-      "Full-screen tickets with bump, move-back, and an explicit status picker - from fire to served without a second screen.",
-  },
-  {
-    name: "Sales, Tips & Reports",
-    audience: "business",
-    description:
-      "Hourly and daily revenue charts, tip rollups, top items, and one-click drill-down into past orders.",
-  },
-  {
-    name: "Kiosk & Waitlist",
-    audience: "business",
-    description:
-      "In-venue kiosk for walk-ins plus the live waitlist feed your hosts already use on the dashboard.",
-  },
-  {
-    name: "Public Menu & QR Sheets",
-    audience: "business",
-    description:
-      "A branded share page for your menu and printable PDFs with scannable QR codes - no extra microsite.",
-  },
-  {
-    name: "Stripe Connect & Tax-ready",
-    audience: "business",
-    description:
-      "Connected payouts for restaurants with consistent, disclosed tax handling built for seller-of-record checkout.",
-  },
-  {
-    name: "Split Without Spreadsheets",
-    audience: "user",
-    description:
-      "Party checks break out who owes what while the restaurant still sees one clean payout.",
-  },
-  {
-    name: "Live Cart & Group Checkout",
-    audience: "user",
-    description:
-      "See everyone’s items, modifiers, and tax estimate in real time before anyone pays on mobile.",
-  },
-  {
-    name: "Favorites & Dietary Fit",
-    audience: "user",
-    description:
-      "Save places and let dietary preferences quietly shape what rises to the top of your feed.",
-  },
-  {
-    name: "Live Order Progress",
-    audience: "user",
-    description:
-      "A stepper that mirrors the kitchen: received, prepping, ready, and served - no guessing at the table.",
-  },
-  {
-    name: "Order Again in One Tap",
-    audience: "user",
-    description:
-      "Past orders live in one place so repeating the same modifiers-heavy round is frictionless.",
-  },
-  {
-    name: "Invite Link & QR",
-    audience: "user",
-    description:
-      "Host a party, flash a QR, or drop a link - friends join the same cart from their own phones.",
-  },
-];
-
-const BUSINESS_FEATURES = FEATURE_SLIDES.filter((s) => s.audience === "business");
-const USER_FEATURES = FEATURE_SLIDES.filter((s) => s.audience === "user");
-
-const WAITLIST_ROWS = [
-  { name: "Anderson Family", seats: 4, wait: "12m", status: "Waiting" },
-  { name: "Chen, Margaret", seats: 2, wait: "28m", status: "Notified" },
-  { name: "Rodriguez Party", seats: 6, wait: "4m", status: "Waiting" },
-];
-
-const PAYOUT_ROWS = [
-  { name: "Rahul", amount: "$22.00" },
-  { name: "Aisha", amount: "$31.50" },
-  { name: "Vikram", amount: "$31.00" },
-];
-
+// Lead-capture destination for every primary CTA on this page.
+const MOCKUP_CTA_HREF = "/support";
 
 // ──────────────────────────────────────────────────────
-// NAV / PRICING / ABOUT DATA
+// VALUE PROP PILLARS (GTM pivot: digital partner for independents)
+// ──────────────────────────────────────────────────────
+
+const PILLARS = [
+  {
+    icon: Palette,
+    title: "Custom App & Web Design",
+    tagline: "Built in days, not months.",
+    description:
+      "A beautiful, fully-branded mobile app and web storefront designed around your restaurant — not a generic template. Launched in days, not months.",
+  },
+  {
+    icon: Plug,
+    title: "Direct POS Integration",
+    tagline: "Works with the tools you already have.",
+    description:
+      "Orders route straight into your existing Toast, Clover, or Square. No new iPads to buy, no extra hardware, and no retraining your staff.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Zero Hidden Fees",
+    tagline: "Keep 100% of your margins.",
+    description:
+      "No per-order commissions and no surprise taxes passed to your customers. Just a flat setup fee and low monthly hosting.",
+  },
+] as const;
+
+// ──────────────────────────────────────────────────────
+// PRICING / FOUNDERS DATA
 // ──────────────────────────────────────────────────────
 
 const PRICING_TIERS = [
   {
-    name: "Starter",
-    description: "Perfect for small restaurants getting started",
+    name: "Storefront",
+    description: "A custom web storefront for direct, commission-free orders.",
     features: [
-      "Up to 20 tables",
-      "Waitlist + kiosk walk-ins",
-      "Menu editor & live 86s",
-      "Public menu share page",
+      "Custom-branded web storefront",
+      "Live menu synced to your POS",
+      "Commission-free online ordering",
+      "QR code menu & ordering",
+      "Flat setup fee + low monthly hosting",
       "Email support",
-      "1 staff account",
-      "Core dashboard metrics",
     ],
     highlighted: false,
   },
   {
-    name: "Professional",
-    description: "For growing restaurants that need more power",
+    name: "App + Storefront",
+    description: "Your own mobile app and storefront — the full Rasvia experience.",
     features: [
-      "Unlimited tables",
-      "Advanced waitlist + notifications",
-      "Party carts, splits & Stripe checkout",
-      "Tableside QR sessions & floor tools",
-      "Kitchen display with full status control",
-      "Sales reports & past-order explorer",
-      "Menu QR PDFs for tables & flyers",
-      "Up to 10 staff accounts",
+      "Everything in Storefront",
+      "Custom iOS & Android app, fully branded",
+      "Push notifications & one-tap reorder",
+      "Loyalty & repeat-customer tools",
+      "Direct Toast / Clover / Square integration",
+      "Live in days with priority onboarding",
       "Priority support",
-      "Stripe Connect payouts & tax tooling",
     ],
     highlighted: true,
   },
   {
-    name: "Enterprise",
-    description: "Full-featured solution for high-volume venues",
+    name: "Multi-Location",
+    description: "For owners running more than one location or concept.",
     features: [
-      "Everything in Professional",
-      "Unlimited staff accounts",
-      "Multi-location rollouts",
-      "Custom roles & granular permissions",
-      "Dedicated success partner",
-      "White-label kiosk theming",
-      "Custom integrations & SLAs",
-      "24/7 phone support",
+      "Everything in App + Storefront",
+      "Multiple locations & concepts",
+      "Dedicated design partner",
+      "Custom feature requests",
+      "White-glove menu migration",
+      "24/7 priority support",
     ],
     highlighted: false,
   },
@@ -361,1126 +275,265 @@ function Navbar() {
 }
 
 // ──────────────────────────────────────────────────────
-// FEATURE MOCKUP COMPONENTS
+// CONSUMER APP PHONE MOCKUPS
+// High-fidelity, dark-mode "Clove Dining"-style storefront the
+// customer actually sees. This is the product we sell — so it is
+// the visual hero, not an internal ops dashboard.
 // ──────────────────────────────────────────────────────
 
-function HostDashboardMockup() {
-  const [seatedIds, setSeatedIds] = useState<Set<string>>(
-    () => new Set(["Chen, Margaret"])
-  );
+const APP_IMG = {
+  hero: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
+  butterChicken:
+    "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=400&q=80",
+  biryani:
+    "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&fit=crop&w=400&q=80",
+  paneer:
+    "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=400&q=80",
+  detail:
+    "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
+};
 
-  const toggleSeated = (name: string) => {
-    setSeatedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
+const APP_MENU_ITEMS = [
+  { name: "Butter Chicken", price: "$17.99", img: APP_IMG.butterChicken, veg: false, desc: "Tandoori chicken · silky tomato gravy" },
+  { name: "Paneer Tikka", price: "$14.99", img: APP_IMG.paneer, veg: true, desc: "Char-grilled cottage cheese · mint" },
+  { name: "Lamb Biryani", price: "$19.49", img: APP_IMG.biryani, veg: false, desc: "Saffron basmati · slow-cooked lamb" },
+];
 
+function PhoneStatusBar() {
   return (
-    <div className="flex h-full flex-col gap-3 p-1">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
-          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">Waitlist</span>
-          <span className="rounded-full bg-zinc-700/80 dark:bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-300 dark:text-zinc-500">3 waiting</span>
+    <div className="flex items-center justify-between px-5 pt-3 text-[10px] font-bold text-white">
+      <span>9:41</span>
+      <div className="flex items-center gap-1">
+        <div className="flex items-end gap-[1.5px]">
+          <span className="h-1.5 w-0.5 rounded-sm bg-white/80" />
+          <span className="h-2 w-0.5 rounded-sm bg-white/80" />
+          <span className="h-2.5 w-0.5 rounded-sm bg-white/80" />
         </div>
-        <div className="h-5 w-16 rounded-md bg-zinc-700/50 animate-pulse" />
-      </div>
-
-      <div className="grid grid-cols-[1fr_48px_72px_64px] gap-2 px-1">
-        {["Guest", "Party", "Wait", ""].map((h) => (
-          <span key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">{h}</span>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        {WAITLIST_ROWS.map((row) => {
-          const isSeated = seatedIds.has(row.name);
-          const mins = parseInt(row.wait);
-          const waitColor = mins > 20 ? "text-amber-400" : mins > 10 ? "text-yellow-400" : "text-emerald-400";
-          return (
-            <div
-              key={row.name}
-              className="grid grid-cols-[1fr_48px_72px_64px] items-center gap-2 rounded-lg border border-white/5 bg-zinc-800/40 px-3 py-2.5 transition-colors hover:bg-zinc-800/70"
-            >
-              <span className="truncate text-xs font-semibold text-zinc-200">{row.name}</span>
-              <div className="flex items-center gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                <span className="text-xs font-bold text-amber-400">{row.seats}</span>
-              </div>
-              <span className={`text-[10px] font-bold tabular-nums ${waitColor}`}>{row.wait}</span>
-              <button
-                type="button"
-                onClick={() => toggleSeated(row.name)}
-                className={`rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${
-                  isSeated
-                    ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
-                    : "bg-zinc-700/60 border border-white/10 text-zinc-300 hover:bg-blue-500/15 hover:border-blue-500/30 hover:text-blue-400"
-                }`}
-              >
-                {isSeated ? "Seated" : "Seat"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col gap-1.5 opacity-30">
-        {[1, 2].map((i) => (
-          <div key={i} className="h-9 rounded-lg bg-zinc-800/40 animate-pulse" />
-        ))}
+        <div className="ml-1 h-2 w-4 rounded-[2px] border border-white/60">
+          <div className="m-[1px] h-[6px] w-[10px] rounded-[1px] bg-white/80" />
+        </div>
       </div>
     </div>
   );
 }
 
-function SplitReceiptMockup() {
+function PhoneTabBar({ active }: { active: "home" | "menu" | "cart" | "profile" }) {
+  const tabs = [
+    { id: "home", label: "Home", Icon: Home },
+    { id: "menu", label: "Menu", Icon: UtensilsCrossed },
+    { id: "cart", label: "Cart", Icon: ShoppingBag },
+    { id: "profile", label: "You", Icon: User },
+  ] as const;
   return (
-    <div className="flex h-full flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-neutral-900/40 dark:shadow-none">
-        <div className="mb-4 flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-white/[0.06]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Split Receipt</p>
-            <p className="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-200">Table 44</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-zinc-500 dark:text-neutral-500">Total</p>
-            <p className="text-base font-black tracking-tight text-zinc-900 dark:text-white">$84.50</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {PAYOUT_ROWS.map((row) => (
-            <div
-              key={row.name}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-3 dark:border-white/[0.06] dark:bg-zinc-800/30"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-[11px] font-bold text-zinc-700 dark:bg-zinc-700/60 dark:text-zinc-300">
-                  {row.name[0]}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{row.name}</p>
-                  <p className="text-[10px] text-zinc-500 dark:text-neutral-400">paid {row.amount}</p>
-                </div>
-              </div>
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400">
-                Settled
+    <div className="mt-auto flex items-center justify-around border-t border-white/[0.06] bg-black/70 px-2 py-2.5 backdrop-blur">
+      {tabs.map(({ id, label, Icon }) => {
+        const on = id === active;
+        return (
+          <div key={id} className="relative flex flex-col items-center gap-0.5">
+            <Icon size={15} className={on ? "text-amber-400" : "text-zinc-600"} />
+            <span className={`text-[7px] font-bold ${on ? "text-amber-400" : "text-zinc-600"}`}>{label}</span>
+            {id === "cart" && (
+              <span className="absolute -right-2 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-500 text-[6px] font-black text-black">
+                2
               </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5 dark:border-amber-500/15 dark:bg-amber-500/[0.04]">
-          <p className="text-[10px] font-semibold text-zinc-500 dark:text-neutral-500">Restaurant payout</p>
-          <p className="text-sm font-black text-amber-700 dark:text-amber-400">$84.50</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GroupSplitMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-3">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-3.5 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
-
-        <div className="mb-2 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">Group Order</p>
-            <p className="text-[9px] text-zinc-500 dark:text-neutral-500">5 items &middot; 2 members</p>
-          </div>
-          <div className="flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/5 px-2 py-0.5 dark:border-amber-500/30 dark:bg-transparent">
-            <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400">Party</span>
-            <span className="text-[9px] text-zinc-500">- 2 +</span>
-          </div>
-        </div>
-
-        <div className="mb-1.5 flex gap-1.5">
-          <button type="button" className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/5 py-1 text-[9px] font-semibold text-amber-700 dark:bg-transparent dark:text-amber-400">
-            Dine In
-          </button>
-          <button type="button" className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 py-1 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-500">
-            Takeout
-          </button>
-          <button type="button" className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/5 py-1 text-[9px] font-semibold text-amber-700 dark:bg-transparent dark:text-amber-400">
-            By Member
-          </button>
-          <button type="button" className="flex-1 rounded-lg border border-zinc-200 bg-zinc-100 py-1 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-500">
-            All Items
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1.5 mb-2">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 dark:border-white/[0.05] dark:bg-zinc-900/60">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
-                <span className="text-[10px] font-bold text-zinc-900 dark:text-white">Jordan K.</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400">$26.79</span>
-                <p className="text-[8px] text-zinc-500 dark:text-zinc-600">+ $2.21 tax</p>
-              </div>
-            </div>
-            <div className="rounded-md border border-zinc-200 bg-white px-2 py-1 flex items-center justify-between dark:border-white/[0.04] dark:bg-zinc-800/40">
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] text-zinc-600 dark:text-neutral-400">Butter Chicken</span>
-                <span className="rounded-full bg-zinc-200 px-1 text-[8px] text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500">x3</span>
-              </div>
-              <span className="text-[9px] text-zinc-600 dark:text-zinc-400">$26.79</span>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 dark:border-white/[0.05] dark:bg-zinc-900/60">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-black text-white">A</div>
-                <span className="text-[10px] font-bold text-zinc-900 dark:text-white">Priya M.</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-black text-amber-700 dark:text-amber-400">$9.34</span>
-                <p className="text-[8px] text-zinc-500 dark:text-zinc-600">+ $0.77 tax</p>
-              </div>
-            </div>
-            <div className="rounded-md border border-zinc-200 bg-white px-2 py-1 flex items-center justify-between dark:border-white/[0.04] dark:bg-zinc-800/40">
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] text-zinc-600 dark:text-neutral-400">Garlic Naan</span>
-                <span className="rounded-full bg-zinc-200 px-1 text-[8px] text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-500">x2</span>
-              </div>
-              <span className="text-[9px] text-zinc-600 dark:text-zinc-400">$9.34</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-1.5 flex flex-col gap-0.5 px-0.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] text-zinc-500 dark:text-neutral-500">Subtotal</span>
-            <span className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400">$36.13</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] text-zinc-500 dark:text-neutral-500">Sales tax</span>
-            <span className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-400">$2.98</span>
-          </div>
-          <div className="mt-0.5 flex items-center justify-between border-t border-zinc-200 pt-1 dark:border-white/[0.06]">
-            <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300">Total</span>
-            <span className="text-xs font-black text-zinc-900 dark:text-white">$39.11</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-1 mb-1.5">
-          <button type="button" className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 py-1.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
-            I&apos;ll Pay
-          </button>
-          <button type="button" className="rounded-lg border border-zinc-200 bg-zinc-100 py-1.5 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-400">
-            Split
-          </button>
-          <button type="button" className="rounded-lg border border-zinc-200 bg-zinc-100 py-1.5 text-[9px] font-semibold text-zinc-600 dark:border-white/[0.06] dark:bg-zinc-800/50 dark:text-zinc-400">
-            Assign
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className="w-full rounded-xl py-2 text-[10px] font-bold text-white"
-          style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 3px 14px rgba(34,197,94,0.3)" }}
-        >
-          Pay &amp; Submit &middot; $39.11
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function InteractiveInventoryMockup({ onInteract }: { onInteract?: () => void }) {
-  const [items, setItems] = useState([
-    { name: "Mutton Biryani", category: "Main course", available: false },
-    { name: "Chicken Tikka Masala", category: "Curry", available: true },
-    { name: "Dal Makhani", category: "Lentils", available: true },
-  ]);
-  const [syncingItem, setSyncingItem] = useState<string | null>(null);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); }, []);
-
-  const toggle = (name: string) => {
-    onInteract?.();
-    setItems((prev) =>
-      prev.map((i) => (i.name === name ? { ...i, available: !i.available } : i))
-    );
-    setSyncingItem(name);
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => setSyncingItem(null), 1500);
-  };
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xs rounded-2xl border border-white/[0.08] bg-zinc-900/60 p-5 backdrop-blur-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu manager</p>
-            <p className="mt-0.5 text-sm font-bold text-zinc-200">Live 86s & availability</p>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] animate-pulse" />
-            <span className="text-[10px] font-semibold text-emerald-400">Live</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {items.map((item) => {
-            const isSyncing = syncingItem === item.name;
-            return (
-              <div
-                key={item.name}
-                className={`rounded-xl border px-4 py-3 transition-colors duration-300 ${
-                  item.available
-                    ? "border-white/[0.06] bg-zinc-800/30"
-                    : "border-red-500/20 bg-red-500/[0.04]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="relative flex-shrink-0">
-                      <div
-                        className={`h-3 w-3 rounded-full transition-colors duration-300 ${
-                          item.available
-                            ? "bg-emerald-400/70"
-                            : "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]"
-                        }`}
-                      />
-                      {!item.available && (
-                        <div className="absolute inset-0 h-3 w-3 rounded-full bg-red-400 animate-ping opacity-40" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-200">{item.name}</p>
-                      <p className="text-[10px] text-zinc-500">{item.category}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      onClick={() => toggle(item.name)}
-                      className={`relative h-6 w-11 rounded-full border transition-colors duration-300 ${
-                        item.available
-                          ? "border-emerald-500/30 bg-emerald-500/20"
-                          : "border-red-500/30 bg-red-500/20"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 h-5 w-5 rounded-full shadow-md transition-all duration-300 ${
-                          item.available ? "right-0.5 bg-emerald-400" : "left-0.5 bg-red-400"
-                        }`}
-                      />
-                    </button>
-                    <span
-                      className={`text-[9px] font-bold uppercase tracking-wide transition-colors duration-300 ${
-                        item.available ? "text-emerald-400" : "text-red-400"
-                      }`}
-                    >
-                      {item.available ? "Available" : "Sold Out"}
-                    </span>
-                  </div>
-                </div>
-                {isSyncing && (
-                  <div className="mt-2.5 flex items-center gap-1.5">
-                    <div className={`h-1 w-1 rounded-full animate-pulse ${item.available ? "bg-emerald-400" : "bg-red-400"}`} />
-                    <p className="text-[10px] text-zinc-500">Syncing to 3 users...</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// BUSINESS: Kitchen Display Mode
-// ─────────────────────────────────────────────
-
-const KDS_STAGES = ["Pending", "Preparing", "Ready", "Served"] as const;
-type KdsStage = typeof KDS_STAGES[number];
-
-const KDS_STAGE_STYLES: Record<KdsStage, { pill: string; dot: string; btn: string; pillText: string; pillLabel: string }> = {
-  Pending:   { pill: "bg-amber-100 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800/50", dot: "bg-amber-600 dark:bg-amber-500", pillText: "text-amber-900 dark:text-amber-400/90", btn: "bg-amber-600 border-amber-700 text-white hover:bg-amber-700 dark:bg-amber-500/30 dark:border-amber-500/50 dark:text-amber-100 dark:hover:bg-amber-500/40", pillLabel: "NEW - Not started" },
-  Preparing: { pill: "bg-blue-100 border-blue-300 dark:bg-blue-950/40 dark:border-blue-800/40", dot: "bg-blue-600 animate-pulse dark:bg-blue-500", pillText: "text-blue-900 dark:text-blue-400/90", btn: "bg-blue-600 border-blue-700 text-white hover:bg-blue-700 dark:bg-blue-500/30 dark:border-blue-500/50 dark:text-blue-100 dark:hover:bg-blue-500/40", pillLabel: "IN PROGRESS - Cooking" },
-  Ready:     { pill: "bg-emerald-100 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800/40", dot: "bg-emerald-600 dark:bg-emerald-400", pillText: "text-emerald-900 dark:text-emerald-400/90", btn: "bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700 dark:bg-emerald-500/30 dark:border-emerald-500/50 dark:text-emerald-100 dark:hover:bg-emerald-500/40", pillLabel: "READY - Pick up" },
-  Served:    { pill: "bg-violet-100 border-violet-300 dark:bg-violet-950/40 dark:border-violet-800/40", dot: "bg-violet-600 dark:bg-violet-400", pillText: "text-violet-900 dark:text-violet-400/90", btn: "bg-violet-600 border-violet-700 text-white hover:bg-violet-700 dark:bg-violet-500/30 dark:border-violet-500/50 dark:text-violet-100 dark:hover:bg-violet-500/40", pillLabel: "SERVED - Floor" },
-};
-
-interface KdsTicket {
-  id: string;
-  guestName: string;
-  table: string;
-  elapsed: string;
-  items: string[];
-  defaultStage: number;
-}
-
-const KDS_TICKETS: KdsTicket[] = [
-  { id: "A4F2", guestName: "Rodriguez Party", table: "Table 7", elapsed: "8m", items: ["2× Mutton Biryani", "1× Garlic Naan", "1× Mango Lassi"], defaultStage: 1 },
-  { id: "B8C1", guestName: "Chen, Margaret", table: "Table 3", elapsed: "3m", items: ["1× Paneer Tikka", "2× Dal Makhani"], defaultStage: 2 },
-];
-
-function KdsTicketCard({ ticket, onInteract }: { ticket: KdsTicket; onInteract?: () => void }) {
-  const [stageIdx, setStageIdx] = useState(ticket.defaultStage);
-  const stage = KDS_STAGES[stageIdx];
-  const styles = KDS_STAGE_STYLES[stage];
-
-  const bump = () => {
-    onInteract?.();
-    setStageIdx((i) => Math.min(i + 1, KDS_STAGES.length - 1));
-  };
-  const moveDown = () => {
-    onInteract?.();
-    setStageIdx((i) => Math.max(i - 1, 0));
-  };
-
-  const borderAccent =
-    stage === "Pending" ? "#d97706" : stage === "Preparing" ? "#3b82f6" : stage === "Ready" ? "#22c55e" : "#7c3aed";
-
-  return (
-    <div
-      className="flex flex-col gap-1.5 rounded-xl border border-l-4 border-zinc-200 bg-white p-2.5 dark:border-zinc-800/90 dark:bg-zinc-900/90"
-      style={{ borderLeftColor: borderAccent }}
-    >
-      <div className={`flex items-center gap-2 rounded-md border px-2 py-0.5 ${styles.pill}`}>
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
-        <span className={`text-[8px] font-bold uppercase tracking-wide leading-tight ${styles.pillText}`}>{styles.pillLabel}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">#{ticket.id}</span>
-          <span className="ml-1 text-[9px] uppercase text-zinc-500">{ticket.table}</span>
-        </div>
-        <span className="text-[9px] font-medium text-zinc-500">{ticket.elapsed}</span>
-      </div>
-      <p className="text-[9px] text-zinc-500">{ticket.guestName}</p>
-      <div className="flex max-h-[52px] flex-col gap-0.5 overflow-hidden">
-        {ticket.items.map((item) => (
-          <span key={item} className="truncate text-[9px] text-zinc-700 dark:text-zinc-300">{item}</span>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 dark:border-white/[0.08] dark:bg-zinc-950/60">
-        <span className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">Status</span>
-        <span className="ml-auto text-[9px] font-semibold text-zinc-800 dark:text-zinc-200">{stage}</span>
-        <ChevronDown size={12} className="text-zinc-500" />
-      </div>
-
-      <div className="flex gap-1">
-        <button
-          type="button"
-          onClick={moveDown}
-          disabled={stageIdx === 0}
-          className="flex flex-1 items-center justify-center gap-0.5 rounded-lg border border-zinc-300 bg-zinc-100 py-1 text-[8px] font-bold uppercase tracking-wide text-zinc-700 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-35 dark:border-zinc-600/50 dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
-        >
-          <ArrowDown size={10} />
-          Down
-        </button>
-        <button
-          type="button"
-          onClick={bump}
-          disabled={stageIdx >= KDS_STAGES.length - 1}
-          className={`flex flex-[1.35] items-center justify-center rounded-lg border py-1 text-[8px] font-bold uppercase tracking-wide transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 ${styles.btn}`}
-        >
-          Bump
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function KitchenDisplayMockup({ onInteract }: { onInteract?: () => void }) {
-  return (
-    <div className="flex h-full flex-col gap-3 px-12 py-4 sm:px-14">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ChefHat size={14} className="text-amber-600/80" />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Kitchen Display</span>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[9px] font-semibold text-emerald-400">Live</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 flex-1">
-        {KDS_TICKETS.map((ticket) => (
-          <KdsTicketCard key={ticket.id} ticket={ticket} onInteract={onInteract} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// BUSINESS: Revenue Snapshot
-// ─────────────────────────────────────────────
-
-const REVENUE_THIS_WEEK = [
-  { label: "Sun", value: 312 },
-  { label: "Mon", value: 487 },
-  { label: "Tue", value: 628 },
-  { label: "Wed", value: 541 },
-  { label: "Thu", value: 710 },
-  { label: "Fri", value: 893 },
-  { label: "Sat", value: 756 },
-];
-
-const REVENUE_TODAY = [
-  { label: "10am", value: 84 },
-  { label: "11am", value: 143 },
-  { label: "12pm", value: 267 },
-  { label: "1pm", value: 231 },
-  { label: "2pm", value: 189 },
-  { label: "3pm", value: 122 },
-];
-
-function RevenueSnapshotMockup({ onInteract }: { onInteract?: () => void }) {
-  const [range, setRange] = useState<"today" | "week">("week");
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
-  const [selectedBar, setSelectedBar] = useState<number | null>(null);
-
-  const data = range === "week" ? REVENUE_THIS_WEEK : REVENUE_TODAY;
-  const maxVal = Math.max(...data.map((d) => d.value));
-  const total = data.reduce((s, d) => s + d.value, 0);
-
-  const handleBarClick = (idx: number) => {
-    onInteract?.();
-    setSelectedBar((prev) => (prev === idx ? null : idx));
-  };
-
-  return (
-    <div className="flex h-full flex-col p-4 gap-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <DollarSign size={13} className="text-zinc-500" />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Revenue</span>
-        </div>
-        <div className="flex gap-1.5">
-          {(["today", "week"] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => { onInteract?.(); setRange(r); setSelectedBar(null); setHoveredBar(null); }}
-              className={`rounded-lg border px-2.5 py-1 text-[9px] font-semibold transition-colors ${
-                range === r
-                  ? "border-white/[0.12] bg-white/[0.08] text-zinc-100"
-                  : "border-white/[0.06] bg-transparent text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {r === "today" ? "Today" : "This Week"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Total */}
-      <div>
-        <p className="text-[9px] text-zinc-600 uppercase tracking-widest">Total revenue</p>
-        <p className="text-xl font-black tabular-nums tracking-tight text-zinc-100">${total.toLocaleString()}</p>
-      </div>
-
-      {/* Chart */}
-      <div className="relative flex-1" style={{ minHeight: 0, zIndex: 0, isolation: "isolate" }}>
-        {/* Bar track - sits above the labels row */}
-        <div className="absolute inset-x-0 top-0 bottom-5 flex items-end gap-1.5">
-          {data.map((bar, idx) => {
-            const heightPct = Math.max(6, (bar.value / maxVal) * 100);
-            const isHovered = hoveredBar === idx;
-            const isSelected = selectedBar === idx;
-            return (
-              <div
-                key={bar.label}
-                className="relative flex flex-1 h-full flex-col justify-end cursor-pointer"
-                onMouseEnter={() => setHoveredBar(idx)}
-                onMouseLeave={() => setHoveredBar(null)}
-                onClick={() => handleBarClick(idx)}
-              >
-                {/* Tooltip - pinned 6px above the bar top regardless of bar height */}
-                {(isHovered || isSelected) && (
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full border border-amber-500/30 bg-zinc-900 px-2 py-0.5 text-[9px] font-bold text-amber-400 shadow-lg pointer-events-none"
-                    style={{ bottom: `calc(${heightPct}% + 6px)` }}
-                  >
-                    ${bar.value}
-                  </div>
-                )}
-                {/* Bar */}
-                <div
-                  className={`w-full rounded-t-sm transition-all duration-200 ${
-                    isSelected ? "ring-1 ring-amber-400/70 shadow-[0_0_8px_rgba(245,158,11,0.4)]" : ""
-                  }`}
-                  style={{
-                    height: `${heightPct}%`,
-                    background: isHovered || isSelected
-                      ? "rgba(245,158,11,0.75)"
-                      : "rgba(148,163,184,0.55)",
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-        {/* Labels row pinned to bottom */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex gap-1.5" style={{ height: "20px" }}>
-          {data.map((bar) => (
-            <div key={bar.label} className="flex flex-1 items-center justify-center">
-              <span className="text-[8px] font-medium text-white tabular-nums">{bar.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// USER: Order History & Reorder
-// ─────────────────────────────────────────────
-
-function OrderHistoryMockup({ onInteract }: { onInteract?: () => void }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-4">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">My Orders</p>
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400">Completed</span>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 dark:border-white/[0.06] dark:bg-zinc-900/60">
-          <div className="flex items-center justify-between mb-1.5">
-            <div>
-              <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Spice Garden</p>
-              <p className="text-[9px] text-zinc-500 dark:text-zinc-600">Apr 20, 2026 · Dine In</p>
-            </div>
-            <p className="text-xs font-black text-amber-700 dark:text-amber-400">$26.79</p>
-          </div>
-          <div className="flex flex-col gap-0.5 mb-2.5">
-            {[{ name: "Butter Chicken", qty: 1, price: "$17.99" }, { name: "Garlic Naan", qty: 2, price: "$7.98" }].map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <span className="text-[9px] text-zinc-600 dark:text-zinc-500">{item.qty}× {item.name}</span>
-                <span className="text-[9px] text-zinc-500 dark:text-zinc-600">{item.price}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onInteract?.()}
-            className="w-full cursor-pointer rounded-xl border border-amber-500/40 bg-amber-500/10 py-2 text-[10px] font-bold text-amber-700 transition-colors hover:bg-amber-500/20 active:scale-95 dark:text-amber-400"
-          >
-            Order Again
-          </button>
-        </div>
-
-        <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 opacity-50 dark:border-white/[0.06] dark:bg-zinc-900/30 dark:opacity-40">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300">Biryani House</p>
-              <p className="text-[9px] text-zinc-500 dark:text-zinc-400">Apr 14, 2026</p>
-            </div>
-            <p className="text-xs font-black text-zinc-600 dark:text-zinc-300">$18.50</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// USER: Real-Time Order Tracker
-// ─────────────────────────────────────────────
-
-const TRACKER_STAGES = [
-  { label: "Received", color: "#FF9933", Icon: ClipboardList },
-  { label: "Preparing", color: "#F59E0B", Icon: ChefHat },
-  { label: "Ready", color: "#22C55E", Icon: ShoppingBag },
-  { label: "Served", color: "#818CF8", Icon: Sparkles },
-] as const;
-
-const TRACKER_STATUS: Record<number, { title: string; subtitle: string }> = {
-  0: { title: "Order received", subtitle: "The restaurant has your order and will start shortly." },
-  1: { title: "Being prepared", subtitle: "The kitchen is working on your order right now." },
-  2: { title: "Food is ready", subtitle: "Your food is on its way to your table." },
-  3: { title: "Served", subtitle: "Your food has been served. Enjoy your meal!" },
-};
-
-function OrderTrackerMockup({ isActive, isPaused }: { isActive: boolean; isPaused: boolean }) {
-  const [stageIdx, setStageIdx] = useState(1);
-
-  useEffect(() => {
-    if (!isActive || !isPaused) {
-      setStageIdx(1);
-      return;
-    }
-    const delay = stageIdx === 3 ? 4000 : 3000;
-    const t = setTimeout(() => setStageIdx((s) => (s + 1) % 4), delay);
-    return () => clearTimeout(t);
-  }, [isActive, isPaused, stageIdx]);
-
-  const { title, subtitle } = TRACKER_STATUS[stageIdx];
-  const activeColor = TRACKER_STAGES[stageIdx].color;
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-4">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
-        <div className="mb-4 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 dark:border-white/[0.06] dark:bg-zinc-800">
-            <ShoppingBag size={14} className="text-zinc-500 dark:text-zinc-400" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Spice Garden</p>
-            <p className="text-[9px] text-zinc-500 dark:text-zinc-600">Order #A4F2 · Dine In</p>
-          </div>
-        </div>
-
-        {/* Stepper */}
-        <div className="mb-4">
-          {/* Circles + connectors */}
-          <div className="relative flex items-center justify-between">
-            {/* Background connector track */}
-            <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-zinc-300 dark:bg-zinc-700/60" />
-            {/* Filled connector segments - one per gap between circles */}
-            {TRACKER_STAGES.slice(0, -1).map((seg, i) =>
-              i < stageIdx ? (
-                <div
-                  key={i}
-                  className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-500"
-                  style={{
-                    // Each circle is 32px (w-8). With justify-between across N=4 circles,
-                    // the gap between circle centres is (100% - 32px) / 3.
-                    // Segment i starts at centre of circle i and ends at centre of circle i+1.
-                    left: `calc(${(i / 3) * 100}% + 16px)`,
-                    right: `calc(${((3 - i - 1) / 3) * 100}% + 16px)`,
-                    background: seg.color,
-                  }}
-                />
-              ) : null
             )}
-            {TRACKER_STAGES.map((step, idx) => {
-              const isCompleted = idx < stageIdx;
-              const isActiveStep = idx === stageIdx;
-              return (
-                <div
-                  key={step.label}
-                  className={cn(
-                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
-                    isCompleted && "border-transparent",
-                    !isCompleted && !isActiveStep && "border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/90",
-                  )}
-                  style={
-                    isCompleted
-                      ? { background: step.color, borderColor: step.color }
-                      : isActiveStep
-                        ? { background: `${step.color}22`, borderColor: step.color }
-                        : undefined
-                  }
-                >
-                  {isCompleted ? (
-                    <Check size={13} color="#fff" />
-                  ) : isActiveStep ? (
-                    <div className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: step.color }} />
-                  ) : (
-                    <step.Icon size={11} color={step.color} className="opacity-40 dark:opacity-25" />
-                  )}
-                </div>
-              );
-            })}
           </div>
-          {/* Labels - same 4-column grid so they align under each circle */}
-          <div className="mt-2 flex justify-between">
-            {TRACKER_STAGES.map((step, idx) => (
-              <div key={step.label} className="w-8 text-center">
-                <span
-                  className={cn(
-                    "text-[8px] font-semibold leading-tight",
-                    idx === stageIdx ? undefined : idx < stageIdx ? "text-zinc-500" : "text-zinc-400 dark:text-zinc-600",
-                  )}
-                  style={idx === stageIdx ? { color: step.color } : undefined}
-                >
-                  {step.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        );
+      })}
+    </div>
+  );
+}
 
-        {/* Status card */}
-        <div
-          className="rounded-xl border px-3 py-2.5"
-          style={{ borderColor: `${activeColor}30`, background: `${activeColor}10` }}
-        >
-          <p className="text-[11px] font-bold" style={{ color: activeColor }}>{title}</p>
-          <p className="text-[9px] text-zinc-500 mt-0.5 leading-relaxed">{subtitle}</p>
+function PhoneFrame({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("relative mx-auto w-[260px] sm:w-[272px]", className)}>
+      <div className="relative rounded-[2.75rem] border border-zinc-800 bg-black p-2.5 shadow-2xl shadow-black/50 ring-1 ring-white/[0.06]">
+        {/* notch */}
+        <div className="absolute left-1/2 top-2.5 z-30 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-black" />
+        <div className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] bg-[#0a0a0a]">
+          {children}
         </div>
-
-        {/* Hint when not animating */}
-        {(!isActive || !isPaused) && (
-          <p className="mt-2 text-center text-[8px] text-zinc-500 dark:text-zinc-700">Pause the gallery to watch live updates</p>
-        )}
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────
-// USER: Social Group Invite
-// ─────────────────────────────────────────────
-
-async function copyTextToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch { /* fall through */ }
-  // execCommand fallback for browsers that block clipboard without HTTPS/focus
-  const el = document.createElement("textarea");
-  el.value = text;
-  el.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
-  document.body.appendChild(el);
-  el.focus();
-  el.select();
-  try { document.execCommand("copy"); } catch { /* ignore */ }
-  document.body.removeChild(el);
-}
-
-function GroupInviteMockup({ onInteract }: { onInteract?: () => void }) {
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
-  }, []);
-
-  const handleCopy = () => {
-    onInteract?.();
-    copyTextToClipboard("rasvia.com");
-    setCopyState("copied");
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
-  };
-
-  const handleShare = () => {
-    onInteract?.();
-    copyTextToClipboard("rasvia.com");
-    setShareState("copied");
-    if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
-    shareTimerRef.current = setTimeout(() => setShareState("idle"), 2000);
-  };
-
+function ScreenMenu() {
   return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-3">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
-        <div className="mb-2.5 text-center">
-          <p className="text-xs font-black tracking-tight text-zinc-900 dark:text-white">Group Order Created</p>
-          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-500/[0.08] px-3 py-1 dark:border-amber-500/30">
-            <Users size={10} className="text-amber-600 dark:text-amber-400" />
-            <span className="text-[9px] font-semibold text-amber-700 dark:text-amber-400">Spice Garden</span>
-          </div>
-        </div>
-
-        {/* QR Code */}
-        <div className="mb-2.5 flex justify-center">
-          <div className="rounded-xl border border-white/10 bg-white p-2.5">
-            <QRCode value="https://rasvia.com" size={80} bgColor="#ffffff" fgColor="#0a0a0a" />
-          </div>
-        </div>
-
-        {/* Link */}
-        <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 dark:border-white/[0.06] dark:bg-zinc-800/40">
-          <p className="font-mono text-[10px] text-zinc-600 truncate dark:text-zinc-400">rasvia.com</p>
-        </div>
-
-        <div className="mb-2 flex gap-2">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
-              copyState === "copied"
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-white/[0.08] dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
-            }`}
-          >
-            {copyState === "copied" ? <Check size={11} /> : <Copy size={11} />}
-            {copyState === "copied" ? "Link Copied" : "Copy Link"}
-          </button>
-          <button
-            type="button"
-            onClick={handleShare}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-[10px] font-semibold transition-all active:scale-95 ${
-              shareState === "copied"
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-white/[0.08] dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
-            }`}
-          >
-            {shareState === "copied" ? <Check size={11} /> : <Share2 size={11} />}
-            {shareState === "copied" ? "Link Copied" : "Share"}
-          </button>
-        </div>
-
-        {/* Join button */}
-        <button
-          type="button"
-          onClick={() => {}}
-          className="w-full rounded-xl py-2.5 text-[10px] font-bold text-zinc-900 transition-opacity hover:opacity-90 active:scale-95 flex items-center justify-center gap-1.5"
-          style={{ background: "linear-gradient(135deg, #FF9933 0%, #fb923c 100%)" }}
-        >
-          <Users size={12} />
-          Join Group Order
-        </button>
-
-        <p className="mt-2 text-center text-[8px] text-zinc-500 dark:text-zinc-700">Share the link first and join later.</p>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Extra showcase panels (partner app + guest app)
-// ─────────────────────────────────────────────
-
-function TablesidePartyMockup() {
-  return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <QrCodeIcon size={14} className="text-amber-500/90" />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Tableside QR</span>
-        </div>
-        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Live</span>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex h-full flex-col">
+      <PhoneStatusBar />
+      <div className="flex items-start justify-between px-4 pb-2 pt-2">
         <div>
-          <p className="text-xs font-bold text-zinc-900 dark:text-white">Table 12 · Spice Garden</p>
-          <p className="text-[9px] text-zinc-500">Party session · 4 members on cart</p>
-        </div>
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 space-y-1.5 dark:border-white/[0.06] dark:bg-zinc-800/40">
-          <div className="flex justify-between text-[9px]">
-            <span className="text-zinc-500">Cart</span>
-            <span className="font-bold text-amber-700 dark:text-amber-400">$186.40</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {["Equal split", "Per person", "Lock cart"].map((tag) => (
-              <span key={tag} className="rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 text-[8px] text-zinc-600 dark:border-zinc-600/50 dark:bg-zinc-900/60 dark:text-zinc-400">{tag}</span>
-            ))}
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500">Clove Dining</p>
+          <div className="mt-0.5 flex items-center gap-1">
+            <span className="h-1 w-1 rounded-full bg-emerald-400" />
+            <span className="text-[9px] text-zinc-400">Downtown · Open now</span>
           </div>
         </div>
-        <div className="flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-zinc-900/50">
-          <div className="rounded-lg border border-zinc-200 bg-white p-2 dark:border-white/10">
-            <QRCode value="https://rasvia.com/join" size={72} bgColor="#ffffff" fgColor="#0a0a0a" />
-          </div>
-          <div className="min-w-0 text-left">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">Scan to join</p>
-            <p className="font-mono text-[10px] text-zinc-700 dark:text-zinc-300">rasvia.com/join</p>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5">
+          <Search size={13} className="text-zinc-300" />
+        </div>
+      </div>
+
+      <div className="relative mx-4 overflow-hidden rounded-2xl">
+        <img src={APP_IMG.hero} alt="Featured dish" className="h-28 w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+        <div className="absolute inset-x-3 bottom-2">
+          <p className="text-[11px] font-black leading-tight text-white">Modern Indian, rooted in tradition</p>
+          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-0.5">
+            <Star size={8} className="fill-black text-black" />
+            <span className="text-[7px] font-black text-black">4.9 · ready in 20 min</span>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-function KioskWalkInMockup() {
-  const [partySize, setPartySize] = useState(4);
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900/80 dark:shadow-none">
-        <div className="mb-3 flex items-center gap-2">
-          <Tablet size={15} className="text-amber-600 dark:text-amber-500" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Kiosk · Walk-in</span>
-        </div>
-        <label className="text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Guest name</label>
-        <div className="mt-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 dark:border-white/[0.08] dark:bg-zinc-950/80 dark:text-zinc-200">Jordan K.</div>
-        <label className="mt-3 block text-[9px] font-semibold uppercase tracking-wide text-zinc-600">Party size</label>
-        <div className="mt-1 flex gap-2">
-          {[2, 3, 4, 6].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={(e) => { e.preventDefault(); setPartySize(n); }}
-              className={`flex-1 cursor-pointer rounded-lg border py-2 text-xs font-bold transition-colors ${
-                n === partySize
-                  ? "border-amber-500/50 bg-amber-500/15 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400"
-                  : "border-zinc-200 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-white/10 dark:bg-zinc-800/40 dark:text-zinc-500 dark:hover:bg-zinc-800/60"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={(e) => e.preventDefault()}
-          className="mt-4 w-full cursor-pointer rounded-xl py-3 text-xs font-bold text-zinc-950 shadow-md transition-opacity hover:opacity-90 dark:shadow-amber-900/30"
-          style={{ background: "linear-gradient(135deg, #FF9933 0%, #ea580c 100%)" }}
-        >
-          Join waitlist
-        </button>
-        <div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 dark:border-white/[0.06] dark:bg-zinc-950/50">
-          <span className="text-[9px] text-zinc-500">Queue ahead</span>
-          <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300">3 parties</span>
-        </div>
+      <div className="mt-3 flex gap-1.5 px-4">
+        {["Popular", "Tandoor", "Curries", "Biryani"].map((c, i) => (
+          <span
+            key={c}
+            className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[8px] font-bold ${
+              i === 0 ? "bg-amber-500 text-black" : "border border-white/10 bg-white/[0.03] text-zinc-400"
+            }`}
+          >
+            {c}
+          </span>
+        ))}
       </div>
-    </div>
-  );
-}
 
-function MenuMarketingMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed size={14} className="text-amber-500/85" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Menu · Partner</span>
-          </div>
-          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400">Menu QR PDF</span>
-        </div>
-        <p className="mb-3 text-[10px] leading-relaxed text-zinc-500">
-          Print a sheet of branded codes that open your live <span className="text-zinc-300">rasvia.com/share</span> menu - same catalog as the app.
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              // eslint-disable-next-line react/no-array-index-key
-              key={i}
-              className="flex aspect-square flex-col items-center justify-center rounded-lg border border-white/[0.07] bg-zinc-950/70 p-1"
-            >
-              <div className="rounded border border-white/20 bg-white p-0.5">
-                <QRCode value="https://rasvia.com/share?demo=1" size={28} bgColor="#ffffff" fgColor="#000000" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StripePayoutsMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs space-y-3">
-        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900/80 px-4 py-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Stripe Connect</p>
-            <p className="text-sm font-bold text-white">Spice Garden</p>
-          </div>
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400">Payouts on</span>
-        </div>
-        <div className="rounded-xl border border-white/[0.07] bg-zinc-950/70 p-3 space-y-2">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-zinc-500">Checkout tax</span>
-            <span className="font-mono text-zinc-300">8.25% · Restaurant rate</span>
-          </div>
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-zinc-500">Platform fee</span>
-            <span className="font-mono text-zinc-300">Configurable bps</span>
-          </div>
-          <div className="flex items-center gap-2 border-t border-white/[0.06] pt-2">
-            <BarChart3 size={12} className="text-amber-500/80" />
-            <p className="text-[9px] leading-snug text-zinc-500">
-              Seller-of-record model: guests see estimated tax before pay; Stripe Checkout finalizes totals.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FavoritesDietMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-5">
-      <div className="w-full max-w-xs rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111113] dark:shadow-none">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs font-black text-zinc-900 dark:text-white">Saved for you</p>
-          <Heart size={14} className="fill-amber-500/30 text-amber-600 dark:text-amber-500/70" />
-        </div>
-        {[
-          { name: "Spice Garden", tags: ["Veg options", "Halal"], saved: true },
-          { name: "Neon Ramen", tags: ["Late night"], saved: true },
-        ].map((r) => (
-          <div key={r.name} className="mb-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 last:mb-0 dark:border-white/[0.06] dark:bg-zinc-900/60">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 dark:border-white/[0.06] dark:bg-zinc-800">
-              <UtensilsCrossed size={16} className="text-zinc-500" />
-            </div>
+      <div className="mt-2 flex flex-1 flex-col gap-2 overflow-hidden px-4 pb-2">
+        {APP_MENU_ITEMS.map((item) => (
+          <div
+            key={item.name}
+            className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2"
+          >
+            <img src={item.img} alt={item.name} className="h-11 w-11 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">{r.name}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {r.tags.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-400/90">
-                    <Leaf size={9} />
-                    {t}
-                  </span>
-                ))}
+              <div className="flex items-center gap-1">
+                <p className="truncate text-[10px] font-bold text-white">{item.name}</p>
+                {item.veg && <Leaf size={9} className="shrink-0 text-emerald-400" />}
               </div>
+              <p className="truncate text-[8px] text-zinc-500">{item.desc}</p>
+              <p className="mt-0.5 text-[9px] font-black text-amber-400">{item.price}</p>
             </div>
-            <Heart size={14} className={r.saved ? "fill-rose-500/25 text-rose-600 dark:text-rose-400" : "text-zinc-400 dark:text-zinc-600"} />
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500 text-black">
+              <Plus size={12} />
+            </div>
           </div>
         ))}
       </div>
+
+      <PhoneTabBar active="home" />
     </div>
   );
 }
 
-function GallerySlideContent({
-  slide,
-  isActive = false,
-  isPaused = false,
-  onInteract,
-}: {
-  slide: FeatureSlide;
-  isActive?: boolean;
-  isPaused?: boolean;
-  onInteract?: () => void;
-}) {
-  switch (slide.name) {
-    case "Live Menu & 86s":
-      return <InteractiveInventoryMockup onInteract={onInteract} />;
-    case "Tableside QR & Party Pay":
-      return <TablesidePartyMockup />;
-    case "Kitchen Expedite & Status":
-      return <KitchenDisplayMockup onInteract={onInteract} />;
-    case "Sales, Tips & Reports":
-      return <RevenueSnapshotMockup onInteract={onInteract} />;
-    case "Kiosk & Waitlist":
-      return <KioskWalkInMockup />;
-    case "Public Menu & QR Sheets":
-      return <MenuMarketingMockup />;
-    case "Stripe Connect & Tax-ready":
-      return <StripePayoutsMockup />;
-    case "Split Without Spreadsheets":
-      return <SplitReceiptMockup />;
-    case "Live Cart & Group Checkout":
-      return <GroupSplitMockup />;
-    case "Favorites & Dietary Fit":
-      return <FavoritesDietMockup />;
-    case "Live Order Progress":
-      return <OrderTrackerMockup isActive={isActive} isPaused={isPaused} />;
-    case "Order Again in One Tap":
-      return <OrderHistoryMockup onInteract={onInteract} />;
-    case "Invite Link & QR":
-      return <GroupInviteMockup onInteract={onInteract} />;
-    default:
-      break;
-  }
-
+function ScreenItem() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-1.5">
-        <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">{slide.name}</span>
+    <div className="flex h-full flex-col">
+      <div className="relative">
+        <img src={APP_IMG.detail} alt="Butter Chicken" className="h-40 w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-black/40" />
+        <div className="absolute left-3 top-9 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 backdrop-blur">
+          <ArrowLeft size={14} className="text-white" />
+        </div>
       </div>
-      <p className="max-w-xs text-sm text-zinc-500">{slide.description}</p>
+
+      <div className="flex flex-1 flex-col px-4 pt-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-sm font-black text-white">Butter Chicken</h3>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400">
+                <Star size={8} className="fill-amber-400 text-amber-400" />
+                4.9
+              </span>
+              <span className="text-[8px] text-zinc-500">Chef&apos;s favorite</span>
+            </div>
+          </div>
+          <p className="text-base font-black text-amber-400">$17.99</p>
+        </div>
+
+        <p className="mt-2.5 text-[9px] leading-relaxed text-zinc-400">
+          Tandoor-roasted chicken simmered in a velvety tomato, butter, and fenugreek gravy.
+          Served with fragrant basmati. Mild heat, deeply comforting.
+        </p>
+
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+          <span className="text-[9px] font-semibold text-zinc-300">Quantity</span>
+          <div className="flex items-center gap-3">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/10 text-[10px] text-zinc-400">–</span>
+            <span className="text-[10px] font-black text-white">1</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500 text-[10px] font-black text-black">+</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="mt-auto mb-4 flex w-full items-center justify-between rounded-xl bg-amber-500 px-4 py-2.5 text-[10px] font-black text-black"
+        >
+          <span>Add to cart</span>
+          <span>$17.99</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ScreenCheckout() {
+  return (
+    <div className="flex h-full flex-col">
+      <PhoneStatusBar />
+      <div className="px-4 pb-1 pt-3">
+        <h3 className="text-sm font-black text-white">Your order</h3>
+        <p className="text-[9px] text-zinc-500">Clove Dining · Dine in</p>
+      </div>
+
+      <div className="flex flex-col gap-2 px-4 pt-2">
+        {[
+          { name: "Butter Chicken", qty: 1, price: "$17.99", img: APP_IMG.butterChicken },
+          { name: "Lamb Biryani", qty: 1, price: "$19.49", img: APP_IMG.biryani },
+        ].map((row) => (
+          <div key={row.name} className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2">
+            <img src={row.img} alt={row.name} className="h-9 w-9 rounded-lg object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[10px] font-bold text-white">{row.name}</p>
+              <p className="text-[8px] text-zinc-500">Qty {row.qty}</p>
+            </div>
+            <p className="text-[10px] font-black text-amber-400">{row.price}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mx-4 mt-3 flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+        <div className="flex items-center justify-between text-[9px]">
+          <span className="text-zinc-500">Subtotal</span>
+          <span className="font-semibold text-zinc-300">$37.48</span>
+        </div>
+        <div className="flex items-center justify-between text-[9px]">
+          <span className="text-zinc-500">Tax</span>
+          <span className="font-semibold text-zinc-300">$3.09</span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between border-t border-white/[0.06] pt-1.5">
+          <span className="text-[10px] font-bold text-white">Total</span>
+          <span className="text-xs font-black text-white">$40.57</span>
+        </div>
+      </div>
+
+      <div className="mx-4 mt-2.5 flex items-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-2">
+        <ShieldCheck size={12} className="shrink-0 text-emerald-400" />
+        <p className="text-[8px] font-semibold leading-snug text-emerald-300">
+          0% commission — paid directly to the restaurant.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        className="mx-4 mt-auto mb-3 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-[10px] font-black text-black"
+      >
+        Pay $40.57
+      </button>
+
+      <PhoneTabBar active="cart" />
     </div>
   );
 }
@@ -1490,23 +543,11 @@ function GallerySlideContent({
 // ──────────────────────────────────────────────────────
 
 export default function LandingPage() {
-  const [audience, setAudience] = useState<"business" | "user">("business");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const heroGlowAreaRef = useRef<HTMLDivElement | null>(null);
   const heroGlowRef = useRef<HTMLDivElement | null>(null);
   const glowPos = useRef({ x: 0, y: 0 });
   const glowTarget = useRef({ x: 0, y: 0 });
-  const activeSlides = useMemo(
-    () => (audience === "business" ? BUSINESS_FEATURES : USER_FEATURES),
-    [audience]
-  );
 
   useLandingHashScroll();
-
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [audience]);
 
   useEffect(() => {
     let raf = 0;
@@ -1521,7 +562,7 @@ export default function LandingPage() {
         y: e.clientY - window.innerHeight / 3,
       };
     };
-    const lerp = 0.14;   // higher = snappier catch-up while still smooth
+    const lerp = 0.14; // higher = snappier catch-up while still smooth
     const tick = () => {
       if (cancelled) return;
       glowPos.current.x += (glowTarget.current.x - glowPos.current.x) * lerp;
@@ -1541,25 +582,6 @@ export default function LandingPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (paused || activeSlides.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % activeSlides.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [paused, activeSlides.length]);
-
-  const goPrev = () => {
-    if (activeSlides.length <= 1) return;
-    setPaused(true);
-    setCurrentIndex((p) => (p - 1 + activeSlides.length) % activeSlides.length);
-  };
-  const goNext = () => {
-    if (activeSlides.length <= 1) return;
-    setPaused(true);
-    setCurrentIndex((p) => (p + 1) % activeSlides.length);
-  };
-
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[var(--page-overscroll)] text-zinc-900 dark:text-zinc-100">
       {/* Page-wide cursor glow - fixed so it tracks the mouse anywhere on the page */}
@@ -1577,147 +599,151 @@ export default function LandingPage() {
 
       <div className="pt-[57px]">
       <main className="relative z-10 w-full py-12">
-        <div ref={heroGlowAreaRef} className="mx-auto max-w-7xl px-6 relative overflow-hidden">
-
-          <section className="relative grid gap-10 lg:grid-cols-2 lg:items-start">
+        {/* ── Hero ─────────────────────────────────────── */}
+        <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
+          <section className="relative grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <h1 className="text-4xl font-black tracking-tighter leading-tight text-zinc-900 sm:text-5xl dark:text-white">
-                Guests discover and order. You run the house. One platform keeps it in sync.
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/30 dark:text-amber-400">
+                <Star size={12} className="fill-amber-500 text-amber-500" />
+                The digital partner for independent restaurants
+              </span>
+              <h1 className="mt-4 text-4xl font-black tracking-tighter leading-[1.05] text-zinc-900 sm:text-5xl dark:text-white">
+                Stop Paying 30% to Delivery Apps.{" "}
+                <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+                  Own Your Customers.
+                </span>
               </h1>
-              <p className="mt-4 max-w-xl leading-relaxed text-zinc-600 dark:text-neutral-400">
-                Rasvia pairs a polished consumer app (discover, host parties, split checks, track orders) with a
-                full operations dashboard (waitlist & kiosk, tableside QR, expedite-ready kitchen mode, menu marketing,
-                Stripe Connect settlements, and reporting your finance team can export without spreadsheets).
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-neutral-400">
+                We build custom, zero-commission mobile apps and digital storefronts for independent,
+                high-volume restaurants. You keep 100% of your margins.
               </p>
-              <div className="mt-6">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <a
-                  href="/partner-portal"
-                  className="inline-flex rounded-xl border border-amber-500/55 bg-amber-500/10 px-5 py-3 text-sm font-bold text-amber-800 transition-all duration-300 hover:bg-amber-500/[0.2] hover:border-amber-600/70 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] dark:border-amber-500/50 dark:bg-amber-500/5 dark:text-amber-400 dark:hover:bg-amber-500/[0.12] dark:hover:border-amber-500/80 dark:hover:shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                  href={MOCKUP_CTA_HREF}
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.3)] transition-all duration-300 hover:shadow-[0_10px_40px_rgba(245,158,11,0.45)]"
                 >
-                  Partner Portal
+                  See a Free Mockup of Your App
+                  <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
                 </a>
+                <button
+                  type="button"
+                  onClick={() => scrollToLandingSection("pricing")}
+                  className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white/70 px-6 py-3.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/15 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
+                >
+                  View pricing
+                </button>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-zinc-500 dark:text-zinc-500">
+                {["0% order commission", "Live in days", "Your brand, your data"].map((point) => (
+                  <span key={point} className="inline-flex items-center gap-1.5">
+                    <Check size={14} className="text-emerald-500" />
+                    {point}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div
-              className="rounded-2xl border border-zinc-200/90 bg-white/90 p-5 shadow-lg shadow-zinc-200/40 backdrop-blur-md dark:border-white/10 dark:bg-neutral-900/50 dark:shadow-none"
-            >
-              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Feature Spotlight</p>
-              <div
-                className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/90 p-4 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/70"
-                style={{ minHeight: "280px" }}
-              >
-                <HostDashboardMockup />
-              </div>
+            {/* Consumer-app phone mockup (the product we build for them) */}
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-[420px] w-[420px] translate-y-8 rounded-full bg-amber-500/20 blur-[90px] dark:bg-amber-500/15" />
+              <PhoneFrame className="rotate-[1.5deg]">
+                <ScreenMenu />
+              </PhoneFrame>
             </div>
           </section>
         </div>
 
-        <section className="mt-14 mx-auto max-w-7xl px-6">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">Feature Gallery</p>
-            <div className="flex items-center rounded-xl border border-zinc-200/90 bg-white/80 p-1 dark:border-white/10 dark:bg-zinc-900/60">
-              <button
-                type="button"
-                onClick={() => setAudience("business")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  audience === "business"
-                    ? "bg-amber-500/20 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
-              >
-                For Businesses
-              </button>
-              <button
-                type="button"
-                onClick={() => setAudience("user")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  audience === "user"
-                    ? "bg-amber-500/20 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
-              >
-                For Users
-              </button>
-            </div>
+        {/* ── Value Prop Pillars ───────────────────────── */}
+        <section className="mt-28 mx-auto max-w-7xl px-6">
+          <div className="mb-12 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">
+              Why restaurants switch
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
+              Your restaurant, your app, your customers
+            </h2>
+            <p className="mt-3 max-w-2xl mx-auto text-zinc-600 dark:text-neutral-400">
+              Everything you need to take orders directly — without handing a third of every check to a
+              delivery middleman.
+            </p>
           </div>
-          <div
-            className="group mt-3 rounded-2xl border border-zinc-200/90 bg-white/80 p-3 shadow-lg shadow-zinc-200/30 backdrop-blur-md transition-all duration-300 hover:border-amber-500/35 dark:border-white/10 dark:bg-neutral-900/50 dark:shadow-none dark:hover:border-amber-500/20"
-          >
-            <div
-              className="relative h-[430px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/95 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/80 sm:h-[460px]"
-            >
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {PILLARS.map((pillar) => (
               <div
-                className="flex h-full transition-transform duration-700 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                key={pillar.title}
+                className="group relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white/80 p-7 shadow-sm transition-all duration-300 hover:border-amber-500/40 hover:shadow-[0_8px_40px_rgba(245,158,11,0.1)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-amber-500/30"
               >
-                {activeSlides.map((slide, idx) => (
-                  <div key={slide.name + idx} className="relative h-full min-w-full">
-                    <GallerySlideContent slide={slide} isActive={idx === currentIndex} isPaused={paused} onInteract={() => setPaused(true)} />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/95 via-white/25 to-transparent pb-5 pl-5 pt-16 dark:from-black/80 dark:via-black/20">
-                      <p className="text-xl font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">{slide.name}</p>
-                    </div>
-                  </div>
-                ))}
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
+                  <pillar.icon size={22} />
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-zinc-900 dark:text-white">{pillar.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-amber-700/90 dark:text-amber-400/80">
+                  {pillar.tagline}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-neutral-400">
+                  {pillar.description}
+                </p>
               </div>
+            ))}
+          </div>
+        </section>
 
-              <button
-                type="button"
-                onClick={goPrev}
-                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-zinc-300 bg-white/90 p-2 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
-                aria-label="Previous feature"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-zinc-300 bg-white/90 p-2 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
-                aria-label="Next feature"
-              >
-                <ChevronRight size={16} />
-              </button>
+        {/* ── App Showcase (social proof) ──────────────── */}
+        <section className="mt-28 mx-auto max-w-7xl px-6">
+          <div className="overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-b from-zinc-900 to-black px-6 py-14 shadow-2xl sm:px-12">
+            <div className="mb-12 text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
+                The app your customers keep
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                A storefront they&apos;ll actually want to order from
+              </h2>
+              <p className="mt-3 max-w-2xl mx-auto text-neutral-400">
+                We design a polished, dark-mode app around your brand — beautiful menus, one-tap reorders,
+                and a checkout that sends money straight to you. No marketplace clutter. No commissions.
+              </p>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setPaused((p) => !p)}
-                className="absolute bottom-3 right-3 rounded-md border border-zinc-300 bg-white/90 p-1.5 text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-100 dark:border-white/20 dark:bg-black/40 dark:text-white dark:hover:bg-black/60"
-                aria-label={paused ? "Resume auto slide" : "Pause auto slide"}
-              >
-                {paused ? <Play size={14} /> : <Pause size={14} />}
-              </button>
-
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {activeSlides.map((slide, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      if (activeSlides.length === 0) return;
-                      setCurrentIndex(i);
-                    }}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === currentIndex
-                        ? "w-4 bg-amber-500 dark:bg-amber-400"
-                        : "w-1.5 bg-zinc-300 hover:bg-zinc-400 dark:bg-white/25 dark:hover:bg-white/40"
-                    }`}
-                    aria-label={`Go to slide ${i + 1}: ${slide.name}`}
-                  />
-                ))}
+            <div className="flex items-end justify-center gap-2 sm:gap-6">
+              <div className="hidden translate-y-8 scale-90 opacity-80 lg:block">
+                <PhoneFrame className="-rotate-3">
+                  <ScreenCheckout />
+                </PhoneFrame>
               </div>
+              <div className="z-10">
+                <PhoneFrame>
+                  <ScreenItem />
+                </PhoneFrame>
+              </div>
+              <div className="hidden translate-y-8 scale-90 opacity-80 lg:block">
+                <PhoneFrame className="rotate-3">
+                  <ScreenMenu />
+                </PhoneFrame>
+              </div>
+            </div>
+
+            <div className="mt-12 flex justify-center">
+              <a
+                href={MOCKUP_CTA_HREF}
+                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.3)] transition-all duration-300 hover:shadow-[0_10px_40px_rgba(245,158,11,0.45)]"
+              >
+                See a Free Mockup of Your App
+                <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+              </a>
             </div>
           </div>
         </section>
 
         {/* ── Pricing Section ──────────────────────────── */}
-        <section id="pricing" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
+        <section id="pricing" className="mt-28 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">Pricing</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-              Simple, transparent pricing
+              Flat fees. No commissions. Ever.
             </h2>
             <p className="mt-3 max-w-xl mx-auto text-zinc-600 dark:text-neutral-400">
-              Choose the plan that fits your restaurant. All plans include a 14-day free trial.
+              Every plan starts with a free app mockup — see your brand come to life before you commit.
             </p>
           </div>
 
@@ -1749,14 +775,14 @@ export default function LandingPage() {
                   </span>
                 </div>
                 <a
-                  href="/support"
+                  href={MOCKUP_CTA_HREF}
                   className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-bold transition-all duration-300 ${
                     tier.highlighted
                       ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.35)]"
                       : "border border-zinc-200 bg-zinc-50 text-zinc-800 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08] dark:hover:border-white/20"
                   }`}
                 >
-                  Contact Support Now
+                  Get a Free Mockup
                 </a>
                 <ul className="mt-6 flex flex-col gap-2.5">
                   {tier.features.map((feature) => (
@@ -1777,17 +803,17 @@ export default function LandingPage() {
         </section>
 
         {/* ── About Section ────────────────────────────── */}
-        <section id="about" className="mt-24 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
+        <section id="about" className="mt-28 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">About</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
               Our Mission
             </h2>
             <p className="mt-4 max-w-2xl mx-auto text-lg leading-relaxed text-zinc-600 dark:text-neutral-400">
-              We believe every restaurant deserves the tools that were once only available to major chains.
-              Rasvia is on a mission to democratize restaurant technology - making real-time operations,
-              seamless payments, and smart guest experiences accessible to every restaurant, from family-owned
-              spots to high-volume venues.
+              We believe independent restaurants shouldn&apos;t have to hand 30% of every order to third-party
+              delivery apps. Rasvia gives mom-and-pop restaurants the same custom apps, direct ordering, and
+              guest relationships that national chains spend millions to build — so you own your customers,
+              your data, and your margins.
             </p>
           </div>
 
@@ -1829,8 +855,8 @@ export default function LandingPage() {
                 alt="Rasvia"
                 className="hidden h-7 w-auto dark:block dark:brightness-110"
               />
-              <p className="mt-2 max-w-[180px] text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">
-                Built for restaurants. Loved by guests.
+              <p className="mt-2 max-w-[200px] text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">
+                Custom apps for independent restaurants. Own your customers.
               </p>
             </div>
 
