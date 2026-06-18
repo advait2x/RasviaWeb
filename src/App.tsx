@@ -4,6 +4,8 @@ import { supabase } from "./lib/supabase";
 import Login from "./pages/Login";
 /** Lazy so the marketing shell does not load the partner dashboard (and react-qr-code) on first paint. */
 const Home = lazy(() => import("./components/home"));
+/** Self-contained Clove Dining microsite (/clove-dining); lazy so it stays out of the main bundle. */
+const CloveDiningApp = lazy(() => import("./clove/CloveDiningApp"));
 import JoinBridge from "./pages/JoinBridge";
 import TableJoin from "./pages/TableJoin";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
@@ -253,6 +255,14 @@ function AppContent() {
 
   if (window.location.pathname.startsWith('/share')) {
     return <RestaurantSharePreview />;
+  }
+
+  if (window.location.pathname.startsWith('/clove-dining')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <CloveDiningApp />
+      </Suspense>
+    );
   }
 
   if (window.location.pathname.startsWith('/kiosk')) {

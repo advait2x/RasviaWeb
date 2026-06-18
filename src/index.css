@@ -109,6 +109,91 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────
+   Clove Dining microsite scope (/clove-dining)
+   Teal/green palette; saffron used sparingly for highlights.
+   ────────────────────────────────────────────────────────── */
+@layer base {
+  .clove-scope {
+    --background: 160 8% 8%;
+    --foreground: 150 12% 94%;
+
+    --card: 165 7% 12%;
+    --card-foreground: 150 12% 94%;
+
+    --popover: 165 8% 11%;
+    --popover-foreground: 150 12% 94%;
+
+    --primary: 168 62% 42%;
+    --primary-foreground: 165 30% 7%;
+
+    --secondary: 165 7% 17%;
+    --secondary-foreground: 150 10% 85%;
+
+    --muted: 165 7% 17%;
+    --muted-foreground: 155 8% 60%;
+
+    --accent: 158 64% 44%;
+    --accent-foreground: 165 30% 7%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 158 20% 60% / 0.14;
+    --input: 158 20% 60% / 0.16;
+    --ring: 168 62% 46%;
+
+    --clove-saffron: 32 92% 52%;
+    --clove-saffron-fg: 165 30% 7%;
+  }
+
+  :root[data-theme="light"] .clove-scope {
+    --background: 150 30% 97%;
+    --foreground: 165 30% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 165 30% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 30% 14%;
+
+    --primary: 168 58% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 22% 92%;
+    --secondary-foreground: 165 28% 22%;
+
+    --muted: 150 22% 92%;
+    --muted-foreground: 160 12% 40%;
+
+    --accent: 158 56% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 74% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 165 25% 25% / 0.14;
+    --input: 165 25% 25% / 0.16;
+    --ring: 168 58% 42%;
+
+    --clove-saffron: 32 88% 46%;
+    --clove-saffron-fg: 165 30% 10%;
+  }
+}
+
+@layer utilities {
+  .clove-scope .text-clove-saffron {
+    color: hsl(var(--clove-saffron));
+  }
+  .clove-scope .border-clove-saffron {
+    border-color: hsl(var(--clove-saffron));
+  }
+  .clove-scope .bg-clove-saffron {
+    background-color: hsl(var(--clove-saffron));
+    color: hsl(var(--clove-saffron-fg));
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
