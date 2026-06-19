@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   Home,
   Leaf,
   Menu,
@@ -21,7 +20,6 @@ import {
 import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
 import { cn } from "@/lib/utils";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
-import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
 import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
 import { scrollToLandingSection, useLandingHashScroll } from "@/lib/marketing-nav";
 
@@ -140,16 +138,6 @@ const FOUNDERS = [
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const openDropdown = (key: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setActiveDropdown(key);
-  };
-  const closeDropdown = () => {
-    timeoutRef.current = setTimeout(() => setActiveDropdown(null), 150);
-  };
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
@@ -169,33 +157,6 @@ function Navbar() {
           </a>
 
           <nav className="hidden items-center gap-1 md:flex">
-          {/* Products dropdown */}
-          <div
-            className="relative"
-            onMouseEnter={() => openDropdown("products")}
-            onMouseLeave={closeDropdown}
-          >
-            <a
-              href="/products"
-              className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                activeDropdown === "products"
-                  ? "bg-zinc-200/90 text-zinc-900 dark:bg-white/[0.06] dark:text-white"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              }`}
-            >
-              Products
-              <ChevronDown
-                size={14}
-                className={`transition-transform duration-200 ${
-                  activeDropdown === "products" ? "rotate-180" : ""
-                }`}
-              />
-            </a>
-            {activeDropdown === "products" && (
-              <ProductsNavDropdown />
-            )}
-          </div>
-
           {/* Pricing */}
           <button
             type="button"
@@ -244,8 +205,6 @@ function Navbar() {
               <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Appearance</p>
               <ThemeIconToggle />
             </div>
-            <ProductsNavMobileLinks onNavigate={() => setMobileOpen(false)} />
-            <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
             <button
               type="button"
               onClick={() => { scrollToLandingSection("pricing"); setMobileOpen(false); }}
