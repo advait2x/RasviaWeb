@@ -43,25 +43,27 @@ export const MKT_CTA_SECONDARY =
 export const MKT_NAV_ICON_BTN =
   "inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--mkt-border)] text-[var(--mkt-ink-muted)] transition-colors hover:border-[var(--mkt-accent-border)] hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500";
 
-/** Fixed marketing top bar — light surface in light mode; lighter-black in dark mode */
+/** Fixed marketing top bar — frosted in both themes */
 export const MKT_TOP_BAR =
-  "border-b border-[var(--mkt-border-subtle)] bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900";
+  "border-b border-[var(--mkt-border-subtle)] bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/95";
 
-/** Nav links — grey pill highlight (light) / lifted zinc pill (dark) */
+/** Opaque products nav dropdown — not semi-transparent like MKT_PANEL */
+export const MKT_NAV_DROPDOWN =
+  "rounded-xl border border-[var(--mkt-border)] bg-white dark:bg-zinc-900";
+
+/** Nav links — .mkt-top-bar-interactive hover in index.css (light-theme zinc wildcards block Tailwind bg) */
 export const MKT_TOP_BAR_LINK =
-  "rounded-lg px-3 py-2 text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-zinc-300 dark:hover:bg-zinc-700/70 dark:hover:text-white";
+  "mkt-top-bar-interactive rounded-lg px-3 py-2 text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors duration-150 hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-[#d4d4d8] dark:hover:text-white";
 
-export const MKT_TOP_BAR_LINK_ACTIVE =
-  "bg-[var(--mkt-accent-bg)] text-[var(--mkt-ink)] dark:bg-zinc-700/70 dark:text-white";
+export const MKT_TOP_BAR_LINK_ACTIVE = "mkt-top-bar-interactive--active text-[var(--mkt-ink)] dark:text-white";
 
 export const MKT_TOP_BAR_ICON_BTN =
-  "inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--mkt-border)] text-[var(--mkt-ink-muted)] transition-colors hover:border-[var(--mkt-accent-border)] hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-white/15 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-zinc-700/70 dark:hover:text-white";
+  "mkt-top-bar-interactive inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--mkt-border)] text-[var(--mkt-ink-muted)] transition-colors duration-150 hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-white/15 dark:text-[#d4d4d8] dark:hover:border-white/20 dark:hover:text-white";
 
-export const MKT_TOP_BAR_THEME_TOGGLE =
-  "dark:border-white/15 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700";
+export const MKT_TOP_BAR_THEME_TOGGLE = "mkt-top-bar-interactive";
 
 export const MKT_TOP_BAR_MOBILE_LINK =
-  "block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-zinc-300 dark:hover:bg-zinc-700/70 dark:hover:text-white";
+  "mkt-top-bar-interactive block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors duration-150 hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-[#d4d4d8] dark:hover:text-white";
 
 /** Amber accent phrase in headlines (solid — no gradient text) */
 export const MKT_ACCENT_INK = "text-amber-800 dark:text-amber-400";

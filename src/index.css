@@ -523,6 +523,24 @@ button, a, input, textarea, select {
   color: #ffffff !important;
 }
 
+/* Marketing top bar hovers — light-theme zinc wildcards match dark:bg-zinc-* in class strings and block Tailwind hovers */
+:root[data-theme="light"] .mkt-top-bar-interactive:hover {
+  background-color: #fef3c7 !important;
+}
+
+:root[data-theme="light"] .mkt-top-bar-interactive--active {
+  background-color: #fef3c7 !important;
+}
+
+:root[data-theme="dark"] .mkt-top-bar-interactive {
+  background-color: rgba(39, 39, 42, 0.55);
+}
+
+:root[data-theme="dark"] .mkt-top-bar-interactive:hover,
+:root[data-theme="dark"] .mkt-top-bar-interactive--active {
+  background-color: #3f3f46 !important;
+}
+
 /* Instant theme swap — avoids animating thousands of descendant color transitions */
 html.theme-switching,
 html.theme-switching *,

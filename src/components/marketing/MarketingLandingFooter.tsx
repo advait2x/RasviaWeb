@@ -9,12 +9,7 @@ export function MarketingLandingFooter() {
       <div className="mx-auto max-w-7xl px-6 pt-16 pb-8">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-7 w-auto dark:hidden" />
-            <img
-              src="/rasvia-logo.png"
-              alt="Rasvia"
-              className="hidden h-7 w-auto dark:block dark:brightness-110"
-            />
+            <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-7 w-auto" />
             <p className={cn("mt-2 max-w-[200px] text-sm leading-relaxed", MKT_BODY)}>
               Custom apps for independent restaurants. You own the guest relationship.
             </p>

@@ -1,4 +1,4 @@
-import { MKT_PANEL } from "@/lib/marketingUi";
+import { MKT_NAV_DROPDOWN } from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
 import {
   MARKETING_NAV_PRODUCTS,
@@ -28,7 +28,7 @@ export function ProductsNavDropdown({
         className,
       )}
     >
-      <div className={cn("mkt-dropdown-in overflow-hidden shadow-2xl", MKT_PANEL)}>
+      <div className={cn("mkt-dropdown-in overflow-hidden shadow-2xl", MKT_NAV_DROPDOWN)}>
       {MARKETING_NAV_PRODUCTS.map((p) => (
         <a
           key={p.slug}
@@ -59,18 +59,18 @@ export function ProductsNavDropdown({
 
 export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void }) {
   const linkClass = cn(
-    "block rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--mkt-accent-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
-    "dark:hover:bg-zinc-700/70",
+    "mkt-top-bar-interactive block rounded-lg px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+    "dark:hover:bg-[#3f3f46]",
   );
 
   return (
     <>
       <a
         href="/products"
-        className={cn(linkClass, "text-sm font-semibold text-[var(--mkt-ink)] dark:text-zinc-200")}
+        className="mkt-top-bar-interactive block rounded-lg px-3 py-2.5 text-sm font-semibold text-amber-700 transition-colors dark:text-amber-400"
         onClick={onNavigate}
       >
-        All products
+        View all products →
       </a>
       <p className="px-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">By product</p>
       {MARKETING_NAV_PRODUCTS.map((p) => (
@@ -84,13 +84,6 @@ export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void
           <span className="mt-0.5 block text-xs leading-relaxed text-[var(--mkt-ink-muted)]">{p.description}</span>
         </a>
       ))}
-      <a
-        href="/products"
-        className="block rounded-lg px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400"
-        onClick={onNavigate}
-      >
-        View all product pages →
-      </a>
     </>
   );
 }

@@ -132,15 +132,15 @@ const FOUNDERS = [
   },
   {
     name: "Advait Sagi",
-    role: "CEO & Founder",
+    role: "CEO & Co-Founder",
     bio: "Engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
     initials: "AS",
     imageSrc: null as string | null,
   },
   {
     name: "Akshaj Ande",
-    role: "COO & Co-Founder",
-    bio: "Computer science student at UT Austin interested in data analytics and cloud infrastructure.",
+    role: "CFO & Co-Founder",
+    bio: "Computer science student at UT Dallas interested in data analytics, cloud infrastructure, and machine learning.",
     initials: "AA",
     imageSrc: null as string | null,
   },
@@ -148,9 +148,8 @@ const FOUNDERS = [
 
 // ──────────────────────────────────────────────────────
 // CONSUMER APP PHONE MOCKUPS
-// High-fidelity, dark-mode "Clove Dining"-style storefront the
-// customer actually sees. This is the product we sell — so it is
-// the visual hero, not an internal ops dashboard.
+// High-fidelity "Clove Dining"-style storefront the customer actually sees.
+// Follows site light/dark theme via Tailwind dark: variants.
 // ──────────────────────────────────────────────────────
 
 const APP_IMG = {
@@ -173,16 +172,16 @@ const APP_MENU_ITEMS = [
 
 function PhoneStatusBar() {
   return (
-    <div className="flex items-center justify-between px-5 pt-3 text-[10px] font-bold text-white">
+    <div className="flex items-center justify-between px-5 pt-3 text-[10px] font-bold text-zinc-900 dark:text-white">
       <span>9:41</span>
       <div className="flex items-center gap-1">
         <div className="flex items-end gap-[1.5px]">
-          <span className="h-1.5 w-0.5 rounded-sm bg-white/80" />
-          <span className="h-2 w-0.5 rounded-sm bg-white/80" />
-          <span className="h-2.5 w-0.5 rounded-sm bg-white/80" />
+          <span className="h-1.5 w-0.5 rounded-sm bg-zinc-700/80 dark:bg-white/80" />
+          <span className="h-2 w-0.5 rounded-sm bg-zinc-700/80 dark:bg-white/80" />
+          <span className="h-2.5 w-0.5 rounded-sm bg-zinc-700/80 dark:bg-white/80" />
         </div>
-        <div className="ml-1 h-2 w-4 rounded-[2px] border border-white/60">
-          <div className="m-[1px] h-[6px] w-[10px] rounded-[1px] bg-white/80" />
+        <div className="ml-1 h-2 w-4 rounded-[2px] border border-zinc-400/60 dark:border-white/60">
+          <div className="m-[1px] h-[6px] w-[10px] rounded-[1px] bg-zinc-700/80 dark:bg-white/80" />
         </div>
       </div>
     </div>
@@ -197,13 +196,17 @@ function PhoneTabBar({ active }: { active: "home" | "menu" | "cart" | "profile" 
     { id: "profile", label: "You", Icon: User },
   ] as const;
   return (
-    <div className="mt-auto flex items-center justify-around border-t border-white/[0.06] bg-black/70 px-2 py-2.5 backdrop-blur">
+    <div className="mt-auto flex items-center justify-around border-t border-zinc-200 bg-white px-2 py-2.5 backdrop-blur dark:border-white/[0.06] dark:bg-black/70">
       {tabs.map(({ id, label, Icon }) => {
         const on = id === active;
         return (
           <div key={id} className="relative flex flex-col items-center gap-0.5">
-            <Icon size={15} className={on ? "text-amber-400" : "text-zinc-600"} />
-            <span className={`text-[7px] font-bold ${on ? "text-amber-400" : "text-zinc-600"}`}>{label}</span>
+            <Icon size={15} className={on ? "text-amber-500 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-600"} />
+            <span
+              className={`text-[7px] font-bold ${on ? "text-amber-600 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-600"}`}
+            >
+              {label}
+            </span>
             {id === "cart" && (
               <span className="absolute -right-2 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-500 text-[6px] font-black text-black">
                 2
@@ -218,11 +221,11 @@ function PhoneTabBar({ active }: { active: "home" | "menu" | "cart" | "profile" 
 
 function PhoneFrame({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("relative mx-auto w-[260px] text-white sm:w-[272px]", className)}>
-      <div className="relative rounded-[2.75rem] border border-zinc-800 bg-black p-2.5 shadow-2xl shadow-black/50 ring-1 ring-white/[0.06]">
+    <div className={cn("relative mx-auto w-[260px] text-zinc-900 sm:w-[272px] dark:text-white", className)}>
+      <div className="relative rounded-[2.75rem] border border-zinc-200 bg-white p-2.5 shadow-2xl shadow-zinc-300/30 ring-1 ring-zinc-200/80 dark:border-zinc-800 dark:bg-black dark:shadow-black/50 dark:ring-white/[0.06]">
         {/* notch */}
-        <div className="absolute left-1/2 top-2.5 z-30 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-black" />
-        <div className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] bg-[#0a0a0a] text-white [color-scheme:dark]">
+        <div className="absolute left-1/2 top-2.5 z-30 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-white dark:bg-black" />
+        <div className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] bg-zinc-50 text-zinc-900 [color-scheme:light] dark:bg-[#0a0a0a] dark:text-white dark:[color-scheme:dark]">
           {children}
         </div>
       </div>
@@ -236,22 +239,28 @@ function ScreenMenu() {
       <PhoneStatusBar />
       <div className="flex items-start justify-between px-4 pb-2 pt-2">
         <div>
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500">Clove Dining</p>
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-500">Clove Dining</p>
           <div className="mt-0.5 flex items-center gap-1">
-            <span className="h-1 w-1 rounded-full bg-emerald-400" />
-            <span className="text-[9px] text-zinc-400">Downtown · Open now</span>
+            <span className="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            <span className="text-[9px] text-zinc-500 dark:text-zinc-400">Downtown · Open now</span>
           </div>
         </div>
-        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5">
-          <Search size={13} className="text-zinc-300" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
+          <Search size={13} className="text-zinc-600 dark:text-zinc-300" />
         </div>
       </div>
 
-      <div className="relative mx-4 overflow-hidden rounded-2xl">
-        <img src={APP_IMG.hero} alt="Featured dish" className="h-28 w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+      <div className="relative mx-4 overflow-hidden rounded-2xl border border-zinc-200/70 dark:border-transparent">
+        <img
+          src={APP_IMG.hero}
+          alt="Featured dish"
+          className="h-28 w-full object-cover object-[center_35%] dark:object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/55 to-white/10 dark:from-black/90 dark:via-black/25 dark:to-transparent" />
         <div className="absolute inset-x-3 bottom-2">
-          <p className="text-[11px] font-black leading-tight text-white">Modern Indian, rooted in tradition</p>
+          <p className="text-[11px] font-black leading-tight text-zinc-900 dark:text-white">
+            Modern Indian, rooted in tradition
+          </p>
           <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-0.5">
             <Star size={8} className="fill-black text-black" />
             <span className="text-[7px] font-black text-black">4.9 · ready in 20 min</span>
@@ -266,7 +275,7 @@ function ScreenMenu() {
             className={
               i === 0
                 ? "whitespace-nowrap rounded-lg bg-amber-500 px-2.5 py-1 text-[8px] font-bold text-black"
-                : "whitespace-nowrap rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[8px] font-bold text-zinc-300"
+                : "whitespace-nowrap rounded-lg border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-[8px] font-bold text-zinc-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
             }
           >
             {c}
@@ -278,16 +287,16 @@ function ScreenMenu() {
         {APP_MENU_ITEMS.map((item) => (
           <div
             key={item.name}
-            className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2"
+            className="flex items-center gap-2.5 rounded-xl border border-zinc-200/80 bg-white p-2 dark:border-white/[0.06] dark:bg-white/[0.03]"
           >
             <img src={item.img} alt={item.name} className="h-11 w-11 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1">
-                <p className="truncate text-[10px] font-bold text-white">{item.name}</p>
-                {item.veg && <Leaf size={9} className="shrink-0 text-emerald-400" />}
+                <p className="truncate text-[10px] font-bold text-zinc-900 dark:text-white">{item.name}</p>
+                {item.veg && <Leaf size={9} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
               </div>
               <p className="truncate text-[8px] text-zinc-500">{item.desc}</p>
-              <p className="mt-0.5 text-[9px] font-black text-amber-400">{item.price}</p>
+              <p className="mt-0.5 text-[9px] font-black text-amber-600 dark:text-amber-400">{item.price}</p>
             </div>
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500 text-black">
               <Plus size={12} />
@@ -306,37 +315,37 @@ function ScreenItem() {
     <div className="flex h-full flex-col">
       <div className="relative">
         <img src={APP_IMG.detail} alt="Butter Chicken" className="h-40 w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-black/40" />
-        <div className="absolute left-3 top-9 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 backdrop-blur">
-          <ArrowLeft size={14} className="text-white" />
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-transparent to-zinc-900/30 dark:from-[#0a0a0a] dark:to-black/40" />
+        <div className="absolute left-3 top-9 flex h-7 w-7 items-center justify-center rounded-full bg-white/80 backdrop-blur dark:bg-black/55">
+          <ArrowLeft size={14} className="text-zinc-900 dark:text-white" />
         </div>
       </div>
 
       <div className="flex flex-1 flex-col px-4 pt-3">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-sm font-black text-white">Butter Chicken</h3>
+            <h3 className="text-sm font-black text-zinc-900 dark:text-white">Butter Chicken</h3>
             <div className="mt-1 flex items-center gap-2">
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400">
-                <Star size={8} className="fill-amber-400 text-amber-400" />
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:text-amber-400">
+                <Star size={8} className="fill-amber-600 text-amber-600 dark:fill-amber-400 dark:text-amber-400" />
                 4.9
               </span>
               <span className="text-[8px] text-zinc-500">Chef&apos;s favorite</span>
             </div>
           </div>
-          <p className="text-base font-black text-amber-400">$17.99</p>
+          <p className="text-base font-black text-amber-600 dark:text-amber-400">$17.99</p>
         </div>
 
-        <p className="mt-2.5 text-[9px] leading-relaxed text-zinc-400">
+        <p className="mt-2.5 text-[9px] leading-relaxed text-zinc-600 dark:text-zinc-400">
           Tandoor-roasted chicken simmered in a velvety tomato, butter, and fenugreek gravy.
           Served with fragrant basmati. Mild heat, deeply comforting.
         </p>
 
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-          <span className="text-[9px] font-semibold text-zinc-300">Quantity</span>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-zinc-200/80 bg-white px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.03]">
+          <span className="text-[9px] font-semibold text-zinc-600 dark:text-zinc-300">Quantity</span>
           <div className="flex items-center gap-3">
-            <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/10 text-[10px] text-zinc-400">–</span>
-            <span className="text-[10px] font-black text-white">1</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-md border border-zinc-200 text-[10px] text-zinc-500 dark:border-white/10 dark:text-zinc-400">–</span>
+            <span className="text-[10px] font-black text-zinc-900 dark:text-white">1</span>
             <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500 text-[10px] font-black text-black">+</span>
           </div>
         </div>
@@ -358,7 +367,7 @@ function ScreenCheckout() {
     <div className="flex h-full flex-col">
       <PhoneStatusBar />
       <div className="px-4 pb-1 pt-3">
-        <h3 className="text-sm font-black text-white">Your order</h3>
+        <h3 className="text-sm font-black text-zinc-900 dark:text-white">Your order</h3>
         <p className="text-[9px] text-zinc-500">Clove Dining · Dine in</p>
       </div>
 
@@ -367,35 +376,38 @@ function ScreenCheckout() {
           { name: "Butter Chicken", qty: 1, price: "$17.99", img: APP_IMG.butterChicken },
           { name: "Lamb Biryani", qty: 1, price: "$19.49", img: APP_IMG.biryani },
         ].map((row) => (
-          <div key={row.name} className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-2">
+          <div
+            key={row.name}
+            className="flex items-center gap-2.5 rounded-xl border border-zinc-200/80 bg-white p-2 dark:border-white/[0.06] dark:bg-white/[0.03]"
+          >
             <img src={row.img} alt={row.name} className="h-9 w-9 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-bold text-white">{row.name}</p>
+              <p className="truncate text-[10px] font-bold text-zinc-900 dark:text-white">{row.name}</p>
               <p className="text-[8px] text-zinc-500">Qty {row.qty}</p>
             </div>
-            <p className="text-[10px] font-black text-amber-400">{row.price}</p>
+            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400">{row.price}</p>
           </div>
         ))}
       </div>
 
-      <div className="mx-4 mt-3 flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+      <div className="mx-4 mt-3 flex flex-col gap-1 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.02]">
         <div className="flex items-center justify-between text-[9px]">
           <span className="text-zinc-500">Subtotal</span>
-          <span className="font-semibold text-zinc-300">$37.48</span>
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">$37.48</span>
         </div>
         <div className="flex items-center justify-between text-[9px]">
           <span className="text-zinc-500">Tax</span>
-          <span className="font-semibold text-zinc-300">$3.09</span>
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">$3.09</span>
         </div>
-        <div className="mt-0.5 flex items-center justify-between border-t border-white/[0.06] pt-1.5">
-          <span className="text-[10px] font-bold text-white">Total</span>
-          <span className="text-xs font-black text-white">$40.57</span>
+        <div className="mt-0.5 flex items-center justify-between border-t border-zinc-200 pt-1.5 dark:border-white/[0.06]">
+          <span className="text-[10px] font-bold text-zinc-900 dark:text-white">Total</span>
+          <span className="text-xs font-black text-zinc-900 dark:text-white">$40.57</span>
         </div>
       </div>
 
-      <div className="mx-4 mt-2.5 flex items-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-2">
-        <ShieldCheck size={12} className="shrink-0 text-emerald-400" />
-        <p className="text-[8px] font-semibold leading-snug text-emerald-300">
+      <div className="mx-4 mt-2.5 flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 dark:border-emerald-500/25 dark:bg-emerald-500/[0.08]">
+        <ShieldCheck size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <p className="text-[8px] font-semibold leading-snug text-emerald-800 dark:text-emerald-300">
           No commission. Payment goes straight to the restaurant.
         </p>
       </div>
@@ -630,12 +642,12 @@ export default function LandingPage() {
 
         {/* ── App Showcase ─────────────────────────────── */}
         <section className="mt-28 mx-auto max-w-7xl px-6">
-          <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 px-6 py-14 text-white sm:px-12">
+          <div className="overflow-hidden rounded-2xl border border-[var(--mkt-border)] bg-[var(--mkt-section-alt)] px-6 py-14 text-[var(--mkt-ink)] sm:px-12 dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-900 dark:to-zinc-950 dark:text-white">
             <div className="mb-12 max-w-2xl">
-              <h2 className={cn("text-3xl text-balance text-white sm:text-4xl", MKT_DISPLAY)}>
+              <h2 className={cn("text-3xl text-balance sm:text-4xl dark:text-white", MKT_DISPLAY, MKT_HEADING)}>
                 An app people will actually use
               </h2>
-              <p className="mt-3 max-w-prose text-pretty text-zinc-400">
+              <p className={cn("mt-3 max-w-prose text-pretty dark:text-zinc-400", MKT_BODY)}>
                 Clean layout. Easy menu browsing. One-tap reorder. Checkout pays you directly.
                 No marketplace listing. No commission.
               </p>
