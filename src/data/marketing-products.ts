@@ -89,8 +89,7 @@ export const PRODUCT_PAGES: Record<MarketingProductSlug, ProductPageContent> = {
       "We build a branded mobile app with your logo, menu, and checkout. Guests order from you, not from a delivery marketplace. You keep the guest relationship and the margin on every order.",
     highlights: [
       "Your name and branding in the App Store and Google Play",
-      "Push notifications and one-tap reorder for regulars",
-      "Menu and orders synced with Toast, Clover, or Square",
+      "Push notifications and one-tap reorder for regulars"
     ],
     sections: [
       {

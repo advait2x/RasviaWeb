@@ -6,7 +6,7 @@ brand
 
 ## Users
 
-Prospective restaurant partners — independent owners and operators evaluating whether Rasvia is the right digital partner. They browse on phone or laptop, often between services or after hours, comparing options quickly. They need to understand credibility, fit with their existing POS (Toast, Clover, Square), and whether Rasvia respects their margins. Secondary audiences (floor staff, guests on join flows) exist but marketing pages optimize for the partner decision first.
+Prospective restaurant partners — independent owners and operators evaluating whether Rasvia is the right digital partner. They browse on phone or laptop, often between services or after hours, comparing options quickly. They need to understand credibility and whether Rasvia respects their margins. Secondary audiences (floor staff, guests on join flows) exist but marketing pages optimize for the partner decision first.
 
 ## Product Purpose
 

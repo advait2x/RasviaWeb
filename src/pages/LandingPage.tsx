@@ -99,7 +99,6 @@ const PRICING_TIERS = [
       "Custom iOS and Android app",
       "Push notifications and one-tap reorder",
       "Tools for repeat guests",
-      "Toast, Clover, and Square integration",
       "Priority onboarding",
       "Priority support",
     ],
