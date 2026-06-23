@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Menu, ShoppingBag, User, X } from "lucide-react";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
+import { MKT_TOP_BAR_THEME_TOGGLE } from "@/lib/marketingUi";
+import { cn } from "@/lib/utils";
 import { CLOVE_TABS, CLOVE_NAME, type CloveTabId } from "@/clove/data";
 import { useCloveAuth } from "@/clove/CloveAuthContext";
 
@@ -29,17 +31,17 @@ export function CloveNav({
   const { avatarUrl, displayName, email } = useCloveAuth();
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b-2 border-border bg-background">
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <div className="flex min-w-0 flex-1 items-center gap-5">
           <button
             type="button"
             onClick={() => onNavigate("home")}
-            className="flex-shrink-0 text-xl font-black tracking-tight text-foreground"
+            className="flex-shrink-0 text-xl font-black tracking-tight text-white"
           >
             {CLOVE_NAME}
           </button>
-          <ThemeIconToggle className="flex-shrink-0 scale-110" />
+          <ThemeIconToggle className={cn("flex-shrink-0 scale-110", MKT_TOP_BAR_THEME_TOGGLE)} />
 
           <nav className="ml-2 hidden items-center gap-1.5 md:flex">
             {CLOVE_TABS.map((tab) => (
@@ -49,8 +51,8 @@ export function CloveNav({
                 onClick={() => onNavigate(tab.id)}
                 className={`rounded-lg px-4 py-2.5 text-base font-medium transition-colors ${
                   activeTab === tab.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-400 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {tab.label}
@@ -64,7 +66,7 @@ export function CloveNav({
             type="button"
             onClick={onOpenCart}
             aria-label="Open cart"
-            className="relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-secondary"
+            className="relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-zinc-900 text-zinc-100 transition-colors hover:bg-zinc-800"
           >
             <ShoppingBag size={22} />
             {cartCount > 0 ? (
@@ -78,7 +80,7 @@ export function CloveNav({
             type="button"
             onClick={onOpenProfile}
             aria-label="Open profile"
-            className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-card text-foreground transition-colors hover:bg-secondary"
+            className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900 text-zinc-100 transition-colors hover:bg-zinc-800"
           >
             {avatarUrl ? (
               <img
@@ -101,7 +103,7 @@ export function CloveNav({
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle menu"
-            className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-secondary md:hidden"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-white/15 text-zinc-100 transition-colors hover:bg-white/10 md:hidden"
           >
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -109,7 +111,7 @@ export function CloveNav({
       </div>
 
       {mobileOpen ? (
-        <div className="border-t border-border bg-background md:hidden">
+        <div className="border-t border-white/10 bg-black md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-1 px-6 py-4">
             {CLOVE_TABS.map((tab) => (
               <button
@@ -121,8 +123,8 @@ export function CloveNav({
                 }}
                 className={`rounded-lg px-4 py-3 text-left text-base font-medium transition-colors ${
                   activeTab === tab.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-400 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {tab.label}

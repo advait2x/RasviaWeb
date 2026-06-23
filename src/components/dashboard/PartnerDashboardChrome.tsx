@@ -6,7 +6,7 @@ import StatusBar from "./StatusBar";
  */
 export default function PartnerDashboardChrome() {
   return (
-    <div className="relative z-30 shrink-0 border-b border-white/[0.08] bg-background/95 shadow-[0_1px_0_rgba(0,0,0,0.4)] backdrop-blur-md">
+    <div className="relative z-30 shrink-0 border-b border-white/[0.08] bg-black">
       <PartnerDashboardNav />
       <div className="border-t border-white/[0.06]">
         <StatusBar embedded />

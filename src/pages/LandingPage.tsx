@@ -31,7 +31,6 @@ import {
   MKT_ACCENT_INK,
   MKT_AVATAR_FALLBACK,
   MKT_BODY,
-  MKT_BODY_ON_DARK,
   MKT_CTA_PRIMARY,
   MKT_CTA_SECONDARY,
   MKT_BTN_OUTLINE,
@@ -219,11 +218,11 @@ function PhoneTabBar({ active }: { active: "home" | "menu" | "cart" | "profile" 
 
 function PhoneFrame({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("relative mx-auto w-[260px] sm:w-[272px]", className)}>
+    <div className={cn("relative mx-auto w-[260px] text-white sm:w-[272px]", className)}>
       <div className="relative rounded-[2.75rem] border border-zinc-800 bg-black p-2.5 shadow-2xl shadow-black/50 ring-1 ring-white/[0.06]">
         {/* notch */}
         <div className="absolute left-1/2 top-2.5 z-30 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-black" />
-        <div className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] bg-[#0a0a0a]">
+        <div className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] bg-[#0a0a0a] text-white [color-scheme:dark]">
           {children}
         </div>
       </div>
@@ -458,7 +457,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <MarketingLayout footer="landing">
+    <MarketingLayout>
       <div className="relative w-full min-h-screen overflow-x-hidden">
       <div
         ref={heroGlowRef}
@@ -631,12 +630,12 @@ export default function LandingPage() {
 
         {/* ── App Showcase ─────────────────────────────── */}
         <section className="mt-28 mx-auto max-w-7xl px-6">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900 to-black px-6 py-14 sm:px-12">
+          <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 px-6 py-14 text-white sm:px-12">
             <div className="mb-12 max-w-2xl">
-              <h2 className={cn("text-3xl sm:text-4xl text-balance text-white", MKT_DISPLAY)}>
+              <h2 className={cn("text-3xl text-balance text-white sm:text-4xl", MKT_DISPLAY)}>
                 An app people will actually use
               </h2>
-              <p className={cn("mt-3 max-w-prose text-pretty", MKT_BODY_ON_DARK)}>
+              <p className="mt-3 max-w-prose text-pretty text-zinc-400">
                 Clean layout. Easy menu browsing. One-tap reorder. Checkout pays you directly.
                 No marketplace listing. No commission.
               </p>

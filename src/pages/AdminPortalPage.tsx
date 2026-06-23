@@ -412,7 +412,7 @@ export default function AdminPortalPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-zinc-100">
-      <header className="sticky top-0 z-40 shrink-0 border-b border-white/[0.08] bg-background/95 shadow-[0_1px_0_rgba(0,0,0,0.25)] backdrop-blur-md dark:shadow-[0_1px_0_rgba(0,0,0,0.4)]">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-white/[0.08] bg-black">
         <div className="mx-auto grid w-full max-w-[1600px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 sm:px-6">
           <a
             href="/partner-portal"

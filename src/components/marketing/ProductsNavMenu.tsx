@@ -58,11 +58,16 @@ export function ProductsNavDropdown({
 }
 
 export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const linkClass = cn(
+    "block rounded-lg px-3 py-2.5 transition-colors hover:bg-[var(--mkt-accent-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+    "dark:hover:bg-zinc-700/70",
+  );
+
   return (
     <>
       <a
         href="/products"
-        className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5"
+        className={cn(linkClass, "text-sm font-semibold text-[var(--mkt-ink)] dark:text-zinc-200")}
         onClick={onNavigate}
       >
         All products
@@ -72,11 +77,11 @@ export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void
         <a
           key={p.slug}
           href={getMarketingProductPath(p.slug)}
-          className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-100 dark:hover:bg-white/5"
+          className={linkClass}
           onClick={onNavigate}
         >
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">{p.name}</span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">{p.description}</span>
+          <span className="text-sm font-semibold text-[var(--mkt-ink)] dark:text-zinc-200">{p.name}</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-[var(--mkt-ink-muted)]">{p.description}</span>
         </a>
       ))}
       <a

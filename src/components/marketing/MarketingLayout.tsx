@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { MarketingLandingFooter } from "@/components/marketing/MarketingLandingFooter";
-import { MKT_BODY, MKT_MUTED, MKT_NAV_ICON_BTN } from "@/lib/marketingUi";
+import {
+  MKT_TOP_BAR,
+  MKT_TOP_BAR_ICON_BTN,
+  MKT_TOP_BAR_LINK,
+  MKT_TOP_BAR_LINK_ACTIVE,
+  MKT_TOP_BAR_MOBILE_LINK,
+  MKT_TOP_BAR_THEME_TOGGLE,
+} from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
 import type { MarketingProductSlug } from "@/data/marketing-products";
 import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
@@ -12,11 +19,9 @@ type MarketingLayoutProps = {
   children: React.ReactNode;
   /** Highlight current product in nav when set */
   activeSlug?: MarketingProductSlug;
-  /** Landing uses the full multi-column footer; other pages use minimal */
-  footer?: "minimal" | "landing";
 };
 
-export function MarketingLayout({ children, activeSlug, footer = "minimal" }: MarketingLayoutProps) {
+export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
   const productCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -47,7 +52,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
         Skip to content
       </a>
 
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-[var(--mkt-border-subtle)] bg-[var(--mkt-surface-raised)]/95 backdrop-blur-xl">
+      <header className={cn("fixed left-0 right-0 top-0 z-50", MKT_TOP_BAR)}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-6">
             <a href="/" className="inline-flex flex-shrink-0 items-center">
@@ -59,7 +64,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
               <img
                 src="/rasvia-logo.png"
                 alt="Rasvia"
-                className="hidden h-9 w-auto dark:block dark:brightness-110 dark:contrast-100"
+                className="hidden h-9 w-auto dark:block dark:brightness-110"
               />
             </a>
 
@@ -72,10 +77,9 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
                 <a
                   href="/products"
                   className={cn(
-                    "flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
-                    productsOpen
-                      ? "bg-[var(--mkt-accent-bg)] text-[var(--mkt-ink)]"
-                      : "text-[var(--mkt-ink-muted)] hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)]",
+                    "flex items-center gap-1",
+                    MKT_TOP_BAR_LINK,
+                    productsOpen && MKT_TOP_BAR_LINK_ACTIVE,
                   )}
                   aria-expanded={productsOpen}
                 >
@@ -96,32 +100,20 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => scrollToLandingSection("products")}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              >
+              <button type="button" onClick={() => scrollToLandingSection("products")} className={MKT_TOP_BAR_LINK}>
                 Platform
               </button>
-              <button
-                type="button"
-                onClick={() => scrollToLandingSection("pricing")}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              >
+              <button type="button" onClick={() => scrollToLandingSection("pricing")} className={MKT_TOP_BAR_LINK}>
                 Pricing
               </button>
-              <button
-                type="button"
-                onClick={() => scrollToLandingSection("about")}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--mkt-ink-muted)] transition-colors hover:bg-[var(--mkt-accent-bg)] hover:text-[var(--mkt-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              >
+              <button type="button" onClick={() => scrollToLandingSection("about")} className={MKT_TOP_BAR_LINK}>
                 About
               </button>
             </nav>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeIconToggle className="hidden sm:inline-flex" />
+            <ThemeIconToggle className={cn("hidden sm:inline-flex", MKT_TOP_BAR_THEME_TOGGLE)} />
             <a
               href="/partner-portal"
               className="hidden rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-700 transition-colors hover:border-amber-600/60 hover:bg-amber-500/[0.18] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-amber-400/40 dark:bg-amber-500/[0.08] dark:text-amber-400 dark:hover:border-amber-400/60 dark:hover:bg-amber-500/[0.15] sm:inline-flex"
@@ -131,7 +123,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
-              className={cn(MKT_NAV_ICON_BTN, "md:hidden")}
+              className={cn(MKT_TOP_BAR_ICON_BTN, "md:hidden")}
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-controls="marketing-mobile-nav"
@@ -151,7 +143,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
           <div
             id="marketing-mobile-nav"
             className={cn(
-              "min-h-0 overflow-hidden border-t border-[var(--mkt-border-subtle)] bg-[var(--mkt-surface-raised)]/98 backdrop-blur-xl",
+              "min-h-0 overflow-hidden border-t border-[var(--mkt-border-subtle)] bg-white dark:border-white/10 dark:bg-zinc-900",
               !mobileOpen && "pointer-events-none",
             )}
           >
@@ -160,7 +152,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
               <ProductsNavMobileLinks onNavigate={() => setMobileOpen(false)} />
               <button
                 type="button"
-                className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-zinc-300 dark:hover:bg-white/5"
+                className={MKT_TOP_BAR_MOBILE_LINK}
                 onClick={() => {
                   setMobileOpen(false);
                   scrollToLandingSection("products");
@@ -170,7 +162,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
               </button>
               <button
                 type="button"
-                className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-zinc-300 dark:hover:bg-white/5"
+                className={MKT_TOP_BAR_MOBILE_LINK}
                 onClick={() => {
                   setMobileOpen(false);
                   scrollToLandingSection("pricing");
@@ -180,7 +172,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
               </button>
               <button
                 type="button"
-                className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-zinc-300 dark:hover:bg-white/5"
+                className={MKT_TOP_BAR_MOBILE_LINK}
                 onClick={() => {
                   setMobileOpen(false);
                   scrollToLandingSection("about");
@@ -188,10 +180,10 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
               >
                 About
               </button>
-              <div className="border-t border-zinc-200 pt-3 dark:border-white/10">
-                <p className="px-2 pb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Appearance</p>
+              <div className="border-t border-[var(--mkt-border-subtle)] pt-3 dark:border-white/10">
+                <p className="px-2 pb-2 text-sm font-medium text-[var(--mkt-ink-muted)] dark:text-zinc-300">Appearance</p>
                 <div className="px-2">
-                  <ThemeIconToggle />
+                  <ThemeIconToggle className={MKT_TOP_BAR_THEME_TOGGLE} />
                 </div>
               </div>
               <a
@@ -211,25 +203,7 @@ export function MarketingLayout({ children, activeSlug, footer = "minimal" }: Ma
         {children}
       </div>
 
-      {footer === "landing" ? (
-        <MarketingLandingFooter />
-      ) : (
-        <footer className="mt-16 border-t border-zinc-200/90 dark:border-white/[0.06]">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <a
-                href="/"
-                className={cn("text-sm font-medium transition-colors hover:text-zinc-900 dark:hover:text-white", MKT_BODY)}
-              >
-                ← Back to home
-              </a>
-              <p className={cn("text-sm", MKT_MUTED)}>
-                {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
-              </p>
-            </div>
-          </div>
-        </footer>
-      )}
+      <MarketingLandingFooter />
     </div>
   );
 }
