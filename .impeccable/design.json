@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "title": "Design System: Rasvia",
+  "extensions": {
+    "colorMeta": {
+      "operator-amber": {
+        "role": "primary",
+        "displayName": "Service Amber",
+        "canonical": "oklch(76% 0.16 75)",
+        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a"]
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Canvas Dark",
+        "canonical": "oklch(14% 0 0)",
+        "tonalRamp": ["#000000", "#050505", "#0a0a0a", "#171717", "#262626", "#404040", "#525252", "#737373"]
+      },
+      "canvas-light": {
+        "role": "neutral",
+        "displayName": "Canvas Light",
+        "canonical": "oklch(98% 0 0)",
+        "tonalRamp": ["#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#3f3f46"]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Surface Dark",
+        "canonical": "oklch(16% 0.005 285)",
+        "tonalRamp": ["#09090b", "#0f0f12", "#171719", "#1f1f23", "#27272a", "#3f3f46", "#52525b", "#71717a"]
+      },
+      "ink-primary": {
+        "role": "neutral",
+        "displayName": "Ink Primary",
+        "canonical": "oklch(21% 0.006 285)",
+        "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8"]
+      },
+      "light-ink": {
+        "role": "neutral",
+        "displayName": "Light Ink (slate remap)",
+        "canonical": "oklch(20% 0.02 250)",
+        "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing and product page heroes — one per viewport, weight 900."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Marketing section titles (h2)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, form help, dashboard detail — cap ~65ch in prose blocks."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-rest",
+        "value": "0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)",
+        "purpose": "shadcn Card default — do not pair with wide decorative shadow."
+      },
+      {
+        "name": "marketing-cta-glow",
+        "value": "0 8px 30px rgba(245,158,11,0.3)",
+        "purpose": "Primary marketing conversion buttons only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default color and opacity transitions."
+      },
+      {
+        "name": "duration-ui",
+        "value": "150ms",
+        "purpose": "Button and nav hover states."
+      },
+      {
+        "name": "duration-marketing",
+        "value": "300ms",
+        "purpose": "Marketing CTA shadow and transform emphasis."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "2xl", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Dashboard)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main save/continue actions in partner dashboard.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Save changes</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 32px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 14px; font-weight: 600; line-height: 1; color: #fffbeb; background: #92400e; border: none; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: #b45309; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 4px #f59e0b; }"
+    },
+    {
+      "name": "Primary Button (Marketing CTA)",
+      "kind": "button",
+      "refersTo": "button-marketing-cta",
+      "description": "Landing and product page conversion CTAs.",
+      "html": "<a class=\"ds-btn-marketing\" href=\"/support\">Get started</a>",
+      "css": ".ds-btn-marketing { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 14px; font-weight: 700; line-height: 1; color: #ffffff; text-decoration: none; background: linear-gradient(to right, #f59e0b, #f97316); border: none; border-radius: 12px; box-shadow: 0 8px 30px rgba(245,158,11,0.3); cursor: pointer; transition: box-shadow 300ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-marketing:hover { box-shadow: 0 10px 40px rgba(245,158,11,0.45); } .ds-btn-marketing:focus-visible { outline: none; box-shadow: 0 0 0 2px #fafafa, 0 0 0 4px #f59e0b; }"
+    },
+    {
+      "name": "Add Action Button",
+      "kind": "button",
+      "description": "Secondary amber outline for add/create actions in dashboard.",
+      "html": "<button class=\"ds-btn-add\" type=\"button\">+ Add item</button>",
+      "css": ".ds-btn-add { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #fef3c7; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-add:hover { background: rgba(245,158,11,0.2); } .ds-btn-add:focus-visible { outline: none; box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 4px #f59e0b; }"
+    },
+    {
+      "name": "Default Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Standard content container — dashboard panels and forms.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Today's orders</h3><p class=\"ds-card-body\">12 active · 3 preparing</p></div>",
+      "css": ".ds-card { padding: 24px; background: #171719; color: #f2f2f2; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: 'Bricolage Grotesque', system-ui, sans-serif; } .ds-card-title { margin: 0 0 8px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; } .ds-card-body { margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "description": "Standard form field — shadcn Input pattern.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Restaurant name\" aria-label=\"Restaurant name\" />",
+      "css": ".ds-input { display: flex; width: 100%; max-width: 320px; height: 36px; padding: 8px 12px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 14px; color: #f2f2f2; background: #0a0a0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #71717a; } .ds-input:focus-visible { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 1px #f59e0b; }"
+    },
+    {
+      "name": "Marketing Nav Link",
+      "kind": "nav",
+      "description": "Top nav item on marketing layout.",
+      "html": "<a class=\"ds-nav-link\" href=\"/products\">Products</a>",
+      "css": ".ds-nav-link { display: inline-flex; align-items: center; padding: 8px 12px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #52525b; text-decoration: none; border-radius: 8px; transition: color 150ms, background 150ms; } .ds-nav-link:hover { color: #18181b; background: rgba(24,24,27,0.06); } .ds-nav-link:focus-visible { outline: none; box-shadow: 0 0 0 2px #fafafa, 0 0 0 4px #f59e0b; }"
+    },
+    {
+      "name": "Order Status Pill",
+      "kind": "chip",
+      "description": "Operational status badge on order cards.",
+      "html": "<span class=\"ds-pill-preparing\">Preparing</span>",
+      "css": ".ds-pill-preparing { display: inline-flex; align-items: center; padding: 2px 8px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 10px; font-weight: 600; color: #38bdf8; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 9999px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Operator's Briefing",
+    "overview": "Rasvia looks like the interface a serious restaurant operator would trust at 4pm before dinner service: dark, legible, amber where action lives, no decorative noise. Marketing pages lead with the same voice as the partner dashboard — one brand, not a glossy landing site bolted onto a utilitarian admin panel.",
+    "keyCharacteristics": [
+      "Amber accent used sparingly for CTAs, badges, and operational emphasis — not as wallpaper",
+      "Zinc neutrals with hairline borders instead of heavy drop shadows",
+      "8px base radius; cards at 12px; marketing CTAs at 12–16px",
+      "shadcn/ui primitives extended with dashboard tokens in lib/dashboardUi.ts",
+      "Product mockups on marketing pages stay dark-themed inside their shells"
+    ],
+    "rules": [
+      {
+        "name": "The Compatibility Rule",
+        "body": "Light-theme slate remaps live only in index.css. Marketing uses marketingUi.ts zinc tokens.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Accent Rule",
+        "body": "Amber is the only brand chroma on marketing and dashboard chrome. Status colors appear only on operational badges.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tracking Floor Rule",
+        "body": "Display and headline letter-spacing never tighter than -0.04em.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Ghost-Card Rule",
+        "body": "Never combine border: 1px solid with a wide soft drop shadow (blur ≥16px) on the same element.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use amber for primary actions and operational emphasis only.",
+      "Do keep body copy at WCAG AA contrast.",
+      "Do use Bricolage Grotesque at weight 900 for marketing headlines with tracking ≥ -0.04em.",
+      "Do respect prefers-reduced-motion.",
+      "Do reuse DASH_* tokens from lib/dashboardUi.ts for dashboard actions.",
+      "Do show real product UI in marketing mockups."
+    ],
+    "donts": [
+      "Don't use generic SaaS landing patterns: cream/beige body backgrounds, small uppercase eyebrow kickers above every section, identical icon + heading + text card grids.",
+      "Don't add gradient text for headlines.",
+      "Don't use side-stripe borders on cards, alerts, or list items.",
+      "Don't exceed 16px border-radius on cards and sections.",
+      "Don't pair 1px borders with wide soft shadows on the same element.",
+      "Don't introduce numbered section markers unless the section is a genuine ordered sequence.",
+      "Don't use glassmorphism decoratively."
+    ]
+  }
+}

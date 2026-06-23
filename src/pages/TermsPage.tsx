@@ -4,7 +4,7 @@ export default function TermsPage() {
   return (
     <MarketingLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white">Terms of Service</h1>
+        <h1 className="text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Terms of Service</h1>
         <p className="mt-2 text-sm text-zinc-500 dark:text-neutral-500">Effective Date: March 1, 2026 &middot; Last Updated: March 26, 2026</p>
 
         <div className="mt-10 flex flex-col gap-10 leading-relaxed text-zinc-600 dark:text-neutral-400">

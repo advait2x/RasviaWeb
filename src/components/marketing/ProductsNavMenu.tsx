@@ -1,3 +1,4 @@
+import { MKT_PANEL } from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
 import {
   MARKETING_NAV_PRODUCTS,
@@ -22,17 +23,18 @@ export function ProductsNavDropdown({
   return (
     <div
       className={cn(
-        "absolute top-full z-50 mt-1 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900",
+        "absolute top-full z-50 mt-1 w-80",
         align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
         className,
       )}
     >
+      <div className={cn("mkt-dropdown-in overflow-hidden shadow-2xl", MKT_PANEL)}>
       {MARKETING_NAV_PRODUCTS.map((p) => (
         <a
           key={p.slug}
           href={getMarketingProductPath(p.slug)}
           className={cn(
-            "block px-4 py-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.05]",
+            "block px-4 py-3 transition-colors hover:bg-[var(--mkt-row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500",
             activeSlug === p.slug && "bg-amber-500/10 dark:bg-amber-500/10",
           )}
           onClick={onNavigate}
@@ -49,6 +51,7 @@ export function ProductsNavDropdown({
         >
           View all product pages →
         </a>
+      </div>
       </div>
     </div>
   );

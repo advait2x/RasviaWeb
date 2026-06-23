@@ -1,58 +1,77 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   Check,
+  ChefHat,
+  Clock,
+  Globe,
   Home,
   Leaf,
-  Menu,
-  Palette,
-  Plug,
   Plus,
+  QrCode,
+  ScanLine,
   Search,
   ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Star,
   UtensilsCrossed,
   User,
-  X,
 } from "lucide-react";
-import { DASH_PRIMARY_CTA } from "@/lib/dashboardUi";
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
+import {
+  MARKETING_NAV_PRODUCTS,
+  PRODUCT_PAGES,
+  getMarketingProductPath,
+  type MarketingProductSlug,
+} from "@/data/marketing-products";
+import {
+  MKT_ACCENT_INK,
+  MKT_AVATAR_FALLBACK,
+  MKT_BODY,
+  MKT_BODY_ON_DARK,
+  MKT_CTA_PRIMARY,
+  MKT_CTA_SECONDARY,
+  MKT_BTN_OUTLINE,
+  MKT_DISPLAY,
+  MKT_HEADING,
+  MKT_HERO_BADGE,
+  MKT_ICON_WELL,
+  MKT_LINK_ARROW,
+  MKT_MUTED,
+  MKT_PANEL,
+  MKT_PANEL_ACCENT,
+  MKT_PRODUCT_FEATURED_LINK,
+  MKT_PRODUCT_ROW_LINK,
+  MKT_SECTION_BAND,
+  MKT_TRUST,
+  mktLearnMoreClass,
+  mktPrimaryCtaClass,
+} from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
-import { ThemeIconToggle } from "@/components/ThemeToggle";
-import { MARKETING_NAV_PRODUCTS, getMarketingProductPath } from "@/data/marketing-products";
 import { scrollToLandingSection, useLandingHashScroll } from "@/lib/marketing-nav";
+import { useRevealOnce } from "@/hooks/useRevealOnce";
 
 // Lead-capture destination for every primary CTA on this page.
 const MOCKUP_CTA_HREF = "/support";
 
-// ──────────────────────────────────────────────────────
-// VALUE PROP PILLARS (GTM pivot: digital partner for independents)
-// ──────────────────────────────────────────────────────
+const FEATURED_PRODUCT_SLUGS = ["custom-app", "custom-website"] as const satisfies readonly MarketingProductSlug[];
 
-const PILLARS = [
-  {
-    icon: Palette,
-    title: "Custom App & Web Design",
-    tagline: "Built in days, not months.",
-    description:
-      "A beautiful, fully-branded mobile app and web storefront designed around your restaurant — not a generic template. Launched in days, not months.",
-  },
-  {
-    icon: Plug,
-    title: "Direct POS Integration",
-    tagline: "Works with the tools you already have.",
-    description:
-      "Orders route straight into your existing Toast, Clover, or Square. No new iPads to buy, no extra hardware, and no retraining your staff.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Zero Hidden Fees",
-    tagline: "Keep 100% of your margins.",
-    description:
-      "No per-order commissions and no surprise taxes passed to your customers. Just a flat setup fee and low monthly hosting.",
-  },
-] as const;
+const LANDING_PRODUCT_ICONS: Record<MarketingProductSlug, typeof Smartphone> = {
+  "custom-app": Smartphone,
+  "custom-website": Globe,
+  "waitlists-kiosk": Clock,
+  "tableside-qr": QrCode,
+  kitchen: ChefHat,
+  "menu-qr": ScanLine,
+  reports: BarChart3,
+};
+
+const SECONDARY_PRODUCT_SLUGS = MARKETING_NAV_PRODUCTS.filter(
+  (p) => p.slug !== "custom-app" && p.slug !== "custom-website",
+).map((p) => p.slug);
 
 // ──────────────────────────────────────────────────────
 // PRICING / FOUNDERS DATA
@@ -61,40 +80,40 @@ const PILLARS = [
 const PRICING_TIERS = [
   {
     name: "Storefront",
-    description: "A custom web storefront for direct, commission-free orders.",
+    description: "A branded web storefront for direct orders.",
     features: [
-      "Custom-branded web storefront",
-      "Live menu synced to your POS",
-      "Commission-free online ordering",
-      "QR code menu & ordering",
-      "Flat setup fee + low monthly hosting",
+      "Branded web storefront",
+      "Menu synced to your POS",
+      "Online ordering with no commission",
+      "QR menu and ordering",
+      "Flat setup fee plus monthly hosting",
       "Email support",
     ],
     highlighted: false,
   },
   {
     name: "App + Storefront",
-    description: "Your own mobile app and storefront — the full Rasvia experience.",
+    description: "Your own iOS and Android app plus the web storefront.",
     features: [
       "Everything in Storefront",
-      "Custom iOS & Android app, fully branded",
-      "Push notifications & one-tap reorder",
-      "Loyalty & repeat-customer tools",
-      "Direct Toast / Clover / Square integration",
-      "Live in days with priority onboarding",
+      "Custom iOS and Android app",
+      "Push notifications and one-tap reorder",
+      "Tools for repeat guests",
+      "Toast, Clover, and Square integration",
+      "Priority onboarding",
       "Priority support",
     ],
     highlighted: true,
   },
   {
     name: "Multi-Location",
-    description: "For owners running more than one location or concept.",
+    description: "For owners with more than one location or concept.",
     features: [
       "Everything in App + Storefront",
-      "Multiple locations & concepts",
-      "Dedicated design partner",
-      "Custom feature requests",
-      "White-glove menu migration",
+      "Multiple locations and concepts",
+      "Dedicated design help",
+      "Custom feature work",
+      "Menu migration support",
       "24/7 priority support",
     ],
     highlighted: false,
@@ -109,9 +128,8 @@ const FOUNDERS = [
   {
     name: "Rithwik Matta",
     role: "CTO & Co-Founder",
-    bio: "Computer science student at the University of Texas at Dallas interested in full stack development, machine learning, and cloud engineering.",
+    bio: "Computer science student at UT Dallas interested in full stack development, machine learning, and cloud engineering.",
     initials: "RM",
-    gradient: "from-violet-500 to-purple-600",
     imageSrc: null as string | null,
   },
   {
@@ -119,119 +137,16 @@ const FOUNDERS = [
     role: "CEO & Founder",
     bio: "Engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
     initials: "AS",
-    gradient: "from-amber-500 to-orange-600",
     imageSrc: null as string | null,
   },
   {
     name: "Akshaj Ande",
     role: "COO & Co-Founder",
-    bio: "Computer science student at the University of Texas at Dallas interested in data analytics and cloud infrastructure.",
+    bio: "Computer science student at UT Austin interested in data analytics and cloud infrastructure.",
     initials: "AA",
-    gradient: "from-emerald-500 to-teal-600",
     imageSrc: null as string | null,
   },
 ];
-
-// ──────────────────────────────────────────────────────
-// NAVBAR COMPONENT
-// ──────────────────────────────────────────────────────
-
-function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/80">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-6">
-          <a href="/" className="inline-flex flex-shrink-0 items-center">
-            <img
-              src="/rasvia-logo-transparent.png"
-              alt="Rasvia"
-              className="h-10 w-auto dark:hidden"
-            />
-            <img
-              src="/rasvia-logo.png"
-              alt="Rasvia"
-              className="hidden h-10 w-auto dark:block dark:brightness-110 dark:contrast-100"
-            />
-          </a>
-
-          <nav className="hidden items-center gap-1 md:flex">
-          {/* Pricing */}
-          <button
-            type="button"
-            onClick={() => scrollToLandingSection("pricing")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-          >
-            Pricing
-          </button>
-
-          {/* About */}
-          <button
-            type="button"
-            onClick={() => scrollToLandingSection("about")}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-          >
-            About
-          </button>
-          </nav>
-        </div>
-
-        {/* Right side */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <ThemeIconToggle className="hidden sm:inline-flex" />
-          <a
-            href="/partner-portal"
-            className="hidden rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-700 transition-all duration-300 hover:bg-amber-500/[0.18] hover:border-amber-600/60 hover:shadow-[0_0_16px_rgba(245,158,11,0.12)] dark:border-amber-400/40 dark:bg-amber-500/[0.08] dark:text-amber-400 dark:hover:border-amber-400/60 dark:hover:bg-amber-500/[0.15] dark:hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] sm:inline-flex"
-          >
-            Partner Portal
-          </a>
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="rounded-lg border border-zinc-200 p-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white md:hidden"
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="border-t border-zinc-200 bg-white/98 backdrop-blur-xl dark:border-white/[0.06] dark:bg-black/95 md:hidden">
-          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-6 py-4">
-            <div className="mb-2 flex items-center justify-between md:hidden">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Appearance</p>
-              <ThemeIconToggle />
-            </div>
-            <button
-              type="button"
-              onClick={() => { scrollToLandingSection("pricing"); setMobileOpen(false); }}
-              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
-            >
-              Pricing
-            </button>
-            <button
-              type="button"
-              onClick={() => { scrollToLandingSection("about"); setMobileOpen(false); }}
-              className="rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.05]"
-            >
-              About
-            </button>
-            <div className="my-2 h-px bg-zinc-200 dark:bg-white/[0.06]" />
-            <a
-              href="/partner-portal"
-              className="mt-1 block rounded-xl border border-amber-500/45 bg-amber-500/10 px-4 py-2.5 text-center text-sm font-semibold text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/[0.08] dark:text-amber-400"
-            >
-              Partner Portal
-            </a>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
 
 // ──────────────────────────────────────────────────────
 // CONSUMER APP PHONE MOCKUPS
@@ -350,9 +265,11 @@ function ScreenMenu() {
         {["Popular", "Tandoor", "Curries", "Biryani"].map((c, i) => (
           <span
             key={c}
-            className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[8px] font-bold ${
-              i === 0 ? "bg-amber-500 text-black" : "border border-white/10 bg-white/[0.03] text-zinc-400"
-            }`}
+            className={
+              i === 0
+                ? "whitespace-nowrap rounded-lg bg-amber-500 px-2.5 py-1 text-[8px] font-bold text-black"
+                : "whitespace-nowrap rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[8px] font-bold text-zinc-300"
+            }
           >
             {c}
           </span>
@@ -481,7 +398,7 @@ function ScreenCheckout() {
       <div className="mx-4 mt-2.5 flex items-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-2">
         <ShieldCheck size={12} className="shrink-0 text-emerald-400" />
         <p className="text-[8px] font-semibold leading-snug text-emerald-300">
-          0% commission — paid directly to the restaurant.
+          No commission. Payment goes straight to the restaurant.
         </p>
       </div>
 
@@ -505,23 +422,23 @@ export default function LandingPage() {
   const heroGlowRef = useRef<HTMLDivElement | null>(null);
   const glowPos = useRef({ x: 0, y: 0 });
   const glowTarget = useRef({ x: 0, y: 0 });
+  const { ref: foundersRef, revealed: foundersRevealed } = useRevealOnce<HTMLDivElement>();
 
   useLandingHashScroll();
 
   useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+
     let raf = 0;
     let cancelled = false;
-    // Track the cursor in viewport coords. The glow element is `fixed` at
-    // `top: 1/3` and `left: 50%`, with an initial `translate(-50%, -50%)`.
-    // So its centre rests at (50vw, 33vh). We shift it so its centre lands
-    // exactly on the cursor: offsetX = cursorX - 50vw, offsetY = cursorY - 33vh.
     const onMove = (e: MouseEvent) => {
       glowTarget.current = {
         x: e.clientX - window.innerWidth / 2,
         y: e.clientY - window.innerHeight / 3,
       };
     };
-    const lerp = 0.14; // higher = snappier catch-up while still smooth
+    const lerp = 0.14;
     const tick = () => {
       if (cancelled) return;
       glowPos.current.x += (glowTarget.current.x - glowPos.current.x) * lerp;
@@ -542,60 +459,67 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden bg-[var(--page-overscroll)] text-zinc-900 dark:text-zinc-100">
-      {/* Page-wide cursor glow - fixed so it tracks the mouse anywhere on the page */}
+    <MarketingLayout footer="landing">
+      <div className="relative w-full min-h-screen overflow-x-hidden">
       <div
         ref={heroGlowRef}
-        className="pointer-events-none fixed top-1/3 left-1/2 h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.1] will-change-transform [background:radial-gradient(ellipse_at_center,#EA580C_0%,transparent_70%)] dark:opacity-[0.07] dark:[background:radial-gradient(ellipse_at_center,#F59E0B_0%,transparent_70%)]"
+        className="pointer-events-none fixed top-1/3 left-1/2 hidden h-[700px] w-[min(1000px,100vw)] rounded-full opacity-[0.08] motion-safe:block [background:radial-gradient(ellipse_at_center,#EA580C_0%,transparent_70%)] dark:opacity-[0.06] dark:[background:radial-gradient(ellipse_at_center,#F59E0B_0%,transparent_70%)]"
         style={{
           zIndex: 0,
-          filter: "blur(70px)",
+          filter: "blur(48px)",
           transform: "translate(-50%, -50%)",
         }}
       />
 
-      <Navbar />
-
-      <div className="pt-[57px]">
       <main className="relative z-10 w-full py-12">
         {/* ── Hero ─────────────────────────────────────── */}
         <div className="mx-auto max-w-7xl px-6 relative overflow-hidden">
           <section className="relative grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/30 dark:text-amber-400">
-                <Star size={12} className="fill-amber-500 text-amber-500" />
-                The digital partner for independent restaurants
+              <span
+                className={cn("mkt-enter", MKT_HERO_BADGE)}
+                style={{ "--mkt-i": 0 } as React.CSSProperties}
+              >
+                <Star size={12} className="fill-amber-500 text-amber-500" aria-hidden />
+                Built for independent restaurants
               </span>
-              <h1 className="mt-4 text-4xl font-black tracking-tighter leading-[1.05] text-zinc-900 sm:text-5xl dark:text-white">
-                Stop Paying 30% to Delivery Apps.{" "}
-                <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                  Own Your Customers.
-                </span>
+              <h1
+                className={cn("mkt-enter mt-4 text-4xl leading-[1.05] sm:text-5xl text-balance", MKT_DISPLAY, MKT_HEADING)}
+                style={{ "--mkt-i": 1 } as React.CSSProperties}
+              >
+                Delivery apps take 30%.{" "}
+                <span className={MKT_ACCENT_INK}>Keep your customers.</span>
               </h1>
-              <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-neutral-400">
-                We build custom, zero-commission mobile apps and digital storefronts for independent,
-                high-volume restaurants. You keep 100% of your margins.
+              <p
+                className={cn("mkt-enter mt-5 max-w-xl text-lg leading-relaxed text-pretty", MKT_BODY)}
+                style={{ "--mkt-i": 2 } as React.CSSProperties}
+              >
+                We build branded mobile apps and web storefronts for independent restaurants.
+                No per-order commission. You keep the margin on every sale.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <a
-                  href={MOCKUP_CTA_HREF}
-                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.3)] transition-all duration-300 hover:shadow-[0_10px_40px_rgba(245,158,11,0.45)]"
-                >
-                  See a Free Mockup of Your App
-                  <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+              <div
+                className="mkt-enter mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"
+                style={{ "--mkt-i": 3 } as React.CSSProperties}
+              >
+                <a href={MOCKUP_CTA_HREF} className={mktPrimaryCtaClass()}>
+                  See a free mockup
+                  <ArrowRight size={16} className="transition-transform duration-200 ease-[var(--mkt-ease-out)] motion-safe:group-hover:translate-x-0.5" />
                 </a>
                 <button
                   type="button"
                   onClick={() => scrollToLandingSection("pricing")}
-                  className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white/70 px-6 py-3.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/15 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
+                  className={MKT_CTA_SECONDARY}
                 >
                   View pricing
                 </button>
               </div>
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-zinc-500 dark:text-zinc-500">
-                {["0% order commission", "Live in days", "Your brand, your data"].map((point) => (
+              <div
+                className={cn("mkt-enter mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium", MKT_MUTED)}
+                style={{ "--mkt-i": 4 } as React.CSSProperties}
+              >
+                {["No order commission", "Up in days", "Your brand, your guest list"].map((point) => (
                   <span key={point} className="inline-flex items-center gap-1.5">
-                    <Check size={14} className="text-emerald-500" />
+                    <Check size={14} className={MKT_TRUST} aria-hidden />
                     {point}
                   </span>
                 ))}
@@ -603,64 +527,119 @@ export default function LandingPage() {
             </div>
 
             {/* Consumer-app phone mockup (the product we build for them) */}
-            <div className="relative flex justify-center lg:justify-end">
-              <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-[420px] w-[420px] translate-y-8 rounded-full bg-amber-500/20 blur-[90px] dark:bg-amber-500/15" />
-              <PhoneFrame className="rotate-[1.5deg]">
-                <ScreenMenu />
-              </PhoneFrame>
+            <div
+              className="mkt-enter relative flex justify-center lg:justify-end"
+              style={{ "--mkt-i": 5 } as React.CSSProperties}
+            >
+              <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-[320px] w-[320px] translate-y-8 rounded-full bg-amber-500/15 blur-3xl motion-reduce:hidden dark:bg-amber-500/10" />
+              <div className="mkt-float">
+                <PhoneFrame className="rotate-[1.5deg]">
+                  <ScreenMenu />
+                </PhoneFrame>
+              </div>
             </div>
           </section>
         </div>
 
-        {/* ── Value Prop Pillars ───────────────────────── */}
-        <section className="mt-28 mx-auto max-w-7xl px-6">
-          <div className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">
-              Why restaurants switch
-            </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-              Your restaurant, your app, your customers
+        {/* ── Products ─────────────────────────────────── */}
+        <section id="products" className="mt-28 scroll-mt-24 md:scroll-mt-28" aria-labelledby="products-heading">
+          <div className={cn("py-14 md:py-16", MKT_SECTION_BAND)}>
+            <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-10 max-w-2xl">
+            <h2 id="products-heading" className={cn("text-3xl sm:text-4xl text-balance", MKT_DISPLAY, MKT_HEADING)}>
+              Start with your brand. Run the rest on the same system.
             </h2>
-            <p className="mt-3 max-w-2xl mx-auto text-zinc-600 dark:text-neutral-400">
-              Everything you need to take orders directly — without handing a third of every check to a
-              delivery middleman.
+            <p className={cn("mt-3 max-w-prose text-pretty", MKT_BODY)}>
+              Most owners begin with a custom app or website. Waitlists, table ordering, kitchen display,
+              menus, and reporting plug into the same live menu and order data.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {PILLARS.map((pillar) => (
-              <div
-                key={pillar.title}
-                className="group relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white/80 p-7 shadow-sm transition-all duration-300 hover:border-amber-500/40 hover:shadow-[0_8px_40px_rgba(245,158,11,0.1)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-amber-500/30"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-[0_4px_16px_rgba(245,158,11,0.3)]">
-                  <pillar.icon size={22} />
-                </div>
-                <h3 className="mt-5 text-lg font-bold text-zinc-900 dark:text-white">{pillar.title}</h3>
-                <p className="mt-1 text-sm font-semibold text-amber-700/90 dark:text-amber-400/80">
-                  {pillar.tagline}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-neutral-400">
-                  {pillar.description}
-                </p>
-              </div>
-            ))}
+          <div className="grid items-stretch gap-6 lg:grid-cols-2">
+            {FEATURED_PRODUCT_SLUGS.map((slug) => {
+              const nav = MARKETING_NAV_PRODUCTS.find((p) => p.slug === slug)!;
+              const page = PRODUCT_PAGES[slug];
+              const Icon = LANDING_PRODUCT_ICONS[slug];
+              return (
+                <a
+                  key={slug}
+                  href={getMarketingProductPath(slug)}
+                  aria-label={`${nav.name}. ${page.headline}`}
+                  className={cn("p-8 lg:p-10", MKT_PANEL_ACCENT, MKT_PRODUCT_FEATURED_LINK)}
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-600 text-white">
+                    <Icon size={22} aria-hidden />
+                  </div>
+                  <h3 className={cn("mt-5 text-xl font-bold text-balance sm:text-2xl", MKT_HEADING)}>
+                    {page.headline}
+                  </h3>
+                  <p className={cn("mt-3 flex-1 text-sm leading-relaxed text-pretty", MKT_BODY)}>{nav.description}</p>
+                  <span className={mktLearnMoreClass("mt-6")}>
+                    Learn more
+                    <ArrowRight
+                      size={16}
+                      className="transition-transform duration-200 ease-[var(--mkt-ease-out)] motion-safe:group-hover:translate-x-0.5"
+                      aria-hidden
+                    />
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+
+          <div className={cn("mt-8 overflow-hidden", MKT_PANEL)}>
+            {SECONDARY_PRODUCT_SLUGS.map((slug, index) => {
+              const nav = MARKETING_NAV_PRODUCTS.find((p) => p.slug === slug)!;
+              const Icon = LANDING_PRODUCT_ICONS[slug];
+              return (
+                <a
+                  key={slug}
+                  href={getMarketingProductPath(slug)}
+                  aria-label={`${nav.name}. ${nav.description}`}
+                  className={cn(
+                    MKT_PRODUCT_ROW_LINK,
+                    index > 0 && "border-t border-[var(--mkt-border-subtle)]",
+                  )}
+                >
+                  <span className={MKT_ICON_WELL}>
+                    <Icon size={20} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("block text-base font-bold", MKT_HEADING)}>{nav.name}</span>
+                    <span className={cn("mt-1 block text-sm leading-relaxed text-pretty", MKT_BODY)}>
+                      {nav.description}
+                    </span>
+                  </span>
+                  <ArrowRight
+                    size={18}
+                    className="mt-0.5 shrink-0 text-amber-600 opacity-70 transition-[opacity,transform] duration-200 ease-[var(--mkt-ease-out)] motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:opacity-100 dark:text-amber-400"
+                    aria-hidden
+                  />
+                </a>
+              );
+            })}
+          </div>
+
+          <div className="mt-8">
+            <a href="/products" className={MKT_LINK_ARROW}>
+              View all products
+              <ArrowRight size={16} aria-hidden />
+            </a>
+          </div>
+            </div>
           </div>
         </section>
 
-        {/* ── App Showcase (social proof) ──────────────── */}
+        {/* ── App Showcase ─────────────────────────────── */}
         <section className="mt-28 mx-auto max-w-7xl px-6">
-          <div className="overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-b from-zinc-900 to-black px-6 py-14 shadow-2xl sm:px-12">
-            <div className="mb-12 text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
-                The app your customers keep
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                A storefront they&apos;ll actually want to order from
+          <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900 to-black px-6 py-14 sm:px-12">
+            <div className="mb-12 max-w-2xl">
+              <h2 className={cn("text-3xl sm:text-4xl text-balance text-white", MKT_DISPLAY)}>
+                An app people will actually use
               </h2>
-              <p className="mt-3 max-w-2xl mx-auto text-neutral-400">
-                We design a polished, dark-mode app around your brand — beautiful menus, one-tap reorders,
-                and a checkout that sends money straight to you. No marketplace clutter. No commissions.
+              <p className={cn("mt-3 max-w-prose text-pretty", MKT_BODY_ON_DARK)}>
+                Clean layout. Easy menu browsing. One-tap reorder. Checkout pays you directly.
+                No marketplace listing. No commission.
               </p>
             </div>
 
@@ -683,12 +662,9 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-12 flex justify-center">
-              <a
-                href={MOCKUP_CTA_HREF}
-                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-[0_8px_30px_rgba(245,158,11,0.3)] transition-all duration-300 hover:shadow-[0_10px_40px_rgba(245,158,11,0.45)]"
-              >
-                See a Free Mockup of Your App
-                <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+              <a href={MOCKUP_CTA_HREF} className={mktPrimaryCtaClass()}>
+                See a free mockup
+                <ArrowRight size={16} className="transition-transform duration-200 ease-[var(--mkt-ease-out)] motion-safe:group-hover:translate-x-0.5" />
               </a>
             </div>
           </div>
@@ -696,181 +672,113 @@ export default function LandingPage() {
 
         {/* ── Pricing Section ──────────────────────────── */}
         <section id="pricing" className="mt-28 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">Pricing</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-              Flat fees. No commissions. Ever.
+          <div className="mb-10 max-w-2xl">
+            <h2 className={cn("text-3xl sm:text-4xl text-balance", MKT_DISPLAY, MKT_HEADING)}>
+              Flat fees. No commissions.
             </h2>
-            <p className="mt-3 max-w-xl mx-auto text-zinc-600 dark:text-neutral-400">
-              Every plan starts with a free app mockup — see your brand come to life before you commit.
+            <p className={cn("mt-3", MKT_BODY)}>
+              Every plan starts with a free mockup. See your brand before you commit.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {PRICING_TIERS.map((tier) => (
-              <div
-                key={tier.name}
-                className={`relative rounded-2xl border p-6 transition-all duration-300 ${
-                  tier.highlighted
-                    ? "border-amber-400/50 bg-gradient-to-b from-amber-500/[0.08] to-transparent shadow-[0_0_40px_rgba(245,158,11,0.12)] dark:border-amber-500/30 dark:from-amber-500/[0.04] dark:shadow-[0_0_60px_rgba(245,158,11,0.06)]"
-                    : "border-zinc-200/90 bg-white/80 shadow-sm hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-white/15"
-                }`}
-              >
-                {tier.highlighted && (
-                  <div
-                    className={cn(
-                      "absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-amber-800/30 px-3 py-0.5 text-[11px] font-bold dark:border-amber-400/40",
-                      DASH_PRIMARY_CTA,
-                    )}
-                  >
-                    Most Popular
+          {(() => {
+            const featured = PRICING_TIERS.find((t) => t.highlighted) ?? PRICING_TIERS[1];
+            const others = PRICING_TIERS.filter((t) => t !== featured);
+            return (
+              <>
+                <div className={cn("p-8 lg:p-10", MKT_PANEL_ACCENT)}>
+                  <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-md shrink-0">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Where most owners start</p>
+                      <h3 className={cn("mt-2 text-2xl font-bold", MKT_HEADING)}>{featured.name}</h3>
+                      <p className={cn("mt-2 text-pretty", MKT_BODY)}>{featured.description}</p>
+                      <p className={cn("mt-6 text-2xl sm:text-3xl", MKT_DISPLAY, MKT_HEADING)}>Contact for pricing</p>
+                      <a href={MOCKUP_CTA_HREF} className={cn("mt-6 inline-flex", MKT_CTA_PRIMARY)}>
+                        See a free mockup
+                        <ArrowRight size={16} className="transition-transform duration-200 ease-[var(--mkt-ease-out)] motion-safe:group-hover:translate-x-0.5" />
+                      </a>
+                    </div>
+                    <ul className="grid flex-1 gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:max-w-xl">
+                      {featured.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2.5">
+                          <Check size={14} className={cn("mt-0.5 shrink-0", MKT_TRUST)} aria-hidden />
+                          <span className={cn("text-sm", MKT_BODY)}>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                )}
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{tier.name}</h3>
-                <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-500">{tier.description}</p>
-                <div className="mt-5">
-                  <span className="text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
-                    Contact for Pricing
-                  </span>
                 </div>
-                <a
-                  href={MOCKUP_CTA_HREF}
-                  className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-bold transition-all duration-300 ${
-                    tier.highlighted
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.35)]"
-                      : "border border-zinc-200 bg-zinc-50 text-zinc-800 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08] dark:hover:border-white/20"
-                  }`}
-                >
-                  Get a Free Mockup
-                </a>
-                <ul className="mt-6 flex flex-col gap-2.5">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5">
-                      <Check
-                        size={14}
-                        className={`mt-0.5 flex-shrink-0 ${
-                          tier.highlighted ? "text-amber-600 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-600"
-                        }`}
-                      />
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">{feature}</span>
-                    </li>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {others.map((tier) => (
+                    <div
+                      key={tier.name}
+                      className={cn("flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between", MKT_PANEL)}
+                    >
+                      <div className="min-w-0">
+                        <h3 className={cn("text-lg font-bold", MKT_HEADING)}>{tier.name}</h3>
+                        <p className={cn("mt-1 text-sm text-pretty", MKT_BODY)}>{tier.description}</p>
+                      </div>
+                      <a href={MOCKUP_CTA_HREF} className={MKT_BTN_OUTLINE}>
+                        See a mockup
+                      </a>
+                    </div>
                   ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+                </div>
+              </>
+            );
+          })()}
         </section>
 
         {/* ── About Section ────────────────────────────── */}
         <section id="about" className="mt-28 mx-auto max-w-7xl px-6 scroll-mt-24 md:scroll-mt-28">
-          <div className="text-center mb-14">
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600/90 dark:text-amber-400/80">About</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
+          <div className="mb-14 max-w-2xl">
+            <h2 className={cn("text-3xl sm:text-4xl text-balance", MKT_DISPLAY, MKT_HEADING)}>
               Our Mission
             </h2>
-            <p className="mt-4 max-w-2xl mx-auto text-lg leading-relaxed text-zinc-600 dark:text-neutral-400">
-              We believe independent restaurants shouldn&apos;t have to hand 30% of every order to third-party
-              delivery apps. Rasvia gives mom-and-pop restaurants the same custom apps, direct ordering, and
-              guest relationships that national chains spend millions to build — so you own your customers,
-              your data, and your margins.
+            <p className={cn("mt-4 text-lg leading-relaxed text-pretty", MKT_BODY)}>
+              Delivery apps charge too much. Independent restaurants deserve the same direct ordering
+              tools big chains already have. Custom app. Your guest list. Your data.
             </p>
           </div>
 
           <div>
-            <p className="text-center text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-8">Meet the Founders</p>
-            <div className="grid gap-8 md:grid-cols-3">
-              {FOUNDERS.map((founder) => (
+            <h3 className={cn("mb-8 text-xl font-bold", MKT_HEADING)}>Meet the founders</h3>
+            <div ref={foundersRef} className="grid gap-8 md:grid-cols-3">
+              {FOUNDERS.map((founder, index) => (
                 <div
                   key={founder.name}
-                  className="group rounded-2xl border border-zinc-200/90 bg-white/80 p-6 text-center shadow-sm transition-all duration-300 hover:border-zinc-300 hover:bg-white dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none dark:hover:border-white/15 dark:hover:bg-zinc-900/60"
+                  className={cn(
+                    "p-6 text-center transition-[border-color,transform] duration-200 ease-[var(--mkt-ease-out)] hover:border-[var(--mkt-accent-border)] motion-safe:hover:-translate-y-0.5",
+                    MKT_PANEL,
+                    foundersRevealed && "mkt-enter",
+                  )}
+                  style={foundersRevealed ? ({ "--mkt-i": index } as React.CSSProperties) : undefined}
                 >
                   <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full">
                     {founder.imageSrc ? (
-                      <img src={founder.imageSrc} alt={founder.name} className="h-full w-full object-cover" />
+                      <img
+                        src={founder.imageSrc}
+                        alt={founder.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${founder.gradient}`}>
-                        <span className="text-2xl font-black text-white/90">{founder.initials}</span>
+                      <div className={MKT_AVATAR_FALLBACK}>
+                        <span className="text-2xl font-black text-zinc-200">{founder.initials}</span>
                       </div>
                     )}
                   </div>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{founder.name}</h3>
-                  <p className="mt-1 text-sm font-medium text-amber-700/90 dark:text-amber-400/70">{founder.role}</p>
-                  <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">{founder.bio}</p>
+                  <h3 className={cn("text-lg font-bold", MKT_HEADING)}>{founder.name}</h3>
+                  <p className="mt-1 text-sm font-medium text-amber-700 dark:text-amber-400">{founder.role}</p>
+                  <p className={cn("mt-3 text-sm leading-relaxed", MKT_BODY)}>{founder.bio}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
       </main>
-
-      <footer className="mt-24 border-t border-zinc-200/90 dark:border-white/[0.06]">
-        <div className="mx-auto max-w-7xl px-6 pt-16 pb-8">
-          <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
-              <img src="/rasvia-logo-transparent.png" alt="Rasvia" className="h-7 w-auto dark:hidden" />
-              <img
-                src="/rasvia-logo.png"
-                alt="Rasvia"
-                className="hidden h-7 w-auto dark:block dark:brightness-110"
-              />
-              <p className="mt-2 max-w-[200px] text-sm leading-relaxed text-zinc-600 dark:text-neutral-500">
-                Custom apps for independent restaurants. Own your customers.
-              </p>
-            </div>
-
-            {/* Product */}
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Product</p>
-              <ul className="mt-4 flex flex-col gap-3">
-                {MARKETING_NAV_PRODUCTS.map((item) => (
-                  <li key={item.slug}>
-                    <a
-                      href={getMarketingProductPath(item.slug)}
-                      className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white"
-                    >
-                      {item.footerLabel ?? item.name}
-                    </a>
-                  </li>
-                ))}
-                <li>
-                  <button type="button" onClick={() => scrollToLandingSection("pricing")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">
-                    Pricing
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* About */}
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">About</p>
-              <ul className="mt-4 flex flex-col gap-3">
-                <li><button type="button" onClick={() => scrollToLandingSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Our Mission</button></li>
-                <li><button type="button" onClick={() => scrollToLandingSection("about")} className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Team</button></li>
-                <li><a href="/support" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Contact Support</a></li>
-                <li><a href="/partner-portal" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Partner Login</a></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Legal</p>
-              <ul className="mt-4 flex flex-col gap-3">
-                <li><a href="/privacy" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Privacy Policy</a></li>
-                <li><a href="/terms" className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-neutral-500 dark:hover:text-white">Terms of Service</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200/90 pt-8 dark:border-white/[0.06]">
-            <p className="text-sm text-zinc-500 dark:text-neutral-600">
-              {new Date().getFullYear()} Rasvia, Inc. Rasvia™ is a trademark of Rasvia, Inc.
-            </p>
-            <p className="text-xs text-zinc-400 dark:text-neutral-700">Built with care for the restaurant industry.</p>
-          </div>
-        </div>
-      </footer>
       </div>
-    </div>
+    </MarketingLayout>
   );
 }

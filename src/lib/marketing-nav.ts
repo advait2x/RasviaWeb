@@ -26,7 +26,7 @@ export function scrollToLandingSectionInPlace(id: string) {
   window.scrollTo({ top, behavior: "smooth" });
 }
 
-const LANDING_HASH_SECTIONS = new Set(["pricing", "about"]);
+const LANDING_HASH_SECTIONS = new Set(["products", "pricing", "about"]);
 
 /** Extra scroll offset per section (negative = scroll further, less space above). */
 const LANDING_SECTION_SCROLL_EXTRA: Partial<Record<string, number>> = {
