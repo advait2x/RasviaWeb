@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Menu, ShoppingBag, User, X } from "lucide-react";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
+import { CloveThemeSwitcher } from "@/clove/components/CloveThemeSwitcher";
 import { CLOVE_TABS, CLOVE_NAME, type CloveTabId } from "@/clove/data";
 
 export function CloveNav({
@@ -50,8 +51,10 @@ export function CloveNav({
           </nav>
         </div>
 
-        {/* Right: cart + profile */}
+        {/* Right: theme switcher + cart + profile */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <CloveThemeSwitcher className="flex-shrink-0" />
+
           <button
             type="button"
             onClick={onOpenCart}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CloveAuthProvider } from "@/clove/CloveAuthContext";
 import { CloveCartProvider, useCloveCart } from "@/clove/CloveCartContext";
+import { CloveThemeProvider, useCloveTheme } from "@/clove/CloveThemeContext";
 import { CloveNav } from "@/clove/components/CloveNav";
 import { CloveFooter } from "@/clove/components/CloveFooter";
 import { CartDrawer } from "@/clove/components/CartDrawer";
@@ -88,6 +89,7 @@ function useClovePageMeta(activeTab: CloveTabId) {
 
 function CloveDiningShell() {
   const { itemCount } = useCloveCart();
+  const { cssVars } = useCloveTheme();
   const [activeTab, setActiveTab] = useState<CloveTabId>(() =>
     pathToTab(window.location.pathname),
   );
@@ -114,7 +116,7 @@ function CloveDiningShell() {
   }, []);
 
   return (
-    <div className="clove-scope min-h-screen bg-background text-foreground">
+    <div className="clove-scope min-h-screen bg-background text-foreground" style={cssVars}>
       <div className="relative z-10">
         <CloveNav
           activeTab={activeTab}
@@ -128,7 +130,7 @@ function CloveDiningShell() {
           {activeTab === "home" ? <HomeTab onNavigate={navigate} /> : null}
           {activeTab === "about" ? <AboutTab /> : null}
           {activeTab === "menu" ? <MenuTab /> : null}
-          {activeTab === "catering" ? <CateringTab /> : null}
+          {activeTab === "catering" ? <CateringTab onNavigate={navigate} /> : null}
           {activeTab === "contact" ? <ContactTab /> : null}
         </main>
 
@@ -154,7 +156,9 @@ export default function CloveDiningApp() {
   return (
     <CloveAuthProvider>
       <CloveCartProvider>
-        <CloveDiningShell />
+        <CloveThemeProvider>
+          <CloveDiningShell />
+        </CloveThemeProvider>
       </CloveCartProvider>
     </CloveAuthProvider>
   );

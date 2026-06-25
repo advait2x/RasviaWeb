@@ -406,3 +406,28 @@ For tax to work correctly:
 4. `platform_fee_bps` defaults to 0 (no platform take). Update per-restaurant
    as needed.
 5. Deploy all edge functions and run the migration.
+
+## Clove microsite multi-theme system (June 2026)
+
+The `/clove-dining` template now ships a **theme preset registry** so the same
+structure re-skins per client. Key files in `src/clove/`:
+
+- `themes.ts` — `CLOVE_THEMES` registry (5 presets: `clove-teal` default,
+  `saffron-royale`, `coastal-spice`, `midnight-ember`, `rose-cardamom`). Each
+  preset has full `dark` + `light` HSL token sets. `tokensToCssVars()` maps a
+  token set onto the CSS custom properties consumed by `.clove-scope`
+  (`--primary`, `--background`, …, plus `--clove-saffron` ← `highlight`).
+- `CloveThemeContext.tsx` — `CloveThemeProvider` / `useCloveTheme`. Persists the
+  active preset to `localStorage` (`clove:theme:v1`), reads the resolved
+  light/dark mode from the global `useTheme()`, and exposes `cssVars` for the
+  active preset+mode. `CloveDiningShell` spreads `cssVars` as inline style on the
+  `.clove-scope` div (inline custom props override the static `index.css`
+  defaults; default `clove-teal` matches the existing CSS exactly).
+- `components/CloveThemeSwitcher.tsx` — palette dropdown in `CloveNav` (right
+  side) for live demo switching.
+- To add a preset: append to `CLOVE_THEMES` (dark+light token sets). No CSS edits
+  needed — everything flows through the inline-var bridge.
+
+The **Catering tab** (`tabs/CateringTab.tsx`) is now a real page (intro, hero
+slideshow, packages grid, how-it-works steps, CTA → contact). Copy lives in
+`data.ts` (`CLOVE_CATERING_*`). It takes an `onNavigate` prop like `HomeTab`.

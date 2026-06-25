@@ -86,3 +86,42 @@ export const CLOVE_HOME_MENU_BLURB =
 
 export const CLOVE_HOME_CATERING_BLURB =
   "Hosting a celebration? Clove Dining brings the feast to you — generous platters, live counters, and crowd-favorite classics scaled for any gathering.";
+
+/* ── Catering page content ──────────────────────────────────── */
+export const CLOVE_CATERING_INTRO =
+  "From intimate dinner parties to 300-guest celebrations, Clove Dining brings the warmth of our kitchen to your event. Every menu is built with you — seasonal, fully customizable, and crafted from house-ground spices.";
+
+export const CLOVE_CATERING_PACKAGES: { title: string; description: string }[] = [
+  {
+    title: "Office & Corporate",
+    description:
+      "Boxed thalis and warming buffet trays delivered on schedule — perfect for team lunches, launches, and working dinners.",
+  },
+  {
+    title: "Weddings & Celebrations",
+    description:
+      "Multi-course feasts with live tandoor and chaat counters, designed around your traditions and your guest count.",
+  },
+  {
+    title: "Private Chef Experiences",
+    description:
+      "An at-home tasting menu plated by our chefs — a full restaurant evening without leaving your living room.",
+  },
+];
+
+export const CLOVE_CATERING_STEPS: { title: string; description: string }[] = [
+  {
+    title: "Tell us about your event",
+    description: "Share your date, headcount, and any dietary needs through our contact form.",
+  },
+  {
+    title: "Build your menu",
+    description: "We propose a balanced spread, then fine-tune every dish together until it is yours.",
+  },
+  {
+    title: "We handle the rest",
+    description: "Delivery, setup, and live counters — your guests just show up hungry.",
+  },
+];
+
+export const CLOVE_CATERING_MIN_NOTICE = "48 hours";
