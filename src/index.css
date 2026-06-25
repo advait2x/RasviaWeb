@@ -50,6 +50,31 @@
     --input: 0 0% 100% / 0.1;
     --ring: 38 92% 50%;
 
+    /* Marketing motion — ease-out expo / quart per DESIGN.md */
+    --mkt-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --mkt-ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --mkt-duration-fast: 150ms;
+    --mkt-duration-normal: 250ms;
+    --mkt-duration-enter: 600ms;
+
+    /* Marketing palette — amber-tinted neutrals (dark default) */
+    --mkt-ink: oklch(0.97 0.008 85);
+    --mkt-ink-muted: oklch(0.72 0.02 75);
+    --mkt-ink-on-dark: oklch(0.97 0.008 85);
+    --mkt-body-on-dark: oklch(0.82 0.015 75);
+    --mkt-canvas: oklch(0.13 0.012 70);
+    --mkt-section-alt: oklch(0.16 0.018 68);
+    --mkt-surface-raised: oklch(0.2 0.014 70 / 0.42);
+    --mkt-border: oklch(1 0 0 / 0.1);
+    --mkt-border-subtle: oklch(1 0 0 / 0.06);
+    --mkt-accent-bg: oklch(0.72 0.14 68 / 0.07);
+    --mkt-accent-bg-strong: oklch(0.72 0.14 68 / 0.11);
+    --mkt-accent-border: oklch(0.72 0.14 68 / 0.32);
+    --mkt-row-hover: oklch(0.72 0.1 68 / 0.08);
+    --mkt-trust: oklch(0.72 0.15 155);
+
+    --page-overscroll: var(--mkt-canvas);
+
     --radius: 0.5rem;
 
     --sidebar-background: 240 5% 6%;
@@ -62,8 +87,6 @@
     --sidebar-ring: 38 92% 50%;
     --ambient-spot-1: rgba(255, 255, 255, 0.04);
     --ambient-spot-2: rgba(255, 255, 255, 0.03);
-    /* Rubber-band / overscroll canvas — matches marketing shells (zinc-50 / #050505) */
-    --page-overscroll: #050505;
   }
 
   :root[data-theme="light"] {
@@ -105,7 +128,22 @@
     --sidebar-ring: 31 96% 50%;
     --ambient-spot-1: rgba(15, 23, 42, 0.06);
     --ambient-spot-2: rgba(15, 23, 42, 0.045);
-    --page-overscroll: #fafafa;
+  /* Marketing palette — amber-tinted neutrals (light) */
+    --mkt-ink: oklch(0.22 0.012 70);
+    --mkt-ink-muted: oklch(0.46 0.022 70);
+    --mkt-ink-on-dark: oklch(0.97 0.008 85);
+    --mkt-body-on-dark: oklch(0.82 0.015 75);
+    --mkt-canvas: oklch(0.988 0.005 85);
+    --mkt-section-alt: oklch(0.962 0.022 74);
+    --mkt-surface-raised: oklch(1 0.006 85 / 0.88);
+    --mkt-border: oklch(0.86 0.016 72 / 0.55);
+    --mkt-border-subtle: oklch(0.86 0.016 72 / 0.35);
+    --mkt-accent-bg: oklch(0.97 0.035 75);
+    --mkt-accent-bg-strong: oklch(0.94 0.055 72);
+    --mkt-accent-border: oklch(0.68 0.14 65 / 0.45);
+    --mkt-row-hover: oklch(0.97 0.028 74);
+    --mkt-trust: oklch(0.52 0.14 155);
+    --page-overscroll: var(--mkt-canvas);
   }
 }
 
@@ -191,6 +229,19 @@
   .clove-scope .bg-clove-saffron {
     background-color: hsl(var(--clove-saffron));
     color: hsl(var(--clove-saffron-fg));
+  }
+
+  /* Home tab — scale entire page content down 10% */
+  .clove-scope .clove-home-compact {
+    zoom: 0.9;
+  }
+  @supports not (zoom: 1) {
+    .clove-scope .clove-home-compact {
+      transform: scale(0.9);
+      transform-origin: top center;
+      width: 111.111%;
+      margin-left: -5.555%;
+    }
   }
 }
 
@@ -286,9 +337,97 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* Smooth transitions */
+/* Smooth transitions — specific properties only (not layout) */
 button, a, input, textarea, select {
-  transition: all 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+/* ── Marketing motion (landing + nav) ───────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkt-enter {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes mkt-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes mkt-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes mkt-dropdown-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .mkt-enter {
+    animation: mkt-enter var(--mkt-duration-enter) var(--mkt-ease-expo) both;
+    animation-delay: calc(var(--mkt-i, 0) * 60ms);
+  }
+
+  .mkt-float {
+    animation: mkt-float 5.5s ease-in-out infinite;
+    animation-delay: calc(var(--mkt-i, 0) * 60ms + 400ms);
+  }
+
+  .mkt-menu-in {
+    animation: mkt-menu-in var(--mkt-duration-normal) var(--mkt-ease-out) both;
+  }
+
+  .mkt-dropdown-in {
+    animation: mkt-dropdown-in 220ms var(--mkt-ease-out) both;
+    transform-origin: top center;
+  }
+
+  .mkt-section-band {
+    background-color: var(--mkt-section-alt);
+    border-top: 1px solid var(--mkt-border-subtle);
+    border-bottom: 1px solid var(--mkt-border-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .theme-ready *,
@@ -382,6 +521,24 @@ button, a, input, textarea, select {
 }
 :root[data-theme="light"] button.hover-red-override:hover * {
   color: #ffffff !important;
+}
+
+/* Marketing top bar hovers — light-theme zinc wildcards match dark:bg-zinc-* in class strings and block Tailwind hovers */
+:root[data-theme="light"] .mkt-top-bar-interactive:hover {
+  background-color: #fef3c7 !important;
+}
+
+:root[data-theme="light"] .mkt-top-bar-interactive--active {
+  background-color: #fef3c7 !important;
+}
+
+:root[data-theme="dark"] .mkt-top-bar-interactive {
+  background-color: rgba(39, 39, 42, 0.55);
+}
+
+:root[data-theme="dark"] .mkt-top-bar-interactive:hover,
+:root[data-theme="dark"] .mkt-top-bar-interactive--active {
+  background-color: #3f3f46 !important;
 }
 
 /* Instant theme swap — avoids animating thousands of descendant color transitions */

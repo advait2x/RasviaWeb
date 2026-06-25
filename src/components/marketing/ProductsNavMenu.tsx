@@ -1,3 +1,4 @@
+import { MKT_NAV_DROPDOWN } from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
 import {
   MARKETING_NAV_PRODUCTS,
@@ -22,17 +23,18 @@ export function ProductsNavDropdown({
   return (
     <div
       className={cn(
-        "absolute top-full z-50 mt-1 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900",
+        "absolute top-full z-50 mt-1 w-80",
         align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
         className,
       )}
     >
+      <div className={cn("mkt-dropdown-in overflow-hidden shadow-2xl", MKT_NAV_DROPDOWN)}>
       {MARKETING_NAV_PRODUCTS.map((p) => (
         <a
           key={p.slug}
           href={getMarketingProductPath(p.slug)}
           className={cn(
-            "block px-4 py-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.05]",
+            "block px-4 py-3 transition-colors hover:bg-[var(--mkt-row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500",
             activeSlug === p.slug && "bg-amber-500/10 dark:bg-amber-500/10",
           )}
           onClick={onNavigate}
@@ -50,39 +52,38 @@ export function ProductsNavDropdown({
           View all product pages →
         </a>
       </div>
+      </div>
     </div>
   );
 }
 
 export function ProductsNavMobileLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const linkClass = cn(
+    "mkt-top-bar-interactive block rounded-lg px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+    "dark:hover:bg-[#3f3f46]",
+  );
+
   return (
     <>
       <a
         href="/products"
-        className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5"
+        className="mkt-top-bar-interactive block rounded-lg px-3 py-2.5 text-sm font-semibold text-amber-700 transition-colors dark:text-amber-400"
         onClick={onNavigate}
       >
-        All products
+        View all products →
       </a>
       <p className="px-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">By product</p>
       {MARKETING_NAV_PRODUCTS.map((p) => (
         <a
           key={p.slug}
           href={getMarketingProductPath(p.slug)}
-          className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-100 dark:hover:bg-white/5"
+          className={linkClass}
           onClick={onNavigate}
         >
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">{p.name}</span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">{p.description}</span>
+          <span className="text-sm font-semibold text-[var(--mkt-ink)] dark:text-zinc-200">{p.name}</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-[var(--mkt-ink-muted)]">{p.description}</span>
         </a>
       ))}
-      <a
-        href="/products"
-        className="block rounded-lg px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400"
-        onClick={onNavigate}
-      >
-        View all product pages →
-      </a>
     </>
   );
 }

@@ -9,9 +9,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCloveCart } from "@/clove/CloveCartContext";
+import { useCloveCart, type CloveCartLine } from "@/clove/CloveCartContext";
 import { useCloveAuth } from "@/clove/CloveAuthContext";
+import { CartInlineConfirm } from "@/clove/components/CartInlineConfirm";
 import { MenuItemNoImage } from "@/clove/components/MenuItemNoImage";
+import { SpiceIndicator } from "@/clove/components/SpiceIndicator";
 import { formatPrice } from "@/clove/lib/menu";
 import { buildPromoAppliedMessage } from "@/clove/data";
 
@@ -42,18 +44,30 @@ export function CartDrawer({
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{
+    line: CloveCartLine;
+    anchor: "trash" | "minus";
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) {
       setPlaced(false);
       setPromoError(null);
+      setPendingRemove(null);
     }
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (pendingRemove) {
+        setPendingRemove(null);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -62,7 +76,7 @@ export function CartDrawer({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open, onClose, pendingRemove]);
 
   if (!open) return null;
 
@@ -82,20 +96,51 @@ export function CartDrawer({
     setPlaced(true);
   }
 
+  function requestRemove(
+    line: CloveCartLine,
+    anchor: "trash" | "minus",
+    e: React.MouseEvent,
+  ) {
+    setPendingRemove({ line, anchor, x: e.clientX, y: e.clientY });
+  }
+
+  function confirmRemove() {
+    if (pendingRemove) {
+      removeItem(pendingRemove.line.lineKey);
+      setPendingRemove(null);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-[100] flex justify-end"
       style={{ backgroundColor: "rgba(15, 23, 42, 0.55)" }}
-      onClick={onClose}
+      onClick={() => {
+        if (pendingRemove) {
+          setPendingRemove(null);
+          return;
+        }
+        onClose();
+      }}
       role="presentation"
     >
       <div
-        className="flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-2xl"
+        className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Your cart"
       >
+        {pendingRemove ? (
+          <CartInlineConfirm
+            itemName={pendingRemove.line.name}
+            x={pendingRemove.x}
+            y={pendingRemove.y}
+            onConfirm={confirmRemove}
+            onCancel={() => setPendingRemove(null)}
+          />
+        ) : null}
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
@@ -131,8 +176,7 @@ export function CartDrawer({
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               This is a demonstration checkout — no real order was submitted and no
-              payment was taken. Download the Rasvia app to place real orders and earn
-              rewards.
+              payment was taken.
             </p>
             <button
               type="button"
@@ -156,60 +200,64 @@ export function CartDrawer({
           </div>
         ) : (
           <>
-            {/* Line items */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <ul className="flex flex-col gap-3">
                 {lines.map((line) => (
                   <li
-                    key={line.id}
+                    key={line.lineKey}
                     className="flex gap-3 rounded-2xl border border-border bg-background p-3"
                   >
-                    <MenuItemNoImage className="h-16 w-16 rounded-xl border border-border" compact />
+                    <MenuItemNoImage className="h-16 w-16 shrink-0 rounded-xl border border-border" compact />
                     <div className="flex min-w-0 flex-1 flex-col">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="truncate text-sm font-bold text-foreground">{line.name}</p>
+                      <p className="truncate text-sm font-bold text-foreground">{line.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatPrice(line.price)} each</p>
+                      {line.spicyLevel > 0 ? (
+                        <div className="mt-1">
+                          <SpiceIndicator level={line.spicyLevel} variant="pill" size="sm" />
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col items-end justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => requestRemove(line, "trash", e)}
+                        aria-label={`Remove ${line.name}`}
+                        className="text-muted-foreground transition-colors hover:text-destructive"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => removeItem(line.id)}
-                          aria-label={`Remove ${line.name}`}
-                          className="text-muted-foreground transition-colors hover:text-destructive"
+                          onClick={(e) => {
+                            if (line.qty <= 1) requestRemove(line, "minus", e);
+                            else setQty(line.lineKey, line.qty - 1);
+                          }}
+                          aria-label="Decrease quantity"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-secondary"
                         >
-                          <Trash2 size={15} />
+                          <Minus size={11} />
+                        </button>
+                        <span className="w-5 text-center text-xs font-bold tabular-nums text-foreground">
+                          {line.qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setQty(line.lineKey, line.qty + 1)}
+                          aria-label="Increase quantity"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-secondary"
+                        >
+                          <Plus size={11} />
                         </button>
                       </div>
-                      <p className="text-xs text-muted-foreground">{formatPrice(line.price)} each</p>
-                      <div className="mt-auto flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setQty(line.id, line.qty - 1)}
-                            aria-label="Decrease quantity"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-secondary"
-                          >
-                            <Minus size={13} />
-                          </button>
-                          <span className="w-6 text-center text-sm font-bold tabular-nums text-foreground">
-                            {line.qty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setQty(line.id, line.qty + 1)}
-                            aria-label="Increase quantity"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-secondary"
-                          >
-                            <Plus size={13} />
-                          </button>
-                        </div>
-                        <span className="text-sm font-black text-foreground">
-                          {formatPrice(line.price * line.qty)}
-                        </span>
-                      </div>
+                      <span className="text-sm font-black text-foreground">
+                        {formatPrice(line.price * line.qty)}
+                      </span>
                     </div>
                   </li>
                 ))}
               </ul>
 
-              {/* Rewards (logged-in only) */}
               {loggedIn ? (
                 <div className="mt-5 rounded-2xl border-2 border-primary bg-secondary p-4">
                   <div className="flex items-center gap-2">
@@ -238,7 +286,6 @@ export function CartDrawer({
                 </button>
               )}
 
-              {/* Promo code (always visible) */}
               <div className="mt-3 rounded-2xl border-2 border-border bg-background p-4">
                 <div className="flex items-center gap-2">
                   <Tag size={16} className="text-primary" />
@@ -283,7 +330,6 @@ export function CartDrawer({
               </div>
             </div>
 
-            {/* Totals + checkout */}
             <div className="border-t border-border px-5 py-4">
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">

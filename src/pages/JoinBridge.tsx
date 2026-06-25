@@ -1016,7 +1016,7 @@ function Layout({
 }: { children: React.ReactNode; restaurantName: string; subtitle?: string; onBack?: () => void; rightAction?: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-black">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           {onBack ? (
             <button type="button" onClick={onBack} className="rounded-lg p-2 text-zinc-300 hover:bg-white/5">

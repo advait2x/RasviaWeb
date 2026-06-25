@@ -126,7 +126,7 @@ function CloveDiningShell() {
           onOpenProfile={() => setProfileOpen(true)}
         />
 
-        <main className="pt-[60px]">
+        <main className="pt-[78px]">
           {activeTab === "home" ? <HomeTab onNavigate={navigate} /> : null}
           {activeTab === "about" ? <AboutTab /> : null}
           {activeTab === "menu" ? <MenuTab /> : null}

@@ -229,7 +229,11 @@ The landing page (`LandingPage.tsx`) includes a top navbar, hero section, featur
 
 Theme follows the global `ThemeProvider` (`rasvia:web:theme-mode` on `document.documentElement`). The navbar uses `ThemeIconToggle` (desktop + mobile “Appearance” row). Marketing sections use light surfaces as the default (`bg-zinc-50`, white cards) with `dark:` variants; feature-gallery mockups stay dark-themed inside their shells.
 
-**Product marketing pages:** Copy and nav metadata live in `src/data/marketing-products.ts`. Routes: `/products` (hub), `/products/waitlists-kiosk`, `/products/tableside-qr`, `/products/kitchen`, `/products/menu-qr`, `/products/reports`. Layout: `src/components/marketing/MarketingLayout.tsx` (shared header/footer). `App.tsx` wires these paths before the default `/` landing render.
+**Marketing motion (June 2026):** CSS choreography lives in `index.css` (`.mkt-enter`, `.mkt-float`, `.mkt-menu-in`, `.mkt-dropdown-in`) with easing tokens `--mkt-ease-out` / `--mkt-ease-expo`. Landing hero uses staggered page-load entrance only; founder cards use `useRevealOnce` (`hooks/useRevealOnce.ts`) for one list stagger. No scroll-reveal on every section. CTAs use `motion-safe:active:scale-[0.98]` via `marketingUi.ts`. All motion gated behind `@media (prefers-reduced-motion: no-preference)` plus the global reduced-motion reset.
+
+**Marketing color tokens (June 2026):** OKLCH amber-tinted neutrals in `index.css` (`--mkt-ink`, `--mkt-canvas`, `--mkt-section-alt`, `--mkt-accent-bg`, `--mkt-trust`, etc.). `lib/marketingUi.ts` consumes these vars. Strategy is Committed accent (amber) on Restrained surfaces; emerald `--mkt-trust` reserved for success/trust checkmarks only.
+
+**Product marketing pages:** Copy and nav metadata live in `src/data/marketing-products.ts`. Routes: `/products` (hub), `/products/custom-app`, `/products/custom-website`, `/products/waitlists-kiosk`, `/products/tableside-qr`, `/products/kitchen`, `/products/menu-qr`, `/products/reports`. Layout: `src/components/marketing/MarketingLayout.tsx` (shared header/footer). `App.tsx` wires these paths before the default `/` landing render.
 
 **Tableside self-order QR (June 2026):** Fixed per-table QRs encode `https://rasvia.com/t?r=<restaurantId>&table=<label>`. Public resolver: `src/pages/TableJoin.tsx` + `tableside-session` edge function + `tableside_resolve_session` RPC. Partner dashboard: `TablesidePanel.tsx` (QR grid/PDF via `src/lib/tableside-qr-pdf.ts`) + live `self_serve` sessions. Migration: `20260602160000_tableside_self_serve.sql`. Keep mirrored with Rasvia1. Join UX (`JoinBridge.tsx`) supports **solo diners**: `canProceedToCheckout` allows one guest on `self_serve` sessions; solo path skips split review and goes straight to lock + pay. Shared helpers live in `src/lib/party-session.ts`. **Host transfer (web join):** hosts tap a member chip → `MemberItemsModal` → **Make host** (`party_host_transfer_host`, single host max — outgoing host demoted) or **Remove from group** while `session.status === 'open'`; regular group orders require app guests (`canBecomePartyHost`), self-serve tableside may transfer to web joiners. Migration: `20260606120000_party_single_host_max.sql`. Staff tableside controls also live in `TablesideSessionDetailOverlay.tsx`. **Orders tab cancel:** `OrdersPanel.tsx` calls `refund-order` (via `src/lib/order-refund.ts`) for card/party orders before marking `cancelled`; cash-only orders skip Stripe. **Order editing:** click a card or **Edit** to open `OrderEditModal.tsx` (details, items, void/comp/discount/split/merge/transfer).
 
@@ -431,3 +435,13 @@ structure re-skins per client. Key files in `src/clove/`:
 The **Catering tab** (`tabs/CateringTab.tsx`) is now a real page (intro, hero
 slideshow, packages grid, how-it-works steps, CTA → contact). Copy lives in
 `data.ts` (`CLOVE_CATERING_*`). It takes an `onNavigate` prop like `HomeTab`.
+
+## Design Context (Impeccable)
+
+Strategic and visual design specs live at the repo root for UI work:
+
+- **`PRODUCT.md`** — Register: **brand** (marketing-first). Primary audience: prospective restaurant partners. Voice: confident operator; anti-references include generic SaaS landing scaffolding (cream backgrounds, eyebrow kickers, identical icon-card grids).
+- **`DESIGN.md`** — Visual system: Bricolage Grotesque, amber-on-zinc palette, shadcn/ui + `lib/dashboardUi.ts` tokens, flat elevation with hairline borders. Creative north star: *The Operator's Briefing*.
+- **`.impeccable/design.json`** — Machine-readable sidecar for live variant mode (component snippets, tonal ramps, named rules).
+
+Before marketing or dashboard UI changes, read `PRODUCT.md` and `DESIGN.md`. Use `$impeccable` commands for critique, polish, live iteration, etc.

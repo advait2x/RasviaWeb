@@ -11,12 +11,14 @@ export function CloveOverlay({
   title,
   children,
   maxWidthClass = "max-w-md",
+  zIndexClass = "z-[100]",
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
   maxWidthClass?: string;
+  zIndexClass?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -36,7 +38,7 @@ export function CloveOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-10 sm:items-center"
+      className={`fixed inset-0 ${zIndexClass} flex items-start justify-center overflow-y-auto px-4 py-10 sm:items-center`}
       style={{ backgroundColor: "rgba(15, 23, 42, 0.55)" }}
       onClick={onClose}
       role="presentation"

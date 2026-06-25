@@ -35,7 +35,7 @@ export function HomeTab({ onNavigate }: { onNavigate: (tab: CloveTabId) => void 
   const heroImageY = useTransform(scrollY, [0, 500], [0, PARALLAX_PX]);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="clove-home-compact mx-auto max-w-6xl px-6 py-10">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section

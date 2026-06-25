@@ -9,18 +9,19 @@ import {
 } from "react";
 import { CLOVE_PROMO } from "@/clove/data";
 import type { CloveMenuItem } from "@/clove/lib/menu";
+import { cartLineKey, defaultPickerSpiceLevel, itemSupportsSpice } from "@/clove/lib/spice";
 
 export type CloveCartLine = {
+  lineKey: string;
   id: number;
   name: string;
   price: number;
   qty: number;
+  spicyLevel: number;
 };
 
 type PromoState = {
-  /** The applied promo code (already normalized), or null. */
   applied: string | null;
-  /** Discount in dollars from the applied promo. */
   discount: number;
 };
 
@@ -31,16 +32,15 @@ type CloveCartContextValue = {
   discount: number;
   total: number;
   promoApplied: string | null;
-  addItem: (item: CloveMenuItem) => void;
-  removeItem: (id: number) => void;
-  setQty: (id: number, qty: number) => void;
+  addItem: (item: CloveMenuItem, spicyLevel?: number) => void;
+  removeItem: (lineKey: string) => void;
+  setQty: (lineKey: string, qty: number) => void;
   clear: () => void;
-  /** Returns true if the code was valid and applied. */
   applyPromo: (code: string) => boolean;
   removePromo: () => void;
 };
 
-const STORAGE_KEY = "clove:cart:v1";
+const STORAGE_KEY = "clove:cart:v2";
 
 const CloveCartContext = createContext<CloveCartContextValue | null>(null);
 
@@ -48,12 +48,40 @@ function readStoredLines(): CloveCartLine[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      const legacy = window.localStorage.getItem("clove:cart:v1");
+      if (!legacy) return [];
+      const parsed = JSON.parse(legacy);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((l) => l && typeof l.id === "number" && typeof l.qty === "number")
+        .map((l) => {
+          const spicyLevel = 0;
+          return {
+            lineKey: cartLineKey(l.id, spicyLevel),
+            id: l.id,
+            name: String(l.name ?? ""),
+            price: Number(l.price) || 0,
+            qty: l.qty,
+            spicyLevel,
+          };
+        });
+    }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (l) => l && typeof l.id === "number" && typeof l.qty === "number",
-    );
+    return parsed
+      .filter((l) => l && typeof l.id === "number" && typeof l.qty === "number")
+      .map((l) => {
+        const spicyLevel = typeof l.spicyLevel === "number" ? l.spicyLevel : 0;
+        return {
+          lineKey: l.lineKey ?? cartLineKey(l.id, spicyLevel),
+          id: l.id,
+          name: String(l.name ?? ""),
+          price: Number(l.price) || 0,
+          qty: l.qty,
+          spicyLevel,
+        };
+      });
   } catch {
     return [];
   }
@@ -71,35 +99,42 @@ export function CloveCartProvider({ children }: { children: ReactNode }) {
     }
   }, [lines]);
 
-  const addItem = useCallback((item: CloveMenuItem) => {
+  const addItem = useCallback((item: CloveMenuItem, spicyLevel?: number) => {
+    const level = itemSupportsSpice(item)
+      ? (spicyLevel ?? defaultPickerSpiceLevel(item))
+      : 0;
+    const key = cartLineKey(item.id, level);
+
     setLines((prev) => {
-      const existing = prev.find((l) => l.id === item.id);
+      const existing = prev.find((l) => l.lineKey === key);
       if (existing) {
         return prev.map((l) =>
-          l.id === item.id ? { ...l, qty: l.qty + 1 } : l,
+          l.lineKey === key ? { ...l, qty: l.qty + 1 } : l,
         );
       }
       return [
         ...prev,
         {
+          lineKey: key,
           id: item.id,
           name: item.name,
           price: item.price,
           qty: 1,
+          spicyLevel: level,
         },
       ];
     });
   }, []);
 
-  const removeItem = useCallback((id: number) => {
-    setLines((prev) => prev.filter((l) => l.id !== id));
+  const removeItem = useCallback((lineKey: string) => {
+    setLines((prev) => prev.filter((l) => l.lineKey !== lineKey));
   }, []);
 
-  const setQty = useCallback((id: number, qty: number) => {
+  const setQty = useCallback((lineKey: string, qty: number) => {
     setLines((prev) =>
       qty <= 0
-        ? prev.filter((l) => l.id !== id)
-        : prev.map((l) => (l.id === id ? { ...l, qty } : l)),
+        ? prev.filter((l) => l.lineKey !== lineKey)
+        : prev.map((l) => (l.lineKey === lineKey ? { ...l, qty } : l)),
     );
   }, []);
 
@@ -131,7 +166,6 @@ export function CloveCartProvider({ children }: { children: ReactNode }) {
     [lines],
   );
 
-  // Cap discount at the subtotal so the total never goes negative.
   const effectiveDiscount = promo.applied ? Math.min(promo.discount, subtotal) : 0;
   const total = Math.max(0, subtotal - effectiveDiscount);
 
