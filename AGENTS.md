@@ -36,7 +36,7 @@ RasviaWeb/
 │   │   ├── PartnerProfilePage.tsx  # Restaurant partner profile
 │   │   ├── RestaurantSharePreview.tsx  # Social sharing preview
 │   │   ├── VerifyEmailPage.tsx   # Email verification landing
-│   │   ├── ContactPage.tsx       # Contact form
+│   │   ├── ContactPage.tsx       # Free mockup lead form (/support)
 │   │   ├── PrivacyPage.tsx       # Privacy policy
 │   │   └── TermsPage.tsx         # Terms of service
 │   ├── components/
@@ -140,6 +140,7 @@ All edge functions that modify data or access sensitive APIs:
 - `create-checkout` guest path is limited to valid open `party_session_id` flows only
 - `payment-redirect` must use parsed URL allowlisting (`rasvia://`, rasvia.com, localhost) to prevent open redirects
 - The Stripe webhook **requires** `STRIPE_WEBHOOK_SECRET` for signature verification
+- `submit-mockup-request` is public + rate-limited; validates/sanitizes lead fields server-side and sends email to `support@rasvia.com` via Hostinger SMTP (never expose `SMTP_PASSWORD` to the client)
 
 ## Environment Variables
 
@@ -151,6 +152,8 @@ VITE_SUPABASE_ANON_KEY=<Supabase anon key>
 Edge functions use these secrets (configured in Supabase Dashboard):
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `SMTP_HOST` (default `smtp.hostinger.com`), `SMTP_PORT` (default `465`), `SMTP_USER` (default `support@rasvia.com`), `SMTP_PASSWORD` — required for `submit-mockup-request` (mockup lead form)
+- Optional: `MOCKUP_REQUEST_TO_EMAIL` — comma-separated override for lead recipients (default: `support@rasvia.com`, `rithwik@rasvia.com`, `advait@rasvia.com`, `akshaj@rasvia.com`)
 
 ## Node.js, npm, and lockfile (CI / deploy)
 
@@ -226,6 +229,8 @@ Current repo defaults:
 ## Landing Page Navigation & Content
 
 The landing page (`LandingPage.tsx`) includes a top navbar, hero section, feature gallery, pricing section, about/founders section, and footer. All navigation categories and content data are defined as constants at the top of the file for easy editing.
+
+**Free mockup lead form:** Every “See a free mockup” CTA links to `/support` (`ContactPage.tsx`). The form collects restaurant name, cuisine, mockup type (website / app / both), **current ordering setup** (multi-select checkboxes), and **email or phone** (at least one; US phone validated). Submit calls `submit-mockup-request` edge function (Hostinger SMTP → default team inboxes).
 
 Theme follows the global `ThemeProvider` (`rasvia:web:theme-mode` on `document.documentElement`). The navbar uses `ThemeIconToggle` (desktop + mobile “Appearance” row). Marketing sections use light surfaces as the default (`bg-zinc-50`, white cards) with `dark:` variants; feature-gallery mockups stay dark-themed inside their shells.
 

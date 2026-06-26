@@ -112,6 +112,17 @@ export const MKT_LABEL = "text-sm font-medium text-[var(--mkt-ink)]";
 export const MKT_INPUT =
   "rounded-lg border border-[var(--mkt-border)] bg-[var(--mkt-accent-bg)] transition-[border-color,box-shadow] focus-within:border-[var(--mkt-accent-border)] focus-within:ring-2 focus-within:ring-amber-500/25";
 
+/** Invalid single-line field — amber attention on marketing surfaces */
+export const MKT_FIELD_ERROR_SHELL =
+  "rounded-lg border-2 border-amber-600/70 bg-[var(--mkt-accent-bg-strong)] ring-2 ring-amber-500/25 focus-within:border-amber-600 focus-within:ring-amber-500/30";
+
+/** Invalid choice group (radio/checkbox clusters) */
+export const MKT_GROUP_ERROR_SHELL =
+  "rounded-xl border-2 border-amber-600/70 bg-[var(--mkt-accent-bg)] p-3 ring-2 ring-amber-500/20";
+
+/** Inline validation copy */
+export const MKT_FIELD_ERROR_MESSAGE = "text-sm font-medium text-amber-900 dark:text-amber-300";
+
 /** Auth / form card — border only, no ghost shadow */
 export const MKT_FORM_CARD =
   "overflow-hidden rounded-xl border border-[var(--mkt-border)] bg-[var(--mkt-surface-raised)]";

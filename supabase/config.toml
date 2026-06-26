@@ -62,3 +62,9 @@ enabled = true
 verify_jwt = false
 # Public table QR resolver; validates restaurant + rate limits; calls tableside_resolve_session.
 entrypoint = "./functions/tableside-session/index.ts"
+
+[functions.submit-mockup-request]
+enabled = true
+verify_jwt = false
+# Public marketing lead form; rate-limited; sends email via Hostinger SMTP (SMTP_PASSWORD).
+entrypoint = "./functions/submit-mockup-request/index.ts"
