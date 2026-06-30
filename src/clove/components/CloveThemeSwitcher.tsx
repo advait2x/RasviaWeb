@@ -2,19 +2,81 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Palette } from "lucide-react";
 import { useCloveTheme } from "@/clove/CloveThemeContext";
 import { themeSwatch } from "@/clove/themes";
+import type { CloveTheme } from "@/clove/themes";
+
+type CloveThemeSwitcherProps = {
+  className?: string;
+  variant?: "dropdown" | "inline";
+};
+
+function ThemeOptionList({
+  themes,
+  themeId,
+  onSelect,
+}: {
+  themes: CloveTheme[];
+  themeId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <>
+      {themes.map((t) => {
+        const swatch = themeSwatch(t);
+        const active = t.id === themeId;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onSelect(t.id)}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+              active ? "bg-secondary" : "hover:bg-secondary/60"
+            }`}
+          >
+            <span className="flex flex-shrink-0 items-center -space-x-1.5">
+              <span
+                className="h-6 w-6 rounded-full ring-2 ring-popover"
+                style={{ background: swatch.primary }}
+              />
+              <span
+                className="h-6 w-6 rounded-full ring-2 ring-popover"
+                style={{ background: swatch.accent }}
+              />
+              <span
+                className="h-6 w-6 rounded-full ring-2 ring-popover"
+                style={{ background: swatch.highlight }}
+              />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-bold text-popover-foreground">
+                {t.label}
+              </span>
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {t.description}
+              </span>
+            </span>
+            {active ? <Check size={16} className="flex-shrink-0 text-primary" /> : null}
+          </button>
+        );
+      })}
+    </>
+  );
+}
 
 /**
  * Live theme switcher for the microsite. Lets a prospect (or us, during a
  * sales demo) flip the entire restaurant identity in one tap so they can see
  * how drastically the same template re-skins per client.
  */
-export function CloveThemeSwitcher({ className = "" }: { className?: string }) {
+export function CloveThemeSwitcher({
+  className = "",
+  variant = "dropdown",
+}: CloveThemeSwitcherProps) {
   const { themes, themeId, setThemeId, theme } = useCloveTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (variant !== "dropdown" || !open) return;
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
@@ -27,9 +89,32 @@ export function CloveThemeSwitcher({ className = "" }: { className?: string }) {
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, variant]);
 
   const activeSwatch = themeSwatch(theme);
+
+  const handleSelect = (id: string) => {
+    setThemeId(id);
+    setOpen(false);
+  };
+
+  if (variant === "inline") {
+    return (
+      <div className={className}>
+        <div className="rounded-2xl border-2 border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-sm font-bold text-foreground">Restaurant theme</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              Each preset is a different client identity — same template, new look.
+            </p>
+          </div>
+          <div className="flex max-h-[40vh] flex-col overflow-y-auto p-1.5">
+            <ThemeOptionList themes={themes} themeId={themeId} onSelect={handleSelect} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -57,47 +142,7 @@ export function CloveThemeSwitcher({ className = "" }: { className?: string }) {
             </p>
           </div>
           <div className="flex max-h-[60vh] flex-col overflow-y-auto p-1.5">
-            {themes.map((t) => {
-              const swatch = themeSwatch(t);
-              const active = t.id === themeId;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    setThemeId(t.id);
-                    setOpen(false);
-                  }}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                    active ? "bg-secondary" : "hover:bg-secondary/60"
-                  }`}
-                >
-                  <span className="flex flex-shrink-0 items-center -space-x-1.5">
-                    <span
-                      className="h-6 w-6 rounded-full ring-2 ring-popover"
-                      style={{ background: swatch.primary }}
-                    />
-                    <span
-                      className="h-6 w-6 rounded-full ring-2 ring-popover"
-                      style={{ background: swatch.accent }}
-                    />
-                    <span
-                      className="h-6 w-6 rounded-full ring-2 ring-popover"
-                      style={{ background: swatch.highlight }}
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-popover-foreground">
-                      {t.label}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
-                      {t.description}
-                    </span>
-                  </span>
-                  {active ? <Check size={16} className="flex-shrink-0 text-primary" /> : null}
-                </button>
-              );
-            })}
+            <ThemeOptionList themes={themes} themeId={themeId} onSelect={handleSelect} />
           </div>
         </div>
       ) : null}

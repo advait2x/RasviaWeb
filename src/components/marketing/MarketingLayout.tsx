@@ -61,10 +61,16 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
         Skip to content
       </a>
 
-      <header className={cn("fixed left-0 right-0 top-0 z-50", MKT_TOP_BAR)}>
+      <header
+        className={cn(
+          "fixed left-0 right-0 top-0 z-50 flex flex-col",
+          MKT_TOP_BAR,
+          mobileOpen && "h-dvh md:h-auto",
+        )}
+      >
         <div
           data-marketing-nav-bar
-          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3"
+          className="mx-auto flex w-full max-w-7xl shrink-0 items-center justify-between px-6 py-3"
         >
           <div className="flex min-w-0 flex-1 items-center gap-6">
             <div className="flex flex-shrink-0 items-center gap-2">
@@ -139,7 +145,7 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
 
         <div
           className={cn(
-            "grid overflow-hidden transition-[grid-template-rows] duration-250 ease-[var(--mkt-ease-out)] md:hidden",
+            "grid min-h-0 flex-1 overflow-hidden transition-[grid-template-rows] duration-250 ease-[var(--mkt-ease-out)] md:hidden",
             mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
           aria-hidden={!mobileOpen}
@@ -147,12 +153,12 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
           <div
             id="marketing-mobile-nav"
             className={cn(
-              "min-h-0 max-h-[25dvh] overflow-y-auto overscroll-contain border-t border-[var(--mkt-border-subtle)] bg-white dark:border-white/10 dark:bg-zinc-900",
+              "min-h-0 overflow-y-auto overscroll-contain border-t border-[var(--mkt-border-subtle)] bg-white dark:border-white/10 dark:bg-zinc-900",
               !mobileOpen && "pointer-events-none",
             )}
           >
             {mobileOpen ? (
-              <div className="mkt-menu-in mx-auto max-w-7xl space-y-1 px-4 py-3 pb-8">
+              <div className="mkt-menu-in mx-auto flex min-h-full max-w-7xl flex-col space-y-1 px-4 py-3 pb-8">
               <button
                 type="button"
                 className={MKT_TOP_BAR_MOBILE_LINK}

@@ -6,6 +6,13 @@ import { MenuItemDetailOverlay } from "@/clove/components/MenuItemDetailOverlay"
 import { MenuTagChips } from "@/clove/components/MenuTagChips";
 import { SpicyBadge } from "@/clove/components/SpicyBadge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   fetchCloveMenu,
   fetchCloveMenuTags,
   formatPrice,
@@ -81,7 +88,10 @@ export function MenuTab() {
       <header className="text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Menu</p>
         <h1 className="mt-3 text-4xl font-black tracking-tight text-foreground">Our Menu</h1>
-        <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+        <p className="mx-auto mt-3 max-w-xl text-muted-foreground md:hidden">
+          Choose a category below and tap a dish to customize and add to your cart.
+        </p>
+        <p className="mx-auto mt-3 hidden max-w-xl text-muted-foreground md:block">
           Browse categories on the left and tap a dish to customize and add to your cart.
         </p>
       </header>
@@ -97,9 +107,26 @@ export function MenuTab() {
           Our menu is being prepared. Please check back soon.
         </p>
       ) : (
-        <div className="mt-8 flex gap-4">
-          {/* Left category sidebar — 20% width, all categories visible */}
-          <aside className="w-[20%] min-w-[5.5rem] shrink-0">
+        <div className="mt-8 flex flex-col gap-4 md:flex-row">
+          <div className="sticky top-[78px] z-10 md:hidden">
+            <Select
+              value={activeCategory ?? undefined}
+              onValueChange={setActiveCategory}
+            >
+              <SelectTrigger className="h-11 w-full rounded-xl border-2 border-border bg-card text-sm font-semibold">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.name} value={cat.name}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <aside className="hidden w-[20%] min-w-[5.5rem] shrink-0 md:block">
             <nav className="sticky top-[78px] flex flex-col gap-1.5">
               {categories.map((cat) => {
                 const isActive = cat.name === activeCategory;
@@ -110,7 +137,7 @@ export function MenuTab() {
                     onClick={() => setActiveCategory(cat.name)}
                     whileHover={{ scale: 1.01 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`whitespace-normal break-words rounded-xl border-2 px-2 py-2 text-left text-[11px] font-semibold leading-snug transition-colors sm:px-3 sm:text-xs ${
+                    className={`whitespace-normal break-words rounded-xl border-2 px-3 py-2 text-left text-xs font-semibold leading-snug transition-colors ${
                       isActive
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-card text-foreground hover:bg-secondary"
@@ -123,13 +150,12 @@ export function MenuTab() {
             </nav>
           </aside>
 
-          {/* Item grid — 80% */}
           <motion.div
             key={activeCategory}
             variants={gridVariants}
             initial="hidden"
             animate="visible"
-            className="min-w-0 flex-1 grid content-start items-start gap-4 sm:grid-cols-2"
+            className="min-w-0 flex-1 grid content-start items-start gap-4 md:grid-cols-2"
           >
             {activeItems.map((item) => {
               const quickKey = cartLineKey(
@@ -152,18 +178,18 @@ export function MenuTab() {
                       setSelectedItem(item);
                     }
                   }}
-                  className="flex h-auto w-full cursor-pointer self-start gap-4 rounded-2xl border-2 border-border bg-card p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-auto w-full cursor-pointer flex-col gap-4 self-start rounded-2xl border-2 border-border bg-card p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-row"
                 >
-                  <MenuItemNoImage className="h-24 w-24 shrink-0 rounded-xl border border-border" compact />
+                  <MenuItemNoImage className="h-40 w-full shrink-0 rounded-xl border border-border sm:h-24 sm:w-24" compact />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
                       <h3 className="flex items-center gap-2 text-base font-bold text-foreground">
                         <span className="line-clamp-2">{item.name}</span>
                         {item.isVegetarian ? (
                           <Leaf size={14} className="flex-shrink-0 text-primary" />
                         ) : null}
                       </h3>
-                      <span className="flex-shrink-0 text-sm font-black text-foreground">
+                      <span className="flex-shrink-0 text-sm font-black text-foreground sm:text-right">
                         {formatPrice(item.price)}
                       </span>
                     </div>
@@ -188,7 +214,7 @@ export function MenuTab() {
                       }}
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="mt-2 inline-flex w-fit items-center gap-2 self-end rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground sm:w-fit sm:self-end"
                     >
                       <Plus size={13} />
                       {justAddedKey === quickKey ? "Added!" : "Add to cart"}
