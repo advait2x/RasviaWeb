@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, ShoppingBag, User, X } from "lucide-react";
+import { ArrowLeft, Menu, ShoppingBag, User, X } from "lucide-react";
 import { ThemeIconToggle } from "@/components/ThemeToggle";
 import { CloveThemeSwitcher } from "@/clove/components/CloveThemeSwitcher";
 import { MKT_TOP_BAR_THEME_TOGGLE } from "@/lib/marketingUi";
@@ -239,6 +239,16 @@ export function CloveNav({
                 <ThemeIconToggle className={cn("scale-110", MKT_TOP_BAR_THEME_TOGGLE)} />
               </div>
               <CloveThemeSwitcher variant="inline" />
+            </div>
+
+            <div className="mt-auto border-t border-white/10 pt-4">
+              <a
+                href="/"
+                className="flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <ArrowLeft size={20} className="flex-shrink-0" />
+                Back to rasvia.com
+              </a>
             </div>
           </div>
         </div>

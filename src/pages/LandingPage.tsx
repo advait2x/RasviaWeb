@@ -132,7 +132,7 @@ const FOUNDERS = [
   },
   {
     name: "Advait Sagi",
-    role: "CEO & Co-Founder",
+    role: "CEO & Founder",
     bio: "Engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
     initials: "AS",
     imageSrc: null as string | null,

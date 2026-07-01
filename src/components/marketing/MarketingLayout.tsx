@@ -9,11 +9,12 @@ import {
   MKT_TOP_BAR_LINK_ACTIVE,
   MKT_TOP_BAR_MOBILE_LINK,
   MKT_TOP_BAR_THEME_TOGGLE,
+  MKT_BTN_OUTLINE,
 } from "@/lib/marketingUi";
 import { cn } from "@/lib/utils";
 import type { MarketingProductSlug } from "@/data/marketing-products";
 import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
-import { scrollToLandingSection, scrollToLandingSectionFromMobileNav } from "@/lib/marketing-nav";
+import { CLOVE_BASE_PATH } from "@/clove/data";
 
 type MarketingLayoutProps = {
   children: React.ReactNode;
@@ -130,6 +131,15 @@ export function MarketingLayout({ children, activeSlug }: MarketingLayoutProps) 
             <div className={cn(mobileOpen ? "inline-flex" : "hidden sm:inline-flex")}>
               <ThemeIconToggle variant="marketing" className={MKT_TOP_BAR_THEME_TOGGLE} />
             </div>
+            <a
+              href={CLOVE_BASE_PATH}
+              className={cn(
+                MKT_BTN_OUTLINE,
+                "inline-flex min-h-0 px-2.5 py-1.5 text-[11px] sm:px-4 sm:py-2.5 sm:text-sm",
+              )}
+            >
+              View Demo Site
+            </a>
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
