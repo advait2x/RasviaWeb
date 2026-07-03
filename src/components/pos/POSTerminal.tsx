@@ -118,8 +118,11 @@ export default function POSTerminal() {
 
   const handleSendToKitchen = useCallback(() => {
     if (!currentOrderId) return;
-    updateOrderStatus(currentOrderId, "preparing");
-    clearState();
+    void updateOrderStatus(currentOrderId, "preparing")
+      .then(() => clearState())
+      .catch(() => {
+        /* toast shown in context */
+      });
   }, [currentOrderId, updateOrderStatus]);
 
   const handleHoldOrder = useCallback(async () => {

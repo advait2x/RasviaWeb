@@ -133,7 +133,7 @@ const FOUNDERS = [
   {
     name: "Advait Sagi",
     role: "CEO & Founder",
-    bio: "Engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
+    bio: "Computer engineering student at Texas A&M University passionate about market analytics, consumer psychology, and driving impactful business strategy.",
     initials: "AS",
     imageSrc: null as string | null,
   },
@@ -752,7 +752,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div>
+          <div id="team">
             <h3 className={cn("mb-8 text-xl font-bold", MKT_HEADING)}>Meet the founders</h3>
             <div ref={foundersRef} className="grid gap-8 md:grid-cols-3">
               {FOUNDERS.map((founder, index) => (

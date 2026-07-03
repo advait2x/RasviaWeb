@@ -307,7 +307,7 @@ export default function RestaurantMediaCarousel() {
                         onClick={() => openLightbox(slide.imageUrl)}
                         className="overflow-hidden rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                       >
-                        <img src={imgSrc} alt="" className="h-24 w-24 object-cover" />
+                        <img src={imgSrc} alt={linked ? `${linked.name} menu slide preview` : `Slide ${index + (includeDefaultStarter ? 2 : 1)} preview`} className="h-24 w-24 object-cover" />
                       </button>
                     ) : (
                       <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-dashed border-white/10 bg-zinc-950/80 text-xs text-zinc-600">No image</div>
@@ -435,7 +435,7 @@ export default function RestaurantMediaCarousel() {
                         onClick={() => openLightbox(slide.imageUrl)}
                         className="shrink-0 overflow-hidden rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                       >
-                        <img src={toPublicImageUrl(slide.imageUrl)} alt="" className="h-20 w-20 object-cover" />
+                        <img src={toPublicImageUrl(slide.imageUrl)} alt={`Slide ${index + (includeDefaultStarter ? 2 : 1)} preview`} className="h-20 w-20 object-cover" />
                       </button>
                     </div>
                   )}

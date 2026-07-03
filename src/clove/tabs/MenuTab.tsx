@@ -169,17 +169,20 @@ export function MenuTab() {
                   variants={cardVariants}
                   whileHover={{ scale: 1.02 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedItem(item)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedItem(item);
-                    }
-                  }}
-                  className="flex h-auto w-full cursor-pointer flex-col gap-4 self-start rounded-2xl border-2 border-border bg-card p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-row"
+                  className="flex h-auto w-full flex-col gap-4 self-start rounded-2xl border-2 border-border bg-card p-4 text-left sm:flex-row"
                 >
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedItem(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedItem(item);
+                      }
+                    }}
+                    className="flex min-w-0 flex-1 cursor-pointer flex-col gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-row"
+                  >
                   <MenuItemNoImage className="h-40 w-full shrink-0 rounded-xl border border-border sm:h-24 sm:w-24" compact />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
@@ -206,12 +209,11 @@ export function MenuTab() {
                         {item.description}
                       </p>
                     ) : null}
+                  </div>
+                  </div>
                     <motion.button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAdd(item);
-                      }}
+                      onClick={() => handleAdd(item)}
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.25, ease: "easeOut" }}
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground sm:w-fit sm:self-end"
@@ -219,7 +221,6 @@ export function MenuTab() {
                       <Plus size={13} />
                       {justAddedKey === quickKey ? "Added!" : "Add to cart"}
                     </motion.button>
-                  </div>
                 </motion.article>
               );
             })}

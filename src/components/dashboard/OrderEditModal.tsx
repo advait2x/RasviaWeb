@@ -436,6 +436,13 @@ export default function OrderEditModal({
     });
   };
 
+  const handleIncreaseQuantity = (item: Order["items"][number]) => {
+    if (!order) return;
+    void updateItemQuantity(order.id, item.id, item.quantity + 1).catch((err) => {
+      toast.error(err instanceof Error ? err.message : "Could not update quantity");
+    });
+  };
+
   const handleSaveItemNote = async (itemId: string) => {
     if (!order) return;
     try {
@@ -830,9 +837,9 @@ export default function OrderEditModal({
                       {canEditItems && !item.voided && !item.comped && (
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
                           <div className="flex items-center gap-1">
-                            <QtyBtn onClick={() => handleDecreaseQuantity(item)}><Minus size={12} /></QtyBtn>
+                            <QtyBtn label="Decrease quantity" onClick={() => handleDecreaseQuantity(item)}><Minus size={12} /></QtyBtn>
                             <span className="w-6 text-center text-xs font-bold tabular-nums">{item.quantity}</span>
-                            <QtyBtn onClick={() => updateItemQuantity(order.id, item.id, item.quantity + 1)}><Plus size={12} /></QtyBtn>
+                            <QtyBtn label="Increase quantity" onClick={() => handleIncreaseQuantity(item)}><Plus size={12} /></QtyBtn>
                           </div>
                           <div className="flex items-center gap-1">
                             <IconBtn title="Edit note" onClick={() => { setEditingNoteItemId(item.id); setNoteDraft(item.specialInstructions ?? ""); }}>
@@ -904,13 +911,23 @@ export default function OrderEditModal({
                   <ActionBtn
                     icon={Bell}
                     label="Notify guest"
-                    onClick={() => notifyCustomer(order.id)}
+                    onClick={() => {
+                      void notifyCustomer(order.id).catch(() => {
+                        /* toast shown in context */
+                      });
+                    }}
                     disabled={!order.customerPhone || order.status !== "ready"}
                   />
                   <ActionBtn
                     icon={ShoppingBag}
                     label="Mark completed"
-                    onClick={() => { updateOrderStatus(order.id, "completed"); toast.success("Marked completed"); }}
+                    onClick={() => {
+                      void updateOrderStatus(order.id, "completed")
+                        .then(() => toast.success("Marked completed"))
+                        .catch(() => {
+                          /* toast shown in context */
+                        });
+                    }}
                     disabled={order.status === "completed" || order.status === "cancelled"}
                   />
                   {onRequestCancel && (
@@ -1219,9 +1236,9 @@ function Field({ label, children, className }: { label: string; children: React.
   );
 }
 
-function QtyBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function QtyBtn({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
   return (
-    <button type="button" onClick={onClick} className="w-7 h-7 rounded-lg bg-zinc-700/60 border border-white/5 flex items-center justify-center text-zinc-300 hover:bg-zinc-700">
+    <button type="button" aria-label={label} onClick={onClick} className="w-7 h-7 rounded-lg bg-zinc-700/60 border border-white/5 flex items-center justify-center text-zinc-300 hover:bg-zinc-700">
       {children}
     </button>
   );
@@ -1229,7 +1246,7 @@ function QtyBtn({ children, onClick }: { children: React.ReactNode; onClick: () 
 
 function IconBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title: string }) {
   return (
-    <button type="button" title={title} onClick={onClick} className="w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-zinc-200">
+    <button type="button" title={title} aria-label={title} onClick={onClick} className="w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-zinc-200">
       {children}
     </button>
   );

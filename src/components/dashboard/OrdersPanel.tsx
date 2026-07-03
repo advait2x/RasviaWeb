@@ -219,12 +219,20 @@ export default function OrdersPanel() {
 
     const handleAdvanceStatus = (orderId: string, currentStatus: OrderStatus) => {
         const next = NEXT_STATUS[currentStatus];
-        if (next) updateOrderStatus(orderId, next);
+        if (next) {
+            void updateOrderStatus(orderId, next).catch(() => {
+                /* toast shown in context */
+            });
+        }
     };
 
     const handleReverseStatus = (orderId: string, currentStatus: OrderStatus) => {
         const prev = PREV_STATUS[currentStatus];
-        if (prev) updateOrderStatus(orderId, prev);
+        if (prev) {
+            void updateOrderStatus(orderId, prev).catch(() => {
+                /* toast shown in context */
+            });
+        }
     };
 
     const handleCancelOrder = async (order: Order) => {
@@ -523,7 +531,11 @@ export default function OrdersPanel() {
                                             {order.orderType !== "dine_in" && order.customerPhone && order.status === "ready" && (
                                                 <motion.button
                                                     whileTap={{ scale: 0.9 }}
-                                                    onClick={() => notifyCustomer(order.id)}
+                                                    onClick={() => {
+                                                        void notifyCustomer(order.id).catch(() => {
+                                                            /* toast shown in context */
+                                                        });
+                                                    }}
                                                     title={order.customerNotifiedAt
                                                         ? `Notified at ${order.customerNotifiedAt.toLocaleTimeString()}`
                                                         : "Notify customer order is ready"}

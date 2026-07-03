@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
 import type { MarketingProductSlug } from "@/data/marketing-products";
 import { ProductsNavDropdown, ProductsNavMobileLinks } from "@/components/marketing/ProductsNavMenu";
 import { CLOVE_BASE_PATH } from "@/clove/data";
+import {
+  scrollToLandingSection,
+  scrollToLandingSectionFromMobileNav,
+} from "@/lib/marketing-nav";
 
 type MarketingLayoutProps = {
   children: React.ReactNode;

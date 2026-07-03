@@ -180,10 +180,13 @@ export default function KitchenDisplay() {
       };
       const next = forward[order.status];
       if (!next) return;
-      updateOrderStatus(order.id, next);
-      toast.success(
-        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`
-      );
+      void updateOrderStatus(order.id, next)
+        .then(() => {
+          toast.success(`Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`);
+        })
+        .catch(() => {
+          /* toast shown in context */
+        });
     },
     [updateOrderStatus]
   );
@@ -197,10 +200,13 @@ export default function KitchenDisplay() {
       };
       const next = back[order.status];
       if (!next) return;
-      updateOrderStatus(order.id, next);
-      toast.success(
-        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`
-      );
+      void updateOrderStatus(order.id, next)
+        .then(() => {
+          toast.success(`Order #${order.id.slice(-4)} → ${STATUS_LABEL[next]}`);
+        })
+        .catch(() => {
+          /* toast shown in context */
+        });
     },
     [updateOrderStatus]
   );
@@ -208,10 +214,13 @@ export default function KitchenDisplay() {
   const setStatus = useCallback(
     (order: Order, status: OrderStatus) => {
       if (status === order.status) return;
-      updateOrderStatus(order.id, status);
-      toast.success(
-        `Order #${order.id.slice(-4)} → ${STATUS_LABEL[status]}`
-      );
+      void updateOrderStatus(order.id, status)
+        .then(() => {
+          toast.success(`Order #${order.id.slice(-4)} → ${STATUS_LABEL[status]}`);
+        })
+        .catch(() => {
+          /* toast shown in context */
+        });
     },
     [updateOrderStatus]
   );

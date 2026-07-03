@@ -77,7 +77,12 @@ export default function RestaurantSharePreview() {
         if (menuError) throw menuError;
 
         setRestaurant(restaurantData as Restaurant);
-        setMenu(menuData ?? []);
+        setMenu(
+          (menuData ?? []).filter(
+            (row) => (row as { is_available?: boolean | null }).is_available !== false
+              && ((row as { in_stock?: boolean | null }).in_stock ?? true),
+          ),
+        );
         const formatTime = (raw?: string | null) => {
           if (!raw) return "";
           const [h, m] = raw.split(":").map((x) => Number(x));

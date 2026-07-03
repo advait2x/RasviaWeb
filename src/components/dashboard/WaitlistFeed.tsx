@@ -59,9 +59,14 @@ export default function WaitlistFeed() {
 
   const handleCancelConfirm = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    cancelParty(id);
-    setCancelConfirmId(null);
-    setExpandedRow(null);
+    void cancelParty(id)
+      .then(() => {
+        setCancelConfirmId(null);
+        setExpandedRow(null);
+      })
+      .catch(() => {
+        /* toast shown in context */
+      });
   };
 
   const handleCancelDismiss = (e: React.MouseEvent) => {
@@ -211,7 +216,7 @@ export default function WaitlistFeed() {
                               className={DASH_WAITLIST_NOTIFY_CONFIRM}
                             >
                               <Bell size={13} strokeWidth={1.5} className={DASH_WAITLIST_NOTIFY_ICON} />
-                              <span className={DASH_WAITLIST_NOTIFY_TEXT}>Party will be notified via SMS</span>
+                              <span className={DASH_WAITLIST_NOTIFY_TEXT}>Mark this party as notified?</span>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => setNotifyConfirmId(null)}
@@ -221,7 +226,13 @@ export default function WaitlistFeed() {
                               </motion.button>
                               <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => { notifyParty(entry.id); setNotifyConfirmId(null); }}
+                                onClick={() => {
+                                  void notifyParty(entry.id)
+                                    .then(() => setNotifyConfirmId(null))
+                                    .catch(() => {
+                                      /* toast shown in context */
+                                    });
+                                }}
                                 className={DASH_WAITLIST_NOTIFY_SEND}
                               >
                                 Send

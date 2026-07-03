@@ -12,7 +12,11 @@ export default function VerifyEmailPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    if (window.location.host !== CANONICAL_VERIFY_HOST) {
+    const isLocalDev =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.endsWith(".local");
+    if (!isLocalDev && window.location.host !== CANONICAL_VERIFY_HOST) {
       const target = `${WEB_FALLBACK_BASE_URL}/verify-email${window.location.search}${window.location.hash}`;
       window.location.replace(target);
       return;

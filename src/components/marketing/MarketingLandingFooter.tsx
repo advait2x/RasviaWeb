@@ -55,7 +55,7 @@ export function MarketingLandingFooter() {
               <li>
                 <button
                   type="button"
-                  onClick={() => scrollToLandingSection("about")}
+                  onClick={() => scrollToLandingSection("team")}
                   className={cn("text-sm transition-colors hover:text-zinc-900 dark:hover:text-white", MKT_BODY)}
                 >
                   Team

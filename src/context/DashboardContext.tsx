@@ -68,15 +68,15 @@ interface DashboardState {
   combineTablesForParty: (tableIds: string[]) => string | null;
   splitCombinedTable: (combinedId: string) => void;
   createOrder: (tableId: string, orderType: OrderType, guestName?: string, partySize?: number, customerPhone?: string) => Promise<Order>;
-  addItemToOrder: (orderId: string, menuItemId: string, qty: number, specialInstructions?: string, dietType?: DietType) => void;
-  removeItemFromOrder: (orderId: string, itemId: string) => void;
-  updateItemQuantity: (orderId: string, itemId: string, qty: number) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  addItemToOrder: (orderId: string, menuItemId: string, qty: number, specialInstructions?: string, dietType?: DietType) => Promise<void>;
+  removeItemFromOrder: (orderId: string, itemId: string) => Promise<void>;
+  updateItemQuantity: (orderId: string, itemId: string, qty: number) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderDetails: (orderId: string, patch: OrderDetailsPatch) => Promise<void>;
   updateOrderItemInstructions: (orderId: string, itemId: string, instructions: string) => Promise<void>;
   getOrdersForTable: (tableId: string) => Order[];
   clearTableWithTip: (tableId: string, tipAmount: number, tipPercent: number, notes?: string) => Promise<void>;
-  notifyCustomer: (orderId: string) => void;
+  notifyCustomer: (orderId: string) => Promise<void>;
   preorderCount: number;
 
   // POS functions
@@ -370,15 +370,19 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!restaurantId) return;
     const todayIndex = new Date().getDay(); // 0=Sun Ã¢â‚¬Â¦ 6=Sat
     const fetch = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("restaurant_hours")
         .select("open_time, close_time")
         .eq("restaurant_id", restaurantId)
         .eq("day_of_week", todayIndex)
         .limit(1)
         .maybeSingle();
+      if (error) {
+        console.error("Failed to fetch restaurant hours:", error.message);
+        return;
+      }
       if (!data) {
-        // No row for today Ã¢â€ â€™ treat as closed
+        // No row for today -> treat as closed
         setRestaurantOpen(false);
       } else {
         const openTime = (data.open_time as string).slice(0, 5);
@@ -559,7 +563,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       phone_number: phone,
       status: "waiting",
     });
-    if (error) console.error("addWalkIn failed:", error.message);
+    if (error) {
+      console.error("addWalkIn failed:", error.message);
+      toast.error("Could not add walk-in. Please try again.");
+      throw new Error(error.message);
+    }
   }, [restaurantId]);
 
   const bulkAddWalkIns = useCallback(
@@ -627,15 +635,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .from("waitlist_entries")
       .update({ status: "cancelled" })
       .eq("id", waitlistId);
-    if (error) console.error("cancelParty failed:", error.message);
+    if (error) {
+      console.error("cancelParty failed:", error.message);
+      toast.error("Could not remove party from waitlist.");
+      throw new Error(error.message);
+    }
   }, []);
 
   const notifyParty = useCallback(async (waitlistId: string) => {
+    const notifiedAt = new Date().toISOString();
     const { error } = await supabase
       .from("waitlist_entries")
-      .update({ notified_at: new Date().toISOString() })
+      .update({ notified_at: notifiedAt })
       .eq("id", waitlistId);
-    if (error) console.error("notifyParty failed:", error.message);
+    if (error) {
+      console.error("notifyParty failed:", error.message);
+      toast.error("Could not record notification. Please try again.");
+      throw new Error(error.message);
+    }
+    setWaitlist((prev) =>
+      prev.map((w) => (w.id === waitlistId ? { ...w, notifiedAt: new Date(notifiedAt) } : w)),
+    );
+    toast.success("Party marked as notified");
   }, []);
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Menu mutations Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1077,7 +1098,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             if (orderType === "takeout" || orderType === "pre_order") {
               const label = orderType === "takeout" ? "Takeout" : "Pre-Order";
               toast(`New ${label} order received`, {
-                description: `Table ${row.table_number} Ã‚Â· ${guestName}`,
+                description: `Table ${row.table_number} · ${guestName}`,
               });
               setNotifications((prev) => [{
                 id: `n-order-${Date.now()}`,
@@ -1262,6 +1283,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setOrders((prev) =>
           prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
         );
+        toast.error("Could not add item to order.");
         return;
       }
 
@@ -1304,6 +1326,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setOrders((prev) =>
         prev.map((o) => (o.id !== orderId ? o : { ...o, items: priorItems, ...recalcOrderTotals(priorItems) })),
       );
+      toast.error("Could not add item to order.");
       return;
     }
 
@@ -1447,7 +1470,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const patch: Record<string, unknown> = { status };
     if (status === "completed" || status === "cancelled") patch.closed_at = new Date().toISOString();
-    await supabase.from("orders").update(patch).eq("id", Number(orderId));
+    const { error } = await supabase.from("orders").update(patch).eq("id", Number(orderId));
+    if (error) {
+      console.error("updateOrderStatus failed:", error.message);
+      toast.error("Could not update order status.");
+      throw new Error(error.message);
+    }
     setOrders((prev) => prev.map((o) => o.id !== orderId ? o : {
       ...o, status, updatedAt: new Date(),
       completedAt: status === "completed" || status === "cancelled" ? new Date() : o.completedAt,
@@ -1571,12 +1599,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).maybeSingle();
     const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, customerNotifiedAt: notifiedAt });
-    await supabase.from("orders").update({ notes: newMeta }).eq("id", Number(orderId));
+    const { error: updateError } = await supabase.from("orders").update({ notes: newMeta }).eq("id", Number(orderId));
+    if (updateError) {
+      console.error("notifyCustomer failed:", updateError.message);
+      toast.error("Could not record customer notification.");
+      throw new Error(updateError.message);
+    }
     setOrders((prev) => prev.map((o) =>
       o.id !== orderId ? o : { ...o, customerNotifiedAt: new Date(notifiedAt) }
     ));
     toast(`Customer notified`, {
-      description: `${order.guestName} Ã‚Â· ${order.customerPhone}`,
+      description: `${order.guestName} · ${order.customerPhone}`,
     });
   }, [orders]);
 
@@ -1588,13 +1621,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     for (const o of tableOrders) {
       const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(o.id)).maybeSingle();
       const existingMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
-      await supabase.from("orders").update({
+      const { error } = await supabase.from("orders").update({
         status: "completed",
         closed_at: new Date().toISOString(),
         tip_amount: tipAmount,
         tip_percent: tipPercent,
         notes: JSON.stringify({ ...existingMeta, sessionNotes: notes }),
       }).eq("id", Number(o.id));
+      if (error) {
+        console.error("clearTableWithTip failed:", error.message);
+        toast.error("Could not clear table. Some orders may not have been updated.");
+        return;
+      }
     }
 
     // Optimistic update local state
@@ -1631,11 +1669,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchDiscounts = useCallback(async () => {
     if (!restaurantId) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("discounts")
       .select("*")
       .eq("restaurant_id", restaurantId)
       .eq("active", true);
+    if (error) {
+      console.error("fetchDiscounts failed:", error.message);
+      return;
+    }
     setDiscounts((data ?? []).map((d) => ({
       id: String(d.id),
       restaurantId: d.restaurant_id,
@@ -1651,11 +1693,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchItemModifiers = useCallback(async () => {
     if (!restaurantId) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("item_modifiers")
       .select("*")
       .eq("restaurant_id", restaurantId)
       .eq("active", true);
+    if (error) {
+      console.error("fetchItemModifiers failed:", error.message);
+      return;
+    }
     setItemModifiers((data ?? []).map((m) => ({
       id: String(m.id),
       restaurantId: m.restaurant_id,
@@ -1670,12 +1716,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchHeldOrders = useCallback(async () => {
     if (!restaurantId) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("held_orders")
       .select("*")
       .eq("restaurant_id", restaurantId)
       .is("resumed_at", null)
       .order("created_at", { ascending: false });
+    if (error) {
+      console.error("fetchHeldOrders failed:", error.message);
+      return;
+    }
     setHeldOrders((data ?? []).map((h) => ({
       id: String(h.id),
       restaurantId: h.restaurant_id,
@@ -1691,7 +1741,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const fetchActiveShift = useCallback(async () => {
     if (!restaurantId) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("shifts")
       .select("*")
       .eq("restaurant_id", restaurantId)
@@ -1699,6 +1749,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) {
+      console.error("fetchActiveShift failed:", error.message);
+      return;
+    }
     if (data) {
       setActiveShift({
         id: String(data.id),
@@ -1853,7 +1907,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       ? Math.round(order.subtotal * (discount.value / 100) * 100) / 100
       : Math.min(discount.value, order.subtotal);
 
-    const { data } = await supabase.from("order_discounts").insert({
+    const { data, error: insertError } = await supabase.from("order_discounts").insert({
       order_id: Number(orderId),
       discount_id: discount.discountId ? Number(discount.discountId) : null,
       name: discount.name,
@@ -1864,8 +1918,19 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       approved_by: approvedBy,
     }).select().single();
 
+    if (insertError) {
+      console.error("applyOrderDiscount insert failed:", insertError.message);
+      toast.error("Could not apply discount.");
+      throw new Error(insertError.message);
+    }
+
     const newDiscountTotal = (order.discountTotal ?? 0) + appliedAmount;
-    await supabase.from("orders").update({ discount_total: newDiscountTotal }).eq("id", Number(orderId));
+    const { error: updateError } = await supabase.from("orders").update({ discount_total: newDiscountTotal }).eq("id", Number(orderId));
+    if (updateError) {
+      console.error("applyOrderDiscount update failed:", updateError.message);
+      toast.error("Discount was recorded but order total could not be updated.");
+      throw new Error(updateError.message);
+    }
 
     if (data) {
       setOrders((prev) => prev.map((o) => {
@@ -1923,10 +1988,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const { data: row } = await supabase.from("orders").select("notes").eq("id", Number(orderId)).maybeSingle();
     const currentMeta = row ? parseMeta((row as Record<string, unknown>).notes as string | null).meta : {};
     const newMeta = JSON.stringify({ ...currentMeta, tableId: newTableId });
-    await supabase.from("orders").update({
+    const { error } = await supabase.from("orders").update({
       table_number: String(newTable.tableNumber),
       notes: newMeta,
     }).eq("id", Number(orderId));
+
+    if (error) {
+      console.error("transferOrder failed:", error.message);
+      toast.error("Could not transfer order.");
+      throw new Error(error.message);
+    }
 
     setOrders((prev) => prev.map((o) =>
       o.id !== orderId ? o : { ...o, tableId: newTableId, tableNumber: newTable.tableNumber }
@@ -1946,10 +2017,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const newOrder = await createOrder(order.tableId, order.orderType, order.guestName + " (Split)", order.partySize);
 
     for (const item of splitItems) {
-      await supabase.from("order_items").update({ order_id: Number(newOrder.id) }).eq("id", Number(item.id));
+      const { error } = await supabase.from("order_items").update({ order_id: Number(newOrder.id) }).eq("id", Number(item.id));
+      if (error) {
+        console.error("splitOrder failed:", error.message);
+        toast.error("Order split failed. Refreshing orders.");
+        await fetchOrdersRef.current();
+        throw new Error(error.message);
+      }
     }
 
-    await supabase.from("orders").update({ split_from_order_id: Number(orderId) }).eq("id", Number(newOrder.id));
+    const { error: metaError } = await supabase.from("orders").update({ split_from_order_id: Number(orderId) }).eq("id", Number(newOrder.id));
+    if (metaError) {
+      console.error("splitOrder metadata failed:", metaError.message);
+      toast.error("Items were moved but split metadata could not be saved.");
+      await fetchOrdersRef.current();
+      throw new Error(metaError.message);
+    }
     await fetchOrdersRef.current();
 
     toast("Order split successfully");
